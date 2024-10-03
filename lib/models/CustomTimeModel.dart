@@ -33,7 +33,7 @@ class CustomTime {
   // Function to get the current time in WITA (GMT+8)
   factory CustomTime.getCurrentTime() {
     DateTime now = DateTime.now().toUtc();
-    DateTime witaTime = now.add(const Duration(hours: 8)); // GMT+8 (WITA)
+    DateTime witaTime = now.add(const Duration(hours: 8, minutes: 0)); // GMT+8 (WITA)
     String formattedDayName = DateFormat('EEEE', 'id_ID').format(witaTime);
     return CustomTime(
       year: witaTime.year,
@@ -50,7 +50,7 @@ class CustomTime {
   // Parse server time (UTC) and convert it to local WITA time
   factory CustomTime.fromServerTime(String serverTime) {
     DateTime utcTime = DateTime.parse(serverTime).toUtc();
-    DateTime witaTime = utcTime.add(const Duration(hours: 8)); // GMT+8 (WITA)
+    DateTime witaTime = utcTime.add(const Duration(hours: 8, minutes: 0)); // GMT+8 (WITA)
     String formattedDayName = DateFormat('EEEE', 'id_ID').format(witaTime);
     return CustomTime(
       year: witaTime.year,
@@ -87,10 +87,16 @@ class CustomTime {
     return DateFormat('EEEE, dd-MM-yyyy | HH:mm:ss', 'id_ID').format(time);
   }
 
+  // Get default date and time
+  DateTime getDefaultDateTime() {
+    DateTime time = DateTime(_year, _month, _day, _hours, _minutes, _seconds);
+    return time;
+  }
+
   // Post time in specific format (yyyy-MM-dd HH:mm:ss)
   String postTime() {
     DateTime time = DateTime(_year, _month, _day, _hours, _minutes, _seconds);
-    return DateFormat('yyyy-MM-dd HH:mm:ss').format(time);
+    return DateFormat('yyyy/MM/dd HH:mm:ss').format(time);
   }
 
   // Get formatted time without seconds (yyyy-MM-dd | HH:mm)

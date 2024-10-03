@@ -311,6 +311,7 @@ class _HomePageState extends BaseState<HomePage> {
                                                 ? _user?.displayName
                                                     ?.toUpperCase()
                                                 : 'ANONYMOUS');
+                                        // Provider.of<TimeProvider>(context, listen: false).stopUpdatingTime();
                                       },
                                       child: Container(
                                         padding: const EdgeInsets.all(8.0),

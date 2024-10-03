@@ -25,7 +25,11 @@ class DataProvider extends ChangeNotifier {
   // List<Pembukuan> _combinedData = [];
   // List<String> _sheetNames = [];
   // Map<String, List<Pembukuan>> _allSheetData = {};
-  Data _responsePostData = Data();
+
+  // Data _responsePostData = Data();
+  Data _dataAbsensi = Data();
+  bool _statusAbsensiPagi = false;
+  bool _statusAbsensiSiang = false;
 
   // bool _isData1Loaded = false;
   // bool _isData2Loaded = false;
@@ -45,7 +49,13 @@ class DataProvider extends ChangeNotifier {
 
   // Map<String, List<Pembukuan>> get allSheetData => _allSheetData;
 
-  Data get responsePostData=> _responsePostData;
+  // Data get responsePostData=> _responsePostData;
+
+  Data get dataAbsensi => _dataAbsensi;
+
+  bool get statusAbsensiPagi => _statusAbsensiPagi;
+
+  bool get statusAbsensiSiang => _statusAbsensiSiang;
 
   // bool get isData1Loaded => _isData1Loaded;
 
@@ -62,9 +72,10 @@ class DataProvider extends ChangeNotifier {
   String? get message => _message;
 
   Future<ApiResult> updateAttendance(
+      String waktuAbsensi,
     Attendance attendance,
   ) async {
-    final response = await _apiService.updateAttendance(attendance: attendance);
+    final response = await _apiService.updateAttendance(waktuAbsensi: waktuAbsensi, attendance: attendance);
     refreshData(true);
 
     _status = response.status;
@@ -73,12 +84,12 @@ class DataProvider extends ChangeNotifier {
     print("tai kambing: $_message");
     if (response.status == 'success') {
       refreshData(false, dataIsLoaded: false);
-      _responsePostData = response.data as Data;
+      _dataAbsensi = response.data as Data;
     } else {
       refreshData(false, dataIsLoaded: true);
     }
 
-    print('Hasil response update data: ${responsePostData.toString()}');
+    print('Hasil response update data: ${_dataAbsensi.toString()}');
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
