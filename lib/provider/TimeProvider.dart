@@ -1,3 +1,4 @@
+import 'package:absensitoko/utils/Helper.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:absensitoko/models/CustomTimeModel.dart';
@@ -15,6 +16,9 @@ class TimeProvider extends ChangeNotifier {
 
   bool _checkAbsenPagi = false;
   bool _checkAbsenSiang = false;
+  bool _tepatWaktuPagi = false;
+  bool _tepatWaktuSiang = false;
+  String _attendanceStatus = '';
 
   CustomTime get currentTime => _currentTime;
 
@@ -23,6 +27,8 @@ class TimeProvider extends ChangeNotifier {
   String get morningAttendanceMessage => _morningAttendanceMessage;
 
   String get afternoonAttendanceMessage => _afternoonAttendanceMessage;
+
+  String get attendanceStatus => _attendanceStatus;
 
   TimeProvider() {
     _startTimer();
@@ -64,14 +70,17 @@ class TimeProvider extends ChangeNotifier {
         storeCloseTime.add(const Duration(hours: 11, minutes: 30)))) {
       if (isAfternoon) {
         _afternoonAttendanceMessage = '';
+        resetAttendanceCheck('siang');
       } else {
         _morningAttendanceMessage = 'Toko Tutup';
+        resetAttendanceCheck('pagi');
       }
       _countDownText = _currentTime.getIdnTime();
     } else if (isWithinTimeRange(
-        now,
-        startTime.subtract(const Duration(hours: 1, minutes: 40)),
-        startTime.subtract(const Duration(minutes: 30))) && ! isAfternoon) {
+            now,
+            startTime.subtract(const Duration(hours: 1, minutes: 40)),
+            startTime.subtract(const Duration(minutes: 30))) &&
+        !isAfternoon) {
       _morningAttendanceMessage = 'Toko Belum Buka';
       _countDownText = _currentTime.getIdnTime();
     } else if (isWithinTimeRange(
@@ -81,39 +90,43 @@ class TimeProvider extends ChangeNotifier {
         ) &&
         isAfternoon) {
       DateTime breakTime = offTime.subtract(const Duration(hours: 2));
-      DateTime storeOpenSiangTime = offTime.subtract(const Duration(hours: 1));
+      DateTime siangStoreOpen = offTime.subtract(const Duration(hours: 1));
       _afternoonAttendanceMessage =
-          'Waktu ISHOMA, Jam: ${breakTime.hour}:${breakTime.minute} - ${storeOpenSiangTime.hour}:${storeOpenSiangTime.minute}\nDapat memulai absen jam: ${startTime.hour}:${startTime.minute}';
+          'Waktu ISHOMA, Jam: ${formatTime(breakTime)} - ${formatTime(siangStoreOpen)}\nAnda Dapat memulai absen jam: ${formatTime(startTime)}';
       _countDownText = _currentTime.getIdnTime();
     } else if (isWithinTimeRange(
         now, startTime.subtract(const Duration(minutes: 30)), startTime)) {
       if (isAfternoon) {
         _afternoonAttendanceMessage =
-            'Persiapan 30 menit sebelum absen ${isAfternoon ? 'Siang' : 'Pagi'} dimulai';
+            'Persiapan 30 menit sebelum absen Siang dimulai';
       } else {
         _morningAttendanceMessage =
-            'Persiapan 30 menit sebelum absen ${isAfternoon ? 'Siang' : 'Pagi'} dimulai';
+            'Persiapan 30 menit sebelum absen Pagi dimulai';
       }
       _countDownText = _formatDuration(startTime.difference(now));
     } else if (isWithinTimeRange(now, startTime, storeCloseTime) &&
-        (_checkAbsenPagi || _checkAbsenSiang)) {
-      if (isAfternoon) {
-        if (isWithinTimeRange(now, startTime, endTime)) {
-          _afternoonAttendanceMessage = attendanceOnTime;
-          _afternoonAttendanceMessage = 'Absen siang tepat waktu';
-        } else if (isWithinTimeRange(now, endTime, storeCloseTime)) {
-          _afternoonAttendanceMessage = attendanceOnLateTime;
-          _afternoonAttendanceMessage = 'Absen siang lewat waktu (Terlambat)';
-        }
-      } else {
-        if (isWithinTimeRange(now, startTime, endTime)) {
-          _morningAttendanceMessage = attendanceOnTime;
-          _morningAttendanceMessage = 'Absen pagi tepat waktu';
-        } else if (isWithinTimeRange(now, endTime, storeCloseTime)) {
-          _morningAttendanceMessage = attendanceOnLateTime;
-          _morningAttendanceMessage = 'Absen pagi lewat waktu (Terlambat)';
-        }
+        _checkAbsenPagi &&
+        !isAfternoon) {
+      if (isWithinTimeRange(now, startTime, endTime)) {
+        _morningAttendanceMessage = attendanceOnTime;
+        _tepatWaktuPagi = true;
+      } else if (isWithinTimeRange(now, endTime, storeCloseTime) &&
+          !_tepatWaktuPagi) {
+        _morningAttendanceMessage = attendanceOnLateTime;
       }
+      _attendanceStatus = '';
+      _countDownText = _currentTime.getIdnTime();
+    } else if (isWithinTimeRange(now, startTime, storeCloseTime) &&
+        _checkAbsenSiang &&
+        isAfternoon) {
+      if (isWithinTimeRange(now, startTime, endTime)) {
+        _afternoonAttendanceMessage = attendanceOnTime;
+        _tepatWaktuSiang = true;
+      } else if (isWithinTimeRange(now, endTime, storeCloseTime) &&
+          !_tepatWaktuSiang) {
+        _afternoonAttendanceMessage = attendanceOnLateTime;
+      }
+      _attendanceStatus = '';
       _countDownText = _currentTime.getIdnTime();
     } else if (isWithinTimeRange(now, startTime, endTime)) {
       if (isAfternoon) {
@@ -121,6 +134,7 @@ class TimeProvider extends ChangeNotifier {
       } else {
         _morningAttendanceMessage = onTimeMessage;
       }
+      _attendanceStatus = 'T';
       _countDownText = _formatDuration(endTime.difference(now));
     } else if (isWithinTimeRange(now, startTime, offTime)) {
       if (isAfternoon) {
@@ -128,6 +142,7 @@ class TimeProvider extends ChangeNotifier {
       } else {
         _morningAttendanceMessage = lateMessage;
       }
+      _attendanceStatus = 'L';
       _countDownText = _currentTime.getIdnTime();
     } else if (isWithinTimeRange(now, offTime, storeCloseTime)) {
       if (isAfternoon) {
@@ -139,10 +154,10 @@ class TimeProvider extends ChangeNotifier {
     } else {
       if (isAfternoon) {
         _afternoonAttendanceMessage = '';
-        _checkAbsenSiang = false;
+        resetAttendanceCheck('siang');
       } else {
-        _morningAttendanceMessage = '';
-        _checkAbsenPagi = false;
+        _morningAttendanceMessage = 'Toko Tutup';
+        resetAttendanceCheck('pagi');
       }
       _countDownText = _currentTime.getIdnTime();
     }
@@ -193,8 +208,8 @@ class TimeProvider extends ChangeNotifier {
       endSiang,
       offSiang,
       storeCloseTime,
-      'Absen siang tepat waktu',
-      'Absen siang lewat waktu (Terlambat)',
+      'Berhasil Absen siang tepat waktu',
+      'Berhasil Absen siang lewat waktu (Terlambat)',
       'Waktu tepat waktu absen siang',
       'Absen terlambat masuk siang',
       'Anda tidak hadir siang ini',
@@ -255,8 +270,19 @@ class TimeProvider extends ChangeNotifier {
   void onButtonClick(String type) {
     if (type == 'pagi' && !_checkAbsenPagi) {
       _checkAbsenPagi = true;
-    } else if (type == 'siang' && !_checkAbsenPagi) {
+    } else if (type == 'siang' && !_checkAbsenSiang) {
       _checkAbsenSiang = true;
     }
+  }
+
+  void resetAttendanceCheck(String type) {
+    if (type == 'pagi') {
+      _checkAbsenPagi = false;
+      _tepatWaktuPagi = false;
+    } else if (type == 'siang') {
+      _checkAbsenSiang = false;
+      _tepatWaktuSiang = false;
+    }
+
   }
 }

@@ -33,7 +33,7 @@ class CustomTime {
   // Function to get the current time in WITA (GMT+8)
   factory CustomTime.getCurrentTime() {
     DateTime now = DateTime.now().toUtc();
-    DateTime witaTime = now.add(const Duration(hours: 8, minutes: 0)); // GMT+8 (WITA)
+    DateTime witaTime = now.add(const Duration(hours: 14, minutes: 0)); // GMT+8 (WITA)
     String formattedDayName = DateFormat('EEEE', 'id_ID').format(witaTime);
     return CustomTime(
       year: witaTime.year,
