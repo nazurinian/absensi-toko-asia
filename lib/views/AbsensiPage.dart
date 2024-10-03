@@ -13,10 +13,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
 /// Yang kurang dihalaman ini adalah :
-/// - Timer waktu absen pagi dan siang, timer muncul ketika memasuki rentang waktu absen
-/// - Tombol absen pagi dan siang hanya bisa di klik ketika memasuki rentang waktu absen
-/// - Tombol absen pagi dan siang tidak bisa di klik ketika sudah absen
-/// - Rentang waktu terbagi menjadi dua rentang waktu, yaitu waktu on off tombol absen sekitar 3 jam, dan waktu absen tepat waktu 30 menit (20 menit lebih awal dan 10 menit tambahan)
+/// @Timer waktu absen pagi dan siang, timer muncul ketika memasuki rentang waktu absen
+/// @Tombol absen pagi dan siang hanya bisa di klik ketika memasuki rentang waktu absen
+/// @Tombol absen pagi dan siang tidak bisa di klik ketika sudah absen
+/// @Rentang waktu terbagi menjadi dua rentang waktu, yaitu waktu on off tombol absen sekitar 3 jam, dan waktu absen tepat waktu 30 menit (20 menit lebih awal dan 10 menit tambahan)
 /// - Pengecekan lokasi absen menggunakan gps fake atau asli
 /// - Kolom absensi T/L, 30 menit awal T, lewat dari itu L (absen pagi atau siang)
 /// - Pembuatan akun admin yang dapat mengelola :
