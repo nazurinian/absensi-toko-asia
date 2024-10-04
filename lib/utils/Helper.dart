@@ -94,6 +94,10 @@ String? getCountryFromPhoneNumber(String phoneNumber) {
   return null; // Jika tidak ada yang cocok
 }
 
+String formatTime(DateTime dateTime) {
+  return DateFormat('HH:mm', 'id_ID').format(dateTime);
+}
+
 /*
 String formatRupiah(int number) {
   final formatter = NumberFormat.currency(

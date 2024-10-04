@@ -79,16 +79,16 @@ class Data {
 
   factory Data.fromMap(Map<String, dynamic> json) => Data(
     // tanggal: json["Tanggal"] == null ? null : DateTime.parse(json["Tanggal"]),
-    tanggal: json["Tanggal"],
-    hari: json["Hari"],
-    tLPagi: json["T/L Pagi"],
+    tanggal: json["Tanggal"].toString(),
+    hari: json["Hari"].toString(),
+    tLPagi: json["T/L Pagi"].toString(),
     hadirPagi: json["Hadir Pagi"],
-    pointPagi: json["Point Pagi"],
-    tLSiang: json["T/L Siang"],
+    pointPagi: json["Point Pagi"].toString(),
+    tLSiang: json["T/L Siang"].toString(),
     pulangSiang: json["Pulang Siang"],
     hadirSiang: json["Hadir Siang"],
-    pointSiang: json["Point Siang"],
-    keterangan: json["Keterangan"],
+    pointSiang: json["Point Siang"].toString(),
+    keterangan: json["Keterangan"].toString(),
   );
 
   Map<String, dynamic> toMap() => {
