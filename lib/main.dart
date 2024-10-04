@@ -1,8 +1,6 @@
 import 'package:absensitoko/AppRouter.dart';
 import 'package:absensitoko/themes/theme.dart';
 import 'package:absensitoko/utils/ThemeUtil.dart';
-import 'package:absensitoko/views/AbsensiPage.dart';
-import 'package:absensitoko/views/MapPage.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
