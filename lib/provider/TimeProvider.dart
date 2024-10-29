@@ -174,8 +174,8 @@ class TimeProvider extends ChangeNotifier {
     );
 
     // Pagi Absence Logic
-    DateTime startPagi = DateTime(now.year, now.month, now.day, 6, 40);
-    DateTime endPagi = startPagi.add(const Duration(minutes: 30));
+    DateTime startPagi = DateTime(now.year, now.month, now.day, 6, 50);
+    DateTime endPagi = startPagi.add(const Duration(minutes: 14));
     DateTime offPagi = DateTime(now.year, now.month, now.day, 10, 0);
     DateTime storeCloseTime = DateTime(now.year, now.month, now.day, 17, 30);
 

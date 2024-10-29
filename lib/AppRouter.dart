@@ -19,9 +19,11 @@ class AppRouter {
             builder: (_) => AbsensiPage(employeeName: employeeName));
       case '/map':
         // Menerima LatLng sebagai arguments
-        final LatLng currentLocation = settings.arguments as LatLng;
+        final args = settings.arguments as MapPageArguments;
+        final LatLng storeLocation = args.storeLocation;
+        final double storeRadius = args.storeRadius;
         return MaterialPageRoute(
-          builder: (_) => MapPage(currentLocation: currentLocation),
+          builder: (_) => MapPage(storeLocation: storeLocation, storeRadius: storeRadius,),
         );
       default:
         // Route tidak ditemukan
@@ -32,4 +34,11 @@ class AppRouter {
         );
     }
   }
+}
+
+class MapPageArguments {
+  final LatLng storeLocation;
+  final double storeRadius;
+
+  MapPageArguments({required this.storeLocation, required this.storeRadius});
 }

@@ -1,13 +1,17 @@
+import 'package:absensitoko/models/UserModel.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:absensitoko/models/SessionModel.dart';
 import 'package:absensitoko/provider/TimeProvider.dart';
 import 'package:absensitoko/utils/BaseState.dart';
 import 'package:absensitoko/utils/CustomTextFormField.dart';
 import 'package:absensitoko/utils/Helper.dart';
-import 'package:absensitoko/utils/ListItem.dart';
 import 'package:absensitoko/utils/LoadingDialog.dart';
 import 'package:absensitoko/views/HomePage.dart';
 import 'package:absensitoko/provider/UserProvider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
@@ -25,12 +29,80 @@ class _LoginPageState extends BaseState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   bool _firstSubmit = true;
 
-  void _unFocus() {
-    _emailFocusNode.unfocus();
-    _passwordFocusNode.unfocus();
+  String _attendanceLocationStatus = 'Get Location Permission';
+  LatLng? _attendanceLocation;
+  String _deviceName = '';
+  UserModel? _currentUser;
+
+  // Mendapatkan id perangkat
+  Future<String> getDeviceName() async {
+    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+
+    if (Theme.of(context).platform == TargetPlatform.android) {
+      final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id;
+    } else if (Theme.of(context).platform == TargetPlatform.iOS) {
+      final IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.name ?? 'Unknown Device';
+    } else {
+      return 'Unsupported Platform';
+    }
+  }
+
+  // Minta izin akses lokasi
+  Future<void> _cekIzinLokasi() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      setState(() {
+        _attendanceLocationStatus = 'Izin lokasi belum diberikan';
+      });
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          _attendanceLocationStatus =
+              'Izin lokasi ditolak, harap berikan izin lokasi';
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        _attendanceLocationStatus =
+            'Izin lokasi ditolak permanen, harap berikan izin lokasi di pengaturan';
+      });
+      openAppSettings();
+      return;
+    }
+  }
+
+  // Cek apakah pengguna berada dalam radius absensi
+  Future<void> _cekLokasiSekali() async {
+    try {
+      Position posisiPengguna = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      setState(() {
+        _attendanceLocation = LatLng(
+          posisiPengguna.latitude,
+          posisiPengguna.longitude,
+        );
+      });
+
+    } catch (e) {
+      setState(() {
+        _attendanceLocationStatus = 'Terjadi kesalahan: $e';
+      });
+      safeContext((context) => LoadingDialog.hide(context));
+    }
   }
 
   Future<void> _login() async {
+    _cekIzinLokasi();
+
     setState(() {
       _firstSubmit = false;
     });
@@ -46,40 +118,59 @@ class _LoginPageState extends BaseState<LoginPage> {
         .postTime();
 
     LoadingDialog.show(context);
+    await _cekLokasiSekali();
+    await getDeviceName().then((value) {
+      setState(() {
+        _deviceName = value;
+      });
+    });
+
     try {
-      final message = await userProvider.loginUser(
-        _emailController.text,
-        _passwordController.text,
-        currentTime,
-      );
+      safeContext((context) async {
+        final message = await userProvider.loginUser(
+          context,
+          _emailController.text,
+          _passwordController.text,
+          currentTime,
+          _deviceName,
+          _attendanceLocation!,
+        );
 
-      if (message.status == 'success') {
-        final userData = userProvider.currentUser!;
+        if (message.status == 'success') {
+          final userData = userProvider.currentUser!;
 
-        if (userProvider.currentUser != null) {
-          final user = SessionModel(
-            uid: userData.uid,
-            email: userData.email,
-            role: userData.role,
-            loginTimestamp: userData.loginTimestamp,
-            isLogin: true,
-          );
-
-          await userProvider.saveSession(user);
-
-          safeContext((context) {
-            LoadingDialog.hide(context);
-            SnackbarUtil.showSnackbar(
-                context: context, message: message.message ?? '');
-
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const HomePage(),
-              ),
-              (route) => false,
+          if (userProvider.currentUser != null) {
+            final user = SessionModel(
+              uid: userData.uid,
+              email: userData.email,
+              role: userData.role,
+              loginTimestamp: userData.loginTimestamp,
+              loginDevice: _deviceName,
+              isLogin: true,
             );
-          });
+
+            await userProvider.saveSession(user);
+
+            safeContext((context) {
+              LoadingDialog.hide(context);
+              SnackbarUtil.showSnackbar(
+                  context: context, message: message.message ?? '');
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HomePage(),
+                ),
+                (route) => false,
+              );
+            });
+          } else {
+            safeContext((context) {
+              LoadingDialog.hide(context);
+              SnackbarUtil.showSnackbar(
+                  context: context, message: message.message ?? '');
+            });
+          }
         } else {
           safeContext((context) {
             LoadingDialog.hide(context);
@@ -87,13 +178,7 @@ class _LoginPageState extends BaseState<LoginPage> {
                 context: context, message: message.message ?? '');
           });
         }
-      } else {
-        safeContext((context) {
-          LoadingDialog.hide(context);
-          SnackbarUtil.showSnackbar(
-              context: context, message: message.message ?? '');
-        });
-      }
+      });
     } catch (e) {
       safeContext((context) {
         LoadingDialog.hide(context);
@@ -102,10 +187,12 @@ class _LoginPageState extends BaseState<LoginPage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
+  void _unFocus() {
+    _emailFocusNode.unfocus();
+    _passwordFocusNode.unfocus();
+  }
 
+  void _controllerListener() {
     _emailController.addListener(() {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         safeSetState(() {
@@ -124,6 +211,14 @@ class _LoginPageState extends BaseState<LoginPage> {
         });
       });
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    _cekIzinLokasi();
+    _controllerListener();
   }
 
   @override
@@ -152,14 +247,14 @@ class _LoginPageState extends BaseState<LoginPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 30.0),
+              const Padding(
+                padding: EdgeInsets.only(top: 30.0),
                 child: Center(
                   child: SizedBox(
                     width: 120,
                     height: 120,
                     // child: Image.asset(AppImage.kamus.path, fit: BoxFit.cover),
-                    child: const Icon(
+                    child: Icon(
                       Icons.account_circle,
                       size: 120,
                     ),

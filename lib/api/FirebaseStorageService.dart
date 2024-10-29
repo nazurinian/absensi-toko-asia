@@ -56,24 +56,3 @@ class FirebaseStorageService {
     }
   }
 }
-
-/*
-class FirebaseStorageService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
-
-  Future<String?> uploadProfilePicture(File imageFile, String uid) async {
-    try {
-      Reference storageRef = _storage.ref().child('profile_pictures/$uid');
-
-      UploadTask uploadTask = storageRef.putFile(imageFile);
-      TaskSnapshot snapshot = await uploadTask;
-
-      String downloadURL = await snapshot.ref.getDownloadURL();
-      return downloadURL;
-    } catch (e) {
-      print('Error uploading image: $e');
-      return null;
-    }
-  }
-}
-*/

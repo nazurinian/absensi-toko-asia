@@ -14,6 +14,9 @@ final Map<String, String> countryCodes = {
 
 const List<String> roleList = ['employee', 'other', 'admin'];
 
+const List<String> categories = ['Pagi', 'Siang', 'Libur', 'Cuti'];
+const List<String> subCategories = ['Telat', 'Izin', 'Sakit'];
+
 /*
 enum AppImage {
   kamus('assets/images/najwa_icon.png'),

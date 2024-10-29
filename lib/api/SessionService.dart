@@ -8,6 +8,7 @@ class SessionService {
     final email = prefs.getString('email');
     final role = prefs.getString('role');
     final loginTimestamp = prefs.getString('loginTimestamp');
+    final loginDevice = prefs.getString('loginDevice');
     final isLogin = prefs.getBool('isLogin') ?? false;
 
     if (uid != null) {
@@ -16,6 +17,7 @@ class SessionService {
         email: email,
         role: role,
         loginTimestamp: loginTimestamp,
+        loginDevice: loginDevice,
         isLogin: isLogin,
       );
     }
@@ -28,6 +30,7 @@ class SessionService {
     await prefs.setString('email', session.email ?? '');
     await prefs.setString('role', session.role ?? '');
     await prefs.setString('loginTimestamp', session.loginTimestamp ?? '');
+    await prefs.setString('loginDevice', session.loginDevice ?? '');
     await prefs.setBool('isLogin', session.isLogin);
   }
 
@@ -37,6 +40,7 @@ class SessionService {
     await prefs.remove('email');
     await prefs.remove('role');
     await prefs.remove('loginTimestamp');
+    await prefs.remove('loginDevice');
     await prefs.setBool('isLogin', false);
   }
 }

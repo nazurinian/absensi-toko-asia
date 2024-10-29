@@ -7,10 +7,11 @@ import 'package:absensitoko/api/FirestoreService.dart';
 import 'package:absensitoko/api/SessionService.dart';
 import 'package:absensitoko/models/SessionModel.dart';
 import 'package:absensitoko/models/UserModel.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class UserProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
-  final FirestoreService _firestoreService = FirestoreService();
+  final FirestoreService _fireStoreService = FirestoreService();
 
   SessionModel? _currentUserSession;
   UserModel? _currentUser;
@@ -40,16 +41,27 @@ class UserProvider extends ChangeNotifier {
 
   /// Auth Service Provider
   Future<ApiResult> loginUser(
-      String email,
-      String password,
-      String dateTime,
-      ) async {
+    BuildContext context,
+    String email,
+    String password,
+    String dateTime,
+    String loginDevice,
+    LatLng loginLocation,
+  ) async {
     _isLoading = true;
     _status = null;
     _message = null;
 
-    final response =
-    await _authService.loginUser(email, password, dateTime).timeout(
+    final response = await _authService
+        .loginUser(
+      context,
+      email,
+      password,
+      dateTime,
+      loginDevice,
+      loginLocation,
+    )
+        .timeout(
       const Duration(seconds: 10),
       onTimeout: () {
         _message = 'Login operation timed out';
@@ -62,8 +74,6 @@ class UserProvider extends ChangeNotifier {
     if (response.status == 'success') {
       _currentUser = response.data;
       _userDataIsLoaded = true;
-      await _firestoreService.updateUserProfileData(_currentUser!.uid,
-          loginTimestamp: dateTime);
     } else {
       _userDataIsLoaded = false;
     }
@@ -73,7 +83,7 @@ class UserProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-  Future<ApiResult> registerUser(
+/*  Future<ApiResult> registerUser(
       String email,
       String password,
       String dateTime,
@@ -97,10 +107,10 @@ class UserProvider extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
-  }
+  }*/
 
-  Future<ApiResult> signOut() async {
-    final response = await _authService.signOut();
+  Future<ApiResult> signOut(UserModel user) async {
+    final response = await _authService.signOut(user);
 
     _status = response.status;
     _message = response.message;
@@ -130,7 +140,7 @@ class UserProvider extends ChangeNotifier {
     _status = null;
     _message = null;
 
-    final response = await _firestoreService.getUser(uid);
+    final response = await _fireStoreService.getUser(uid);
 
     _status = response.status;
     _message = response.message;
@@ -151,7 +161,7 @@ class UserProvider extends ChangeNotifier {
     _status = null;
     _message = null;
 
-    final response = await _firestoreService.getAllUsers();
+    final response = await _fireStoreService.getAllUsers();
 
     _status = response.status;
     _message = response.message;
@@ -168,35 +178,28 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<ApiResult> updateUserProfile(
-      String uid, {
-        String? city,
-        String? displayName,
-        String? institution,
-        String? phoneNumber,
-        String? role,
-        String? photoURL,
-        String? loginTimestamp,
-        String? logoutTimestamp,
-        bool roleUpdated = false,
-        bool logout = false,
-      }) async {
-    if(!logout) {
-      _isLoading = true;
-      _status = null;
-      _message = null;
-    }
+    String uid, {
+    String? city,
+    String? displayName,
+    String? department,
+    String? phoneNumber,
+    String? role,
+    String? photoURL,
+    bool roleUpdated = false,
+  }) async {
+    _isLoading = true;
+    _status = null;
+    _message = null;
 
-    final updateFirestoreProfile = await _firestoreService
+    final updateFirestoreProfile = await _fireStoreService
         .updateUserProfileData(
       uid,
       city: city,
       displayName: displayName,
-      institution: institution,
+      department: department,
       phoneNumber: phoneNumber,
       photoURL: photoURL,
       role: role,
-      loginTimestamp: loginTimestamp,
-      logoutTimestamp: logoutTimestamp,
     )
         .timeout(
       const Duration(seconds: 10),
@@ -215,45 +218,39 @@ class UserProvider extends ChangeNotifier {
     }
 
     /// Ini buat update Profil Utama(if Atas) atau Updater Role(else Bawah)
-    /// Sedangkan jika logout = true, maka if ini akan dilewati
-    if(!logout) {
-      /// Ini Update Profil Utama
-      if (roleUpdated == false) {
-        final updateAuthProfile = await _authService.updateUserAuthData(
-          displayName: displayName,
-          phoneNumber: phoneNumber,
-          photoURL: photoURL,
-        );
+    /// Ini Update Profil Utama
+    if (roleUpdated == false) {
+      final updateAuthProfile = await _authService.updateUserAuthData(
+        displayName: displayName,
+        phoneNumber: phoneNumber,
+        photoURL: photoURL,
+      );
 
-        if (updateAuthProfile.status == 'error') {
-          _status = updateAuthProfile.status;
-          _message = updateAuthProfile.message;
-          _isLoading = false;
-          notifyListeners();
-          return ApiResult(status: _status ?? '', message: _message ?? '');
-        }
-
-        final response = await _firestoreService.getUser(uid);
-
-        _status = response.status;
-        _message = response.message;
-        if (response.status == 'success') {
-          _currentUser = response.data;
-        }
-
-        /// Ini Update Profil Akun Lain
-      } else {
-        final response = await _firestoreService.getAllUsers();
-
-        _status = response.status;
-        _message = response.message;
-        if (response.status == 'success') {
-          _listAllUser = response.data;
-        }
+      if (updateAuthProfile.status == 'error') {
+        _status = updateAuthProfile.status;
+        _message = updateAuthProfile.message;
+        _isLoading = false;
+        notifyListeners();
+        return ApiResult(status: _status ?? '', message: _message ?? '');
       }
+
+      final response = await _fireStoreService.getUser(uid);
+
+      _status = response.status;
+      _message = response.message;
+      if (response.status == 'success') {
+        _currentUser = response.data;
+      }
+
+      /// Ini Update Profil Akun Lain
     } else {
-      _status = updateFirestoreProfile.status;
-      _message = updateFirestoreProfile.message;
+      final response = await _fireStoreService.getAllUsers();
+
+      _status = response.status;
+      _message = response.message;
+      if (response.status == 'success') {
+        _listAllUser = response.data;
+      }
     }
 
     _isLoading = false;

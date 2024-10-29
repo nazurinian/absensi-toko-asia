@@ -83,13 +83,20 @@ class DataProvider extends ChangeNotifier {
     print("tai ayam1: $_status");
     print("tai kambing: $_message");
     if (response.status == 'success') {
+      print("pusing");
       refreshData(false, dataIsLoaded: false);
       _dataAbsensi = response.data as Data;
+      if (waktuAbsensi == 'pagi') {
+        _statusAbsensiPagi = true;
+      } else {
+        _statusAbsensiSiang = true;
+      }
+      print('Hasil response update data: ${_dataAbsensi.toString()}');
     } else {
+      print("gak pusing");
       refreshData(false, dataIsLoaded: true);
     }
 
-    print('Hasil response update data: ${_dataAbsensi.toString()}');
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }

@@ -1,3 +1,7 @@
+import 'package:absensitoko/themes/colors/Colors.dart';
+import 'package:absensitoko/utils/DialogUtils.dart';
+import 'package:absensitoko/utils/DisplaySize.dart';
+import 'package:absensitoko/utils/LoadingDialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:absensitoko/api/ApiResult.dart';
 import 'package:absensitoko/api/FirestoreService.dart';
@@ -5,23 +9,30 @@ import 'package:absensitoko/api/SessionService.dart';
 import 'package:absensitoko/models/SessionModel.dart';
 import 'package:absensitoko/models/UserModel.dart';
 import 'package:absensitoko/utils/FirebaseAuthErrorHelper.dart';
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirestoreService _firestoreService = FirestoreService();
+  final FirestoreService _fireStoreService = FirestoreService();
 
   Future<ApiResult<dynamic>> loginUser(
+    BuildContext context,
     String email,
     String password,
     String dateTime,
+    String loginDevice,
+    LatLng loginLocation,
   ) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
+        email: email,
+        password: password,
+      );
       User? firebaseUser = userCredential.user;
 
       if (firebaseUser != null) {
-        final response = await _firestoreService.getUser(firebaseUser.uid);
+        final response = await _fireStoreService.getUser(firebaseUser.uid);
 
         if (response.status == 'success') {
           UserModel? user = response.data;
@@ -33,38 +44,93 @@ class AuthService {
               email: firebaseUser.email ?? '',
               displayName: firebaseUser.displayName ?? '',
               phoneNumber: firebaseUser.phoneNumber ?? '',
-              city: '',
-              institution: '',
+              // city: '',
+              department: '',
               role: 'other',
               photoURL: firebaseUser.photoURL ?? '',
               firstTimeLogin: dateTime,
               loginTimestamp: dateTime,
               logoutTimestamp: '',
+              loginDevice: loginDevice,
+              loginLat: loginLocation.latitude.toString(),
+              loginLong: loginLocation.longitude.toString(),
             );
 
-            final saveResponse = await _firestoreService.saveUser(user);
+            final saveResponse = await _fireStoreService.saveUser(user);
             if (saveResponse.status == 'error') {
               return ApiResult(
                   status: 'error', message: 'Login pertama anda gagal');
             } else {
               message = 'Login pertama anda berhasil';
             }
+          } else {
+            user.loginTimestamp = dateTime;
+            user.loginLat = loginLocation.latitude.toString();
+            user.loginLong = loginLocation.longitude.toString();
+
+            print('user anjing: ${user.loginDevice.toString()}');
+
+            if (user.loginDevice!.isNotEmpty) {
+              print('user babi: ${user.toString()}');
+
+              final result = await showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Text('Konfirmasi Login'),
+                    content: const Text(
+                        'Anda telah login di perangkat lain sebelumnya, tetap login?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, 'cancel'),
+                        child: Text('Tidak'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, 'confirm'),
+                        child: Text('Ya'),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (result == 'cancel') {
+                await _auth.signOut();
+                message = 'Anda telah login di perangkat lain';
+              } else {
+                user.loginDevice = loginDevice;
+                final saveResponse = await _fireStoreService.updateUser(user);
+                if (saveResponse.status == 'success') {
+                  message = 'Login diperangkat baru berhasil';
+                  return ApiResult(
+                      status: 'success', message: message, data: user);
+                }
+                message = 'Login diperangkat baru gagal';
+              }
+              return ApiResult(status: 'error', message: message);
+            } else {
+              print('user setan: ${user.toString()}');
+              user.loginDevice = loginDevice;
+              final saveResponse = await _fireStoreService.updateUser(user);
+              if (saveResponse.status == 'error') {
+                return ApiResult(status: 'error', message: 'Login gagal');
+              } else {
+                message = 'Login berhasil';
+              }
+            }
           }
 
-          SessionModel userSession = SessionModel(
-            uid: firebaseUser.uid,
-            email: firebaseUser.email ?? '',
-            role: user.role ?? '',
-            loginTimestamp: dateTime,
-            isLogin: true,
-          );
-          await SessionService.saveSession(userSession);
+          // SessionModel userSession = SessionModel(
+          //   uid: firebaseUser.uid,
+          //   email: firebaseUser.email ?? '',
+          //   role: user.role ?? '',
+          //   loginTimestamp: dateTime,
+          //   loginDevice: loginDevice,
+          //   isLogin: true,
+          // );
+          // await SessionService.saveSession(userSession);
 
-          return ApiResult(
-            status: 'success',
-            message: message,
-            data: user,
-          );
+          return ApiResult(status: 'success', message: message, data: user);
         } else {
           return ApiResult(status: 'error', message: response.message);
         }
@@ -83,7 +149,7 @@ class AuthService {
     }
   }
 
-  Future<ApiResult<dynamic>> registerUser(
+/*  Future<ApiResult<dynamic>> registerUser(
     String email,
     String password,
     String dateTime,
@@ -103,8 +169,8 @@ class AuthService {
           email: firebaseUser.email ?? '',
           displayName: '',
           phoneNumber: '',
-          city: '',
-          institution: '',
+          // city: '',
+          department: '',
           role: 'other',
           photoURL: firebaseUser.photoURL ?? '',
           firstTimeLogin: dateTime,
@@ -132,12 +198,17 @@ class AuthService {
       print('Registration error: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
-  }
+  }*/
 
-  Future<ApiResult> signOut() async {
+/*  Future<ApiResult> signOut(UserModel user) async {
     try {
-      await _auth.signOut();
+      final saveResponse = await _firestoreService.updateUser(user);
+      if (saveResponse.status == 'error') {
+        return ApiResult(
+            status: 'error', message: 'Login gagal');
+      }
       await SessionService.clearSession();
+      await _auth.signOut();
       return ApiResult(status: 'success', message: 'Logout success');
     } on FirebaseAuthException catch (e) {
       print('FirebaseAuthException: ${e.message}');
@@ -147,6 +218,43 @@ class AuthService {
       print('Sign out error: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
+  }*/
+
+  Future<ApiResult> signOut(UserModel user) async {
+    // 1. Update status login di Firestore
+    try {
+      final saveResponse = await _fireStoreService.updateUser(user);
+      if (saveResponse.status == 'error') {
+        return ApiResult(
+            status: 'error',
+            message: 'Gagal memperbarui status login di Firestore');
+      }
+    } catch (e) {
+      print('Error memperbarui status login di Firestore: $e');
+    }
+
+    // 2. Hapus session di perangkat lokal
+    try {
+      await SessionService.clearSession();
+      print('Session berhasil dihapus dari perangkat lokal');
+    } catch (e) {
+      print('Error menghapus session di perangkat lokal: $e');
+    }
+
+    // 3. Logout dari sistem autentikasi
+    try {
+      await _auth.signOut();
+      print('Logout dari sistem autentikasi berhasil');
+    } on FirebaseAuthException catch (e) {
+      print('FirebaseAuthException: ${e.message}');
+      String errorMessage = FirebaseAuthErrorHelper.getErrorMessage(e);
+      return ApiResult(status: 'error', message: errorMessage);
+    } catch (e) {
+      print('Sign out error: $e');
+      return ApiResult(status: 'error', message: e.toString());
+    }
+
+    return ApiResult(status: 'success', message: 'Logout success');
   }
 
   Future<ApiResult<dynamic>> updateUserAuthData({

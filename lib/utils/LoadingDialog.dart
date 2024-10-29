@@ -4,7 +4,7 @@ class LoadingDialog {
   static void show(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return const Dialog(
           backgroundColor: Colors.transparent,

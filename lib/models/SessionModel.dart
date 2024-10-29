@@ -3,6 +3,7 @@ class SessionModel {
   final String? email;
   final String? role;
   final String? loginTimestamp;
+  final String? loginDevice;
   final bool isLogin;
 
   SessionModel({
@@ -10,6 +11,7 @@ class SessionModel {
     this.email,
     this.role,
     this.loginTimestamp,
+    this.loginDevice,
     this.isLogin = false,
   });
 
@@ -19,6 +21,7 @@ class SessionModel {
       'email': email,
       'role': role,
       'loginTimestamp': loginTimestamp,
+      'loginDevice': loginDevice,
       'isLogin': isLogin,
     };
   }
@@ -29,6 +32,7 @@ class SessionModel {
       email: map['email'],
       role: map['role'],
       loginTimestamp: map['loginTimestamp'],
+      loginDevice: map['loginDevice'],
       isLogin: map['isLogin'] ?? false,
     );
   }

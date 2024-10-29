@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:absensitoko/themes/colors/Colors.dart';
 import 'package:absensitoko/themes/fonts/Fonts.dart';
@@ -66,7 +68,7 @@ class DialogUtils {
                   },
                   child: Text(
                     confirmButton ?? 'Ok',
-                    // style: FontTheme.size14Bold(color: Colors.white),
+                    style: FontTheme.bodySmall(context, color: Colors.white),
                   ),
                 ),
               ),
@@ -84,18 +86,16 @@ class DialogUtils {
     String? cancel,
     bool? withPop = true,
     required Widget content,
-    required VoidCallback onConfirm,
-    VoidCallback? onCancel,
+    required FutureOr<dynamic> Function()? onConfirm,
+    FutureOr<dynamic> Function()? onCancel,
   }) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         final width = screenWidth(context);
-
         return AlertDialog(
           title: Text(
             title,
-            // style: FontTheme.size20Bold(color: Colors.black),
             textAlign: TextAlign.center,
           ),
           content: content,
@@ -110,14 +110,13 @@ class DialogUtils {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorsTheme.grayBD,
                     ),
-                    onPressed: () {
-                      if (onCancel != null) onCancel();
+                    onPressed: () async {
+                      if (onCancel != null) await onCancel();
                       if (withPop ?? true) Navigator.of(context).pop();
                     },
                     child: Center(
                       child: Text(
                         cancel ?? 'Tidak',
-                        // style: FontTheme.size14Bold(color: Colors.white),
                       ),
                     ),
                   ),
@@ -131,14 +130,13 @@ class DialogUtils {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorsTheme.blueBD,
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       if (withPop ?? true) Navigator.of(context).pop();
-                      onConfirm();
+                      if (onConfirm != null) await onConfirm();
                     },
                     child: Center(
                       child: Text(
                         confirm ?? 'Ya',
-                        // style: FontTheme.size14Bold(color: Colors.white),
                       ),
                     ),
                   ),

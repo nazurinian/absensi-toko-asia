@@ -2,7 +2,6 @@ import 'package:absensitoko/models/UserModel.dart';
 import 'package:absensitoko/provider/DataProvider.dart';
 import 'package:absensitoko/provider/TimeProvider.dart';
 import 'package:absensitoko/provider/UserProvider.dart';
-import 'package:absensitoko/themes/colors/Colors.dart';
 import 'package:absensitoko/themes/fonts/Fonts.dart';
 import 'package:absensitoko/utils/BaseState.dart';
 import 'package:absensitoko/utils/DialogUtils.dart';
@@ -10,13 +9,13 @@ import 'package:absensitoko/utils/DisplaySize.dart';
 import 'package:absensitoko/utils/Helper.dart';
 import 'package:absensitoko/utils/ListMenu.dart';
 import 'package:absensitoko/utils/LoadingDialog.dart';
-import 'package:absensitoko/utils/ThemeUtil.dart';
 import 'package:absensitoko/views/LoginPage.dart';
 import 'package:absensitoko/views/ProfilePage.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:provider/provider.dart';
+
+/// Yang harus dihilangkan dari profil akun : Kota asal, yang harus dirubah : Institusi -> Bagian
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -67,46 +66,35 @@ class _HomePageState extends BaseState<HomePage> {
     // _lockAccess = !roleList.contains(_user?.role?.toLowerCase());
   }
 
-  void _handleLogout() async {
+  void _handleLogout(UserModel user) async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final currentTime = Provider.of<TimeProvider>(context, listen: false)
-        .currentTime
-        .postTime();
+    // final currentTime = Provider.of<TimeProvider>(context, listen: false)
+    //     .currentTime
+    //     .postTime();
 
     LoadingDialog.show(context);
     try {
-      String uid = _user!.uid;
-      final message = await userProvider.updateUserProfile(uid,
-          logoutTimestamp: currentTime, logout: true);
+      // String uid = _user!.uid;
+      final message = await userProvider.signOut(user);
 
       if (message.status == 'success') {
-        final message = await userProvider.signOut();
+        print('Tai kambing?');
+        Future.delayed(const Duration(seconds: 1), () {
+          LoadingDialog.hide(context);
+          SnackbarUtil.showSnackbar(
+              context: context, message: 'Anda telah logout');
 
-        if (message.status == 'success') {
-          print('Tai kambing?');
-          Future.delayed(const Duration(seconds: 1), () {
-            LoadingDialog.hide(context);
-            SnackbarUtil.showSnackbar(
-                context: context, message: 'Anda telah logout');
-
-            userProvider.clearAccountData();
-            Provider.of<DataProvider>(context, listen: false).clearData();
-            print('Data Cleared');
-          }).then((_) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginPage()),
-              (route) => false,
-            );
-          });
-          // });
-        } else {
-          safeContext((context) {
-            LoadingDialog.hide(context);
-            SnackbarUtil.showSnackbar(
-                context: context, message: message.message ?? 'Error');
-          });
-        }
+          userProvider.clearAccountData();
+          Provider.of<DataProvider>(context, listen: false).clearData();
+          print('Data Cleared');
+        }).then((_) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+            (route) => false,
+          );
+        });
+        // });
       } else {
         safeContext((context) {
           LoadingDialog.hide(context);
@@ -195,7 +183,10 @@ class _HomePageState extends BaseState<HomePage> {
                                             title: 'Logout',
                                             content: const Text(
                                                 'Keluar dari aplikasi?'),
-                                            onConfirm: () => _handleLogout(),
+                                            onConfirm: () {
+                                              UserModel user = UserModel(uid: _user!.uid, logoutTimestamp: dateTime.postTime(), loginTimestamp: '', loginLat: '', loginLong: '', loginDevice: '',);
+                                              _handleLogout(user);
+                                            },
                                           );
                                         } else if (value == 'profile') {
                                           bool updateProfile =
@@ -461,7 +452,9 @@ class _HomePageState extends BaseState<HomePage> {
                                 const SizedBox(
                                   height: 20,
                                 ),
-                                Container(
+
+                                /// Dashboard Next Update
+                                /*Container(
                                   width: double.infinity,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(20),
@@ -543,7 +536,7 @@ class _HomePageState extends BaseState<HomePage> {
                                 ),
                                 const SizedBox(
                                   height: 20,
-                                ),
+                                ),*/
                                 Container(
                                   width: double.infinity,
                                   decoration: BoxDecoration(
@@ -587,32 +580,45 @@ class _HomePageState extends BaseState<HomePage> {
                                         const SizedBox(
                                           height: 10,
                                         ),
-                                        Center(
-                                          child: Text(
-                                            _user != null
-                                                ? "${_user!.uid}\n${_user!.email}\n${_user!.displayName}\n${_user!.phoneNumber}\n${_user!.city}\n${_user!.institution}\n${_user!.role}\n${_user!.photoURL}\n${_user!.firstTimeLogin}\n${_user!.loginTimestamp}\n${_user!.logoutTimestamp}"
-                                                : 'Kosong',
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          height: 10,
-                                        ),
-                                        Center(
-                                          child: ElevatedButton(
-                                            onPressed: () {
-                                              ToastUtil.showToast(
-                                                  'Fitur belum tersedia',
-                                                  ToastStatus.warning);
-                                              // Fluttertoast.showToast(
-                                              //     msg: 'Print Akun Saat Ini');
-                                              // _fetchUserdata();
-                                              // setState(() {
-                                              //   infoAkun = 'Akun saat ini';
-                                              // });
-                                            },
-                                            child: const Text('Print Akun'),
-                                          ),
+                                        Column(
+                                          children: [
+                                            ListTile(
+                                              title: const Text('Nama'),
+                                              trailing: Text(
+                                                _user != null
+                                                    ? _user!.displayName!
+                                                    : '',
+                                              ),
+                                            ),
+                                            ListTile(
+                                              title: const Text('Email'),
+                                              trailing: Text(
+                                                _user != null
+                                                    ? _user!.email!
+                                                    : '',
+                                              ),
+                                            ),
+                                            ListTile(
+                                              title: const Text('Bagian'),
+                                              trailing: Text(
+                                                _user != null
+                                                    ? _user!.department!.toUpperCase()
+                                                    : '',
+                                              ),
+                                            ),
+                                            ListTile(
+                                              title:
+                                                  const Text('Login Terakhir'),
+                                              trailing: Text(
+                                                _user != null
+                                                    ? _user!.loginTimestamp!
+                                                            .isNotEmpty
+                                                        ? _user!.loginTimestamp!
+                                                        : _user!.firstTimeLogin!
+                                                    : '',
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                         const SizedBox(
                                           height: 10,

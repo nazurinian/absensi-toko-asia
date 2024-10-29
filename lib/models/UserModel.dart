@@ -4,52 +4,63 @@ class UserModel {
   String uid;
   String? email;
   String? displayName;
-  String? phoneNumber;
-  String? city;
-  String? institution;
-  String? role;
   String? photoURL;
+  // String? city;
+  String? phoneNumber;
+  String? department;
+  String? role;
   String? firstTimeLogin;
   String? loginTimestamp;
   String? logoutTimestamp;
+  String? loginDevice;
+  String? loginLat;
+  String? loginLong;
 
   UserModel({
     required this.uid,
     this.email,
     this.displayName,
-    this.phoneNumber,
-    this.city,
-    this.institution,
-    this.role,
     this.photoURL,
+    // this.city,
+    this.phoneNumber,
+    this.department,
+    this.role,
     this.firstTimeLogin,
     this.loginTimestamp,
     this.logoutTimestamp,
+    this.loginDevice,
+    this.loginLat,
+    this.loginLong,
   });
 
   factory UserModel.fromFirebaseUser(
     User user, {
-    String? role,
+    // String? city,
     String? phoneNumber,
-    String? city,
-    String? institution,
-    bool? isLogin,
+    String? department,
+    String? role,
     String? firstTimeLogin,
     String? loginTimestamp,
     String? logoutTimestamp,
+    String? loginDevice,
+    String? loginLat,
+    String? loginLong,
   }) {
     return UserModel(
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
-      phoneNumber: phoneNumber,
-      city: city,
-      institution: institution,
-      role: role,
       photoURL: user.photoURL,
+      // city: city,
+      phoneNumber: phoneNumber,
+      department: department,
+      role: role,
       firstTimeLogin: firstTimeLogin,
       loginTimestamp: loginTimestamp,
       logoutTimestamp: logoutTimestamp,
+      loginDevice: loginDevice,
+      loginLat: loginLat,
+      loginLong: loginLong,
     );
   }
 
@@ -58,14 +69,17 @@ class UserModel {
       'uid': uid,
       'email': email,
       'displayName': displayName,
-      'phoneNumber': phoneNumber,
-      'city': city,
-      'institution': institution,
-      'role': role,
       'photoURL': photoURL,
+      // 'city': city,
+      'phoneNumber': phoneNumber,
+      'department': department,
+      'role': role,
       'firstTimeLogin': firstTimeLogin,
       'loginTimestamp': loginTimestamp,
       'logoutTimestamp': logoutTimestamp,
+      'loginDevice': loginDevice,
+      'loginLat': loginLat,
+      'loginLong': loginLong,
     };
   }
 
@@ -79,14 +93,17 @@ class UserModel {
       uid: map['uid'] ?? '',
       email: map['email'],
       displayName: map['displayName'],
-      phoneNumber: map['phoneNumber'],
-      city: map['city'],
-      institution: map['institution'],
-      role: map['role'],
       photoURL: map['photoURL'],
+      // city: map['city'],
+      phoneNumber: map['phoneNumber'],
+      department: map['department'],
+      role: map['role'],
       firstTimeLogin: map['firstTimeLogin'],
       loginTimestamp: map['loginTimestamp'],
       logoutTimestamp: map['logoutTimestamp'],
+      loginDevice: map['loginDevice'],
+      loginLat: map['loginLat'],
+      loginLong: map['loginLong'],
     );
   }
 }

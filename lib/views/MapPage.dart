@@ -7,8 +7,9 @@ import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
 import 'package:geolocator/geolocator.dart';
 
 class MapPage extends StatefulWidget {
-  final LatLng currentLocation;
-  const MapPage({super.key, required this.currentLocation});
+  final LatLng storeLocation;
+  final double storeRadius;
+  const MapPage({super.key, required this.storeLocation, required this.storeRadius});
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -16,7 +17,8 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   late GoogleMapController mapController;
-  late LatLng absensiLocation;
+  late LatLng storeLocation;
+  late double maxStoreRadiusDistance;
   LatLng? currentLocation;
   Circle? absensiCircle;
   Marker? userMarker;
@@ -35,7 +37,8 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
-    absensiLocation = widget.currentLocation;
+    storeLocation = widget.storeLocation;
+    maxStoreRadiusDistance = widget.storeRadius;
     _initializeMapRenderer();
     _getUserLocation();
   }
@@ -54,8 +57,8 @@ class _MapPageState extends State<MapPage> {
       // Buat lingkaran untuk radius absensi
       absensiCircle = Circle(
         circleId: const CircleId('absensiCircle'),
-        center: absensiLocation,
-        radius: 10.0, // radius 10 meter
+        center: storeLocation,
+        radius: maxStoreRadiusDistance, // radius 10 meter
         fillColor: Colors.blue.withOpacity(0.3),
         strokeColor: Colors.blue,
         strokeWidth: 1,
@@ -72,7 +75,7 @@ class _MapPageState extends State<MapPage> {
       // Marker untuk lokasi absensi (tujuan)
       absensiMarker = Marker(
         markerId: const MarkerId('absensiMarker'),
-        position: absensiLocation,
+        position: storeLocation,
         infoWindow: const InfoWindow(title: 'Lokasi Absensi'),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       );
@@ -80,25 +83,25 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _fitMarkersToMap() {
-    if (currentLocation == null || absensiLocation == null) return;
+    if (currentLocation == null || storeLocation == null) return;
 
     // Buat LatLngBounds yang mencakup posisi pengguna dan lokasi tujuan
     LatLngBounds bounds = LatLngBounds(
       southwest: LatLng(
-        currentLocation!.latitude < absensiLocation.latitude
+        currentLocation!.latitude < storeLocation.latitude
             ? currentLocation!.latitude
-            : absensiLocation.latitude,
-        currentLocation!.longitude < absensiLocation.longitude
+            : storeLocation.latitude,
+        currentLocation!.longitude < storeLocation.longitude
             ? currentLocation!.longitude
-            : absensiLocation.longitude,
+            : storeLocation.longitude,
       ),
       northeast: LatLng(
-        currentLocation!.latitude > absensiLocation.latitude
+        currentLocation!.latitude > storeLocation.latitude
             ? currentLocation!.latitude
-            : absensiLocation.latitude,
-        currentLocation!.longitude > absensiLocation.longitude
+            : storeLocation.latitude,
+        currentLocation!.longitude > storeLocation.longitude
             ? currentLocation!.longitude
-            : absensiLocation.longitude,
+            : storeLocation.longitude,
       ),
     );
 
@@ -109,14 +112,14 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _calculateDistanceAndZoom() {
-    if (currentLocation == null || absensiLocation == null) return;
+    if (currentLocation == null || storeLocation == null) return;
 
     // Hitung jarak
     double distanceInMeters = Geolocator.distanceBetween(
       currentLocation!.latitude,
       currentLocation!.longitude,
-      absensiLocation.latitude,
-      absensiLocation.longitude,
+      storeLocation.latitude,
+      storeLocation.longitude,
     );
 
     setState(() {
@@ -125,7 +128,7 @@ class _MapPageState extends State<MapPage> {
       // Buat garis antara lokasi pengguna dan absensi
       distanceLine = Polyline(
         polylineId: const PolylineId('distanceLine'),
-        points: [currentLocation!, absensiLocation],
+        points: [currentLocation!, storeLocation],
         color: Colors.red,
         width: 2,
         patterns: [PatternItem.dash(10), PatternItem.gap(10)],

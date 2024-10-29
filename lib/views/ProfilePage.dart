@@ -37,7 +37,7 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     'Nama': TextEditingController(),
     // 'Email': TextEditingController(),
     'Kota Asal': TextEditingController(),
-    'Institusi': TextEditingController(),
+    'Bagian': TextEditingController(),
     'Nomor Telepon': TextEditingController(),
     // 'Role': TextEditingController(),
   };
@@ -46,7 +46,7 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     'Nama': FocusNode(),
     // 'Email': FocusNode(),
     'Kota Asal': FocusNode(),
-    'Institusi': FocusNode(),
+    'Bagian': FocusNode(),
     'Nomor Telepon': FocusNode(),
     // 'Role': FocusNode(),
   };
@@ -98,7 +98,7 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     String title, {
     String? displayName,
     String? city,
-    String? institution,
+    String? department,
     String? phoneNumber,
     String? photoURL,
   }) async {
@@ -108,7 +108,7 @@ class _ProfilePageState extends BaseState<ProfilePage> {
           _user!.uid,
           displayName: displayName,
           city: city,
-          institution: institution,
+          department: department,
           phoneNumber: phoneNumber,
           photoURL: photoURL,
         );
@@ -149,9 +149,9 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     } else if (title == 'Kota Asal') {
       _updateUserProfileData(title, city: dataUpdate);
       _updateProfileDataSession('city', dataUpdate);
-    } else if (title == 'Institusi') {
-      _updateUserProfileData(title, institution: dataUpdate);
-      _updateProfileDataSession('institution', dataUpdate);
+    } else if (title == 'Bagian') {
+      _updateUserProfileData(title, department: dataUpdate);
+      _updateProfileDataSession('department', dataUpdate);
     } else if (title == 'Nomor Telepon') {
       String hpPenerima;
       if (_selectedCountryCode == '+62') {
@@ -514,8 +514,8 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                               _user!.displayName!.isEmpty ? true : false),
                       _buildTextFromListTile('Email', _user!.email!,
                           isEnabled: false),
-                      _buildTextFromListTile('Kota Asal', _user!.city!),
-                      _buildTextFromListTile('Institusi', _user!.institution!),
+                      // _buildTextFromListTile('Kota Asal', _user!.city!),
+                      _buildTextFromListTile('Bagian', _user!.department!),
                       _buildTextFromListTile('Nomor Telepon',
                           formatPhoneNumber(_user!.phoneNumber!)),
                       _buildTextFromListTile('Role', _user!.role!.toUpperCase(),

@@ -134,7 +134,7 @@ class DialogManager {
                       'Mengganti $title \nDari: ${editedData?.namaAgen} Ke: $selectedValue');
               editedData?.namaAgen = selectedValue;
               editedData?.kota = selectedUser?.city;
-              editedData?.instansi = selectedUser?.institution;
+              editedData?.instansi = selectedUser?.department;
             } else if (title == 'Nama Pengirim') {
               SnackbarUtil.showSnackbar(
                   context: context,

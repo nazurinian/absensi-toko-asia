@@ -53,17 +53,14 @@ String formatPhoneNumber(String phoneNumber) {
       .replaceAll(RegExp(r'[^0-9+]'), '');
   if (phoneNumber.startsWith('0')) {
     return phoneNumber.substring(1);
-    // return '+62' + phoneNumber.substring(1);
   }
 
   if (phoneNumber.startsWith('62')) {
     return phoneNumber.substring(2);
-    // return '+62' + phoneNumber.substring(2);
   }
 
   if (phoneNumber.startsWith('+62')) {
     return phoneNumber.substring(3);
-    // return '+62' + phoneNumber;
   }
 
   return phoneNumber;
@@ -98,16 +95,16 @@ String formatTime(DateTime dateTime) {
   return DateFormat('HH:mm', 'id_ID').format(dateTime);
 }
 
-/*
-String formatRupiah(int number) {
-  final formatter = NumberFormat.currency(
-    locale: 'id_ID',
-    symbol: 'Rp ',
-    decimalDigits: 0,
-  );
-  return formatter.format(number);
+String formatKeterangan(String kategoriUtama, {String? subKategori, required String detail}) {
+  // Cek apakah kategori utama adalah pagi atau siang dan memiliki subkategori
+  if ((kategoriUtama == 'Pagi' || kategoriUtama == 'Siang') && subKategori != null) {
+    return '($kategoriUtama-$subKategori) $detail';
+  } else {
+    return '($kategoriUtama) $detail';
+  }
 }
 
+/*
 String getListSheet(String dateString) {
   // Parsing string 'yyyyMM' ke dalam DateTime
   int year = int.parse(dateString.substring(0, 4));

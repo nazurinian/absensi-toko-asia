@@ -12,6 +12,7 @@ class CustomTextFormField extends StatefulWidget {
   final bool isPassword;
   final Color iconColor;
   final Color errorColor;
+  final int? maxLines;
 
   const CustomTextFormField({
     super.key,
@@ -24,12 +25,13 @@ class CustomTextFormField extends StatefulWidget {
     this.validator,
     this.onChanged,
     this.isPassword = false, // Default to false for non-password fields
-    this.iconColor = Colors.red, // Default icon color
-    this.errorColor = Colors.red, // Default error color
+    this.iconColor = Colors.red,
+    this.errorColor = Colors.red,
+    this.maxLines = 1,
   });
 
   @override
-  _CustomTextFormFieldState createState() => _CustomTextFormFieldState();
+  State<CustomTextFormField> createState() => _CustomTextFormFieldState();
 }
 
 class _CustomTextFormFieldState extends State<CustomTextFormField> {
@@ -117,6 +119,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
               )
             : null,
       ),
+      maxLines: widget.maxLines,
     );
   }
 }

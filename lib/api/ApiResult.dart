@@ -27,10 +27,4 @@ class ApiResult<T> {
         'message': message,
         'data': data,
       };
-
-/*  static List<Pembukuan> fromJsonList(dynamic json) {
-    return (json as List<dynamic>)
-        .map((item) => Pembukuan.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }*/
 }
