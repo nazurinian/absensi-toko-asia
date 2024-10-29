@@ -52,8 +52,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final brightness = View.of(context).platformDispatcher.platformBrightness;
-
     // Retrieves the default theme for the platform
     //TextTheme textTheme = Theme.of(context).textTheme;
 
@@ -76,23 +74,8 @@ class MyApp extends StatelessWidget {
         Locale('zh', 'CN'), // Chinese, China
       ],
 
-      // theme: brightness == Brightness.light ? theme.light() : theme.dark(),
       theme: theme.light(),
       darkTheme: theme.dark(),
-
-      // theme: ThemeData(
-      //   // colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      //   colorSchemeSeed: Colors.green[700],
-      //   useMaterial3: true,
-      // ),
-
-      // initialRoute: '/',
-      // routes: {
-      //   '/': (context) => isLoggedIn ? const HomePage() : const LoginPage(),
-      //   '/absensi': (context) => const AbsensiPage(),
-      //   '/map': (context) => const MapPage(currentLocation: currentLocation),
-      // },
-
       onGenerateRoute: AppRouter.generateRoute,
 
       home: isLoggedIn ? const HomePage() : const LoginPage(),

@@ -97,7 +97,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
   Future<void> _updateUserProfileData(
     String title, {
     String? displayName,
-    String? city,
     String? department,
     String? phoneNumber,
     String? photoURL,
@@ -107,7 +106,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
         await _userProvider.updateUserProfile(
           _user!.uid,
           displayName: displayName,
-          city: city,
           department: department,
           phoneNumber: phoneNumber,
           photoURL: photoURL,
@@ -146,9 +144,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     if (title == 'Nama' && _user!.displayName!.isEmpty) {
       _updateUserProfileData(title, displayName: dataUpdate);
       _updateProfileDataSession('displayName', dataUpdate);
-    } else if (title == 'Kota Asal') {
-      _updateUserProfileData(title, city: dataUpdate);
-      _updateProfileDataSession('city', dataUpdate);
     } else if (title == 'Bagian') {
       _updateUserProfileData(title, department: dataUpdate);
       _updateProfileDataSession('department', dataUpdate);
@@ -514,7 +509,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                               _user!.displayName!.isEmpty ? true : false),
                       _buildTextFromListTile('Email', _user!.email!,
                           isEnabled: false),
-                      // _buildTextFromListTile('Kota Asal', _user!.city!),
                       _buildTextFromListTile('Bagian', _user!.department!),
                       _buildTextFromListTile('Nomor Telepon',
                           formatPhoneNumber(_user!.phoneNumber!)),

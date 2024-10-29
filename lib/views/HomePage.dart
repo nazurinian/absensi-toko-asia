@@ -15,7 +15,24 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Yang harus dihilangkan dari profil akun : Kota asal, yang harus dirubah : Institusi -> Bagian
+/// ---------------------------- Update Selanjutnya ----------------------------
+/// * Lengkapi Aplikasi Admin
+/// * Sistem Dashboard atau statistik dari log absensi
+/// * Fix Warna
+/// * Cek pengelolaan atau handle izin
+/// * Cek handle koneksi internet
+/// * Rumus otomatis sheets
+/// * Halaman login dan profil yg kurang menarik (minim desain)
+
+/// ---------------------------- Udah beres ----------------------------
+/// @ attendanceLocationStatus disini pesan yang muncul ketika cek lokasi dan ketika memproses izin akses gps
+/// @ pengaturan izinnya belum disesuaikan
+/// @ FireStore Update, field untuk waktu breaktime dan hari libur, lalu serta update
+/// @ Sistem Login dan Logout dengan Penambahan 3 field baru, nama perangkat, lokasi login, dan waktu login
+/// @ Tambahkan data login user dengan lokasi tempat dan nama perangkat login
+/// @ Buat fitur keterangan
+/// @ Buat fitur simpan data di firestore dengan tambahan gps dan nama perangkat
+/// @ Tombol refresh jadinya untuk refresh lokasi (X-juga bisa untuk refresh load data dan informasi libur-X)
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -588,6 +605,7 @@ class _HomePageState extends BaseState<HomePage> {
                                                 _user != null
                                                     ? _user!.displayName!
                                                     : '',
+                                                style: FontTheme.bodyMedium(context, fontSize: 14),
                                               ),
                                             ),
                                             ListTile(
@@ -596,6 +614,7 @@ class _HomePageState extends BaseState<HomePage> {
                                                 _user != null
                                                     ? _user!.email!
                                                     : '',
+                                                style: FontTheme.bodyMedium(context, fontSize: 14),
                                               ),
                                             ),
                                             ListTile(
@@ -604,6 +623,7 @@ class _HomePageState extends BaseState<HomePage> {
                                                 _user != null
                                                     ? _user!.department!.toUpperCase()
                                                     : '',
+                                                style: FontTheme.bodyMedium(context, fontSize: 14),
                                               ),
                                             ),
                                             ListTile(
@@ -616,6 +636,7 @@ class _HomePageState extends BaseState<HomePage> {
                                                         ? _user!.loginTimestamp!
                                                         : _user!.firstTimeLogin!
                                                     : '',
+                                                style: FontTheme.bodyMedium(context, fontSize: 14),
                                               ),
                                             ),
                                           ],

@@ -5,7 +5,6 @@ class UserModel {
   String? email;
   String? displayName;
   String? photoURL;
-  // String? city;
   String? phoneNumber;
   String? department;
   String? role;
@@ -21,7 +20,6 @@ class UserModel {
     this.email,
     this.displayName,
     this.photoURL,
-    // this.city,
     this.phoneNumber,
     this.department,
     this.role,
@@ -35,7 +33,6 @@ class UserModel {
 
   factory UserModel.fromFirebaseUser(
     User user, {
-    // String? city,
     String? phoneNumber,
     String? department,
     String? role,
@@ -51,7 +48,6 @@ class UserModel {
       email: user.email,
       displayName: user.displayName,
       photoURL: user.photoURL,
-      // city: city,
       phoneNumber: phoneNumber,
       department: department,
       role: role,
@@ -70,7 +66,6 @@ class UserModel {
       'email': email,
       'displayName': displayName,
       'photoURL': photoURL,
-      // 'city': city,
       'phoneNumber': phoneNumber,
       'department': department,
       'role': role,
@@ -94,7 +89,6 @@ class UserModel {
       email: map['email'],
       displayName: map['displayName'],
       photoURL: map['photoURL'],
-      // city: map['city'],
       phoneNumber: map['phoneNumber'],
       department: map['department'],
       role: map['role'],

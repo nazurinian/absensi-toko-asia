@@ -78,25 +78,19 @@ class FirestoreService {
 
   Future<ApiResult<dynamic>> updateUserProfileData(
       String uid, {
-        String? city,
         String? displayName,
         String? department,
         String? phoneNumber,
         String? role,
         String? photoURL,
-        // String? loginTimestamp,
-        // String? logoutTimestamp,
       }) async {
     try {
       Map<String, dynamic> data = {};
-      if (city != null) data['city'] = city;
       if (displayName != null) data['displayName'] = displayName;
       if (department != null) data['department'] = department;
       if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
       if (role != null) data['role'] = role;
       if (photoURL != null) data['photoURL'] = photoURL;
-      // if (loginTimestamp != null) data['loginTimestamp'] = loginTimestamp;
-      // if (logoutTimestamp != null) data['logoutTimestamp'] = logoutTimestamp;
 
       await _db.collection('users').doc(uid).update(data);
       return ApiResult(

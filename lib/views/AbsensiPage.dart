@@ -27,30 +27,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// data hasil absensi bisa menentukan ini udah absen apa belum biar menampilkan pesan yg sesuai (artinya check true bukan false
 /// krn udh absen)
 
-/// @ Tombol refresh jadinya untuk refresh lokasi (X-juga bisa untuk refresh load data dan informasi libur-X)
-/// Load datanya bersamaan dengan load posisi dan load breaktime
-/// (belum ada perbedaan hari disini, harunya hari ahad ato tanggal merah itu masuk toko jam 7.30 brt absen jam 7.20 - 7.80
-/// Atasi penipuan dengan cara mendeteksi mock dan login perangkat, jadi nyimpen data perangkat di firestore, hanya bisa login di preangkat yg sama
-
-/// Buat fitur keterangan
-/// Buat fitur mocked
-/// @ Buat fitur simpan data di firestore dengan tambahan gps dan nama perangkat
-/// Buat fitur ambil data absen hari yg sama dulu
-
-/// Kalau udah ada data sistem false cek absen di timeprovider diganti dengan cek ada data absennya gak
-/// Waktu start absen khusus hari libur dan ahad yang berbeda
-/// Kalau ada dua keterangan di pisah koma aja, artinya keterangan pagi dan siang ketika absen siang telat misal ada keterangan yg sudah terisi di gabung sama keterangan baru
-/// Ketika pop dari map harusnya refresh lagi halaman absennya
-
-/// Yang kurang dihalaman ini adalah :
-/// @Timer waktu absen pagi dan siang, timer muncul ketika memasuki rentang waktu absen
-/// @Tombol absen pagi dan siang hanya bisa di klik ketika memasuki rentang waktu absen
-/// @Tombol absen pagi dan siang tidak bisa di klik ketika sudah absen
-/// @Rentang waktu terbagi menjadi dua rentang waktu, yaitu waktu on off tombol absen sekitar 3 jam, dan waktu absen tepat waktu 30 menit (20 menit lebih awal dan 10 menit tambahan)
-/// - Pengecekan lokasi absen menggunakan gps fake atau asli
-/// - Tambahkan pengecekan ganda hanya bisa absen dengan hp sendiri, jadi pas login wajib catat tipe hp dan ini fixed
-/// artinya ketika data hp ini udh ada maka gk akan bisa berubah lagi
-/// @Kolom absensi T/L, 30 menit awal T, lewat dari itu L (absen pagi atau siang)
+/// - Antrian 3 :
 /// - Pembuatan akun admin yang dapat mengelola :
 ///     1. Data karyawan
 ///     2. Data absensi (ketika diabsenkan bos misalnya, tanpa waktu)
@@ -58,43 +35,55 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///     4. Penentuan jam break siang
 ///     5. Merubah absensi karyawan
 ///     6. Kontrol Absensi karyawan
-/// - Refresh data (saat ini hanya bisa refresh data karyawan, dan posisi lokasi)(kurang: refresh init data absen untuk meload data hari ini dan data break dari bos untuk absensi siang)
+///     7. Pembuatan sheet bulan baru
 /// - Akun admin bisa ngerubah hasil absensi karywan dihari yang sama (misal ada yg lupa absen)
-/// - Pengaturan lat dan long toko disimpan di sharedpreference dengan opsi pilihan
+
+/// - Antrian 2 :
+/// - Load datanya bersamaan dengan load posisi dan load breaktime
+/// - (belum ada perbedaan hari disini, harunya hari ahad ato tanggal merah itu masuk toko jam 7.30 brt absen jam 7.20 - 7.80
+/// - Buat fitur mocked gps untuk Pengecekan lokasi absen menggunakan gps fake atau asli
+/// - Buat fitur ambil data absen hari yg sama dulu
+/// - Kalau udah ada data sistem false cek absen di timeprovider diganti dengan cek ada data absennya gak
+/// - Waktu start absen khusus hari libur dan ahad yang berbeda
+/// - Kalau ada dua keterangan di pisah koma aja, artinya keterangan pagi dan siang ketika absen siang telat misal ada keterangan yg sudah terisi di gabung sama keterangan baru
+/// - Ketika pop dari map harusnya refresh lagi halaman absennya
 /// - Pengeolaan absensi ketika ganti hari, misalnya data di provider udah terisi maka diesok hari akan ke reset (pakai shared preference)
 /// - Ketika Sudah Absen diHome Akan muncul juga info udah absen dengan provider data yg sama seperti di Halaman Absen
-/// - Init data absen
+/// - Init data absen dengan firestore dan sheets
 /// - Tidak ada pengecekan apakah sudah absen atau belum
 /// - Log yang menyimpan semuanya dan lat long sekaligus (extend model dengan lat long)
 
-/// - Fix Warna
-/// - Cek pengelolaan atau handle izin
-/// - Cek handle koneksi internet
-
+/// - Antrian 1 :
 /// - Jadi ntar pas masuk ke halaman Absen itu langsung auto load data absensi hari ini, break time dan posisi lokasi secara bersamaan
 /// - BreakTime dan Keterangan libur disimpan pada firestore biar mudah proses ambilnya.
 /// - Tanggal Merah jam masuk pagi berbeda
+/// (LEBIH LENGKAPNYA CEK NOTE NGOBROL DGN ABI)
 
-/// ----------------------------
-/// @ attendanceLocationStatus disini pesan yang muncul ketika cek lokasi dan ketika memproses izin akses gps
-/// * pengaturan izinnya belum disesuaikan
+/// ---------------------------- (FOKUS) ----------------------------
+/// * Percobaan awal get data dari firestore adalah data breaktime dan holiday
+/// * FOKUS FIRESTORE DAN SHEETS, GET DATA UNTUK INFORMASI UDAH ABSENNYA APA BELUM
+/// * log firestore untuk informasi sudah absen atau belum yg disimpan pada data FirestoreService dan DataProvider
 /// * absen pagi
 /// * absen siang dan updateBreakTime
 /// * Mbeneri Sistem Tombolnya kapan bisa diklik dan kapan tidak
-/// * FireStore Update, field untuk waktu breaktime dan hari libur, lalu serta update
-/// log firestore untuk informasi sudah absen atau belum yg disimpan pada data provider
-/// kemudian dilanjutkan dengan update di sheets (saat ini masih update disheet aja)
+/// * kemudian dilanjutkan dengan update di sheets (saat ini masih update disheet aja)
 /// * Keterangan Telat / tidak masuk
-/// * Sistem Login dan Logout dengan Penambahan 3 field baru, nama perangkat, lokasi login, dan waktu login
-/// untuk mengecek apakah login dari perangkat yang sama atau tidak, jika dari perangkat yang berbeda maka
-/// akan di logout otomatis di perangkat sebelumnya (devicenya berbeda)
-/// * Benerin nomor hp diprofil, kan hanya +62 yang bisa masuk artinya fixed aja gk ush pake dropdown
 
-/// ----------------------------
-/// Update Selanjutnya:
-/// * Lengkapi Aplikasi Admin
-/// * Sistem Dashboard atau statistik dari log absensi
-/// * Tambahkan data login user dengan lokasi tempat dan nama perangkat login
+/// Yang kurang dihalaman ini adalah : -------------- (FOKUS) --------------
+/// @Timer waktu absen pagi dan siang, timer muncul ketika memasuki rentang waktu absen
+/// @Tombol absen pagi dan siang hanya bisa di klik ketika memasuki rentang waktu absen
+/// @Tombol absen pagi dan siang tidak bisa di klik ketika sudah absen
+/// @Rentang waktu terbagi menjadi dua rentang waktu, yaitu waktu on off tombol absen sekitar 3 jam, dan waktu absen tepat waktu 30 menit (20 menit lebih awal dan 10 menit tambahan)
+/// @Kolom absensi T/L, 30 menit awal T, lewat dari itu L (absen pagi atau siang)
+
+/// Lengkapi sisa yg kemarin : -------------- (FOKUS) --------------
+/// * Popup dialog pada saat ada perangkat lain yg sudah login, terus sistem logout otomatis di perangkat lama
+/// * Profil nomor hp hanya +62 yang dipake
+///
+/// * untuk mengecek apakah login dari perangkat yang sama atau tidak, jika dari perangkat yang berbeda maka akan di logout otomatis di perangkat sebelumnya (devicenya berbeda)
+/// * Benerin nomor hp diprofil, kan hanya +62 yang bisa masuk artinya fixed aja gk ush pake dropdown
+///
+/// * Mocked lokasi untuk atasi fake gps
 
 class AbsensiPage extends StatefulWidget {
   final String employeeName;

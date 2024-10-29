@@ -1,12 +1,7 @@
-import 'package:absensitoko/themes/colors/Colors.dart';
-import 'package:absensitoko/utils/DialogUtils.dart';
-import 'package:absensitoko/utils/DisplaySize.dart';
-import 'package:absensitoko/utils/LoadingDialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:absensitoko/api/ApiResult.dart';
 import 'package:absensitoko/api/FirestoreService.dart';
 import 'package:absensitoko/api/SessionService.dart';
-import 'package:absensitoko/models/SessionModel.dart';
 import 'package:absensitoko/models/UserModel.dart';
 import 'package:absensitoko/utils/FirebaseAuthErrorHelper.dart';
 import 'package:flutter/material.dart';
@@ -44,7 +39,6 @@ class AuthService {
               email: firebaseUser.email ?? '',
               displayName: firebaseUser.displayName ?? '',
               phoneNumber: firebaseUser.phoneNumber ?? '',
-              // city: '',
               department: '',
               role: 'other',
               photoURL: firebaseUser.photoURL ?? '',
@@ -119,17 +113,6 @@ class AuthService {
               }
             }
           }
-
-          // SessionModel userSession = SessionModel(
-          //   uid: firebaseUser.uid,
-          //   email: firebaseUser.email ?? '',
-          //   role: user.role ?? '',
-          //   loginTimestamp: dateTime,
-          //   loginDevice: loginDevice,
-          //   isLogin: true,
-          // );
-          // await SessionService.saveSession(userSession);
-
           return ApiResult(status: 'success', message: message, data: user);
         } else {
           return ApiResult(status: 'error', message: response.message);
@@ -141,84 +124,11 @@ class AuthService {
       print('FirebaseAuthException: ${e.message}');
       String errorMessage = FirebaseAuthErrorHelper.getErrorMessage(e);
       return ApiResult(status: 'error', message: errorMessage);
-      // throw 'Email atau Password salah atau tidak ditemukan';
     } catch (e) {
       print('Login error: $e');
       return ApiResult(status: 'error', message: e.toString());
-      // throw 'Terjadi kesalahan, silakan coba lagi.';
     }
   }
-
-/*  Future<ApiResult<dynamic>> registerUser(
-    String email,
-    String password,
-    String dateTime,
-  ) async {
-    try {
-      UserCredential userCredentialRegister =
-          await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      User? firebaseUser = userCredentialRegister.user;
-
-      if (firebaseUser != null) {
-        UserModel user = UserModel(
-          uid: firebaseUser.uid,
-          email: firebaseUser.email ?? '',
-          displayName: '',
-          phoneNumber: '',
-          // city: '',
-          department: '',
-          role: 'other',
-          photoURL: firebaseUser.photoURL ?? '',
-          firstTimeLogin: dateTime,
-          loginTimestamp: '',
-          logoutTimestamp: '',
-        );
-
-        final response = await _firestoreService.saveUser(user);
-
-        if (response.status == 'success') {
-          return ApiResult(
-              status: 'success', message: 'Berhasil membuat akun baru');
-        } else {
-          return ApiResult(
-              status: 'error', message: 'Gagal menyimpan data akun baru');
-        }
-      } else {
-        return ApiResult(status: 'error', message: 'Gagal membuat akun baru');
-      }
-    } on FirebaseAuthException catch (e) {
-      print('FirebaseAuthException: ${e.message}');
-      String errorMessage = FirebaseAuthErrorHelper.getErrorMessage(e);
-      return ApiResult(status: 'error', message: errorMessage);
-    } catch (e) {
-      print('Registration error: $e');
-      return ApiResult(status: 'error', message: e.toString());
-    }
-  }*/
-
-/*  Future<ApiResult> signOut(UserModel user) async {
-    try {
-      final saveResponse = await _firestoreService.updateUser(user);
-      if (saveResponse.status == 'error') {
-        return ApiResult(
-            status: 'error', message: 'Login gagal');
-      }
-      await SessionService.clearSession();
-      await _auth.signOut();
-      return ApiResult(status: 'success', message: 'Logout success');
-    } on FirebaseAuthException catch (e) {
-      print('FirebaseAuthException: ${e.message}');
-      String errorMessage = FirebaseAuthErrorHelper.getErrorMessage(e);
-      return ApiResult(status: 'error', message: errorMessage);
-    } catch (e) {
-      print('Sign out error: $e');
-      return ApiResult(status: 'error', message: e.toString());
-    }
-  }*/
 
   Future<ApiResult> signOut(UserModel user) async {
     // 1. Update status login di Firestore
@@ -318,4 +228,56 @@ class AuthService {
       return ApiResult(status: 'error', message: e.toString());
     }
   }
+
+// Register User Function
+/*  Future<ApiResult<dynamic>> registerUser(
+    String email,
+    String password,
+    String dateTime,
+  ) async {
+    try {
+      UserCredential userCredentialRegister =
+          await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      User? firebaseUser = userCredentialRegister.user;
+
+      if (firebaseUser != null) {
+        UserModel user = UserModel(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          displayName: '',
+          phoneNumber: '',
+          // city: '',
+          department: '',
+          role: 'other',
+          photoURL: firebaseUser.photoURL ?? '',
+          firstTimeLogin: dateTime,
+          loginTimestamp: '',
+          logoutTimestamp: '',
+        );
+
+        final response = await _firestoreService.saveUser(user);
+
+        if (response.status == 'success') {
+          return ApiResult(
+              status: 'success', message: 'Berhasil membuat akun baru');
+        } else {
+          return ApiResult(
+              status: 'error', message: 'Gagal menyimpan data akun baru');
+        }
+      } else {
+        return ApiResult(status: 'error', message: 'Gagal membuat akun baru');
+      }
+    } on FirebaseAuthException catch (e) {
+      print('FirebaseAuthException: ${e.message}');
+      String errorMessage = FirebaseAuthErrorHelper.getErrorMessage(e);
+      return ApiResult(status: 'error', message: errorMessage);
+    } catch (e) {
+      print('Registration error: $e');
+      return ApiResult(status: 'error', message: e.toString());
+    }
+  }*/
 }

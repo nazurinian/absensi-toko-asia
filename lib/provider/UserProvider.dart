@@ -51,6 +51,7 @@ class UserProvider extends ChangeNotifier {
     _isLoading = true;
     _status = null;
     _message = null;
+    _userDataIsLoaded = false;
 
     final response = await _authService
         .loginUser(
@@ -83,32 +84,6 @@ class UserProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-/*  Future<ApiResult> registerUser(
-      String email,
-      String password,
-      String dateTime,
-      ) async {
-    _isLoading = true;
-    _status = null;
-    _message = null;
-
-    final response =
-    await _authService.registerUser(email, password, dateTime).timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
-        _message = 'Register operation timed out';
-        return ApiResult(status: 'error', message: _message ?? '');
-      },
-    );
-
-    _status = response.status;
-    _message = response.message;
-
-    _isLoading = false;
-    notifyListeners();
-    return ApiResult(status: _status ?? '', message: _message ?? '');
-  }*/
-
   Future<ApiResult> signOut(UserModel user) async {
     final response = await _authService.signOut(user);
 
@@ -119,26 +94,12 @@ class UserProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-  Future<ApiResult> resetPassword(String email) async {
-    _isLoading = true;
-    _status = null;
-    _message = null;
-
-    final response = await _authService.sendPasswordResetEmail(email);
-
-    _status = response.status;
-    _message = response.message;
-
-    _isLoading = false;
-    notifyListeners();
-    return ApiResult(status: _status ?? '', message: _message ?? '');
-  }
-
   /// FireStore Service Provider
   Future<ApiResult> getUser(String uid) async {
     _isLoading = true;
     _status = null;
     _message = null;
+    _userDataIsLoaded = false;
 
     final response = await _fireStoreService.getUser(uid);
 
@@ -156,30 +117,8 @@ class UserProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-  Future<ApiResult> getAllUsers() async {
-    _isLoading = true;
-    _status = null;
-    _message = null;
-
-    final response = await _fireStoreService.getAllUsers();
-
-    _status = response.status;
-    _message = response.message;
-    if (response.status == 'success') {
-      _listAllUser = response.data;
-      _listUserIsLoaded = true;
-    } else {
-      _listUserIsLoaded = false;
-    }
-
-    _isLoading = false;
-    notifyListeners();
-    return ApiResult(status: _status ?? '', message: _message ?? '');
-  }
-
   Future<ApiResult> updateUserProfile(
     String uid, {
-    String? city,
     String? displayName,
     String? department,
     String? phoneNumber,
@@ -191,10 +130,10 @@ class UserProvider extends ChangeNotifier {
     _status = null;
     _message = null;
 
-    final updateFirestoreProfile = await _fireStoreService
+    // Update di firestore
+    final updateFireStoreProfile = await _fireStoreService
         .updateUserProfileData(
       uid,
-      city: city,
       displayName: displayName,
       department: department,
       phoneNumber: phoneNumber,
@@ -209,48 +148,36 @@ class UserProvider extends ChangeNotifier {
       },
     );
 
-    if (updateFirestoreProfile.status == 'error') {
-      _status = updateFirestoreProfile.status;
-      _message = updateFirestoreProfile.message;
+    if (updateFireStoreProfile.status == 'error') {
+      _status = updateFireStoreProfile.status;
+      _message = updateFireStoreProfile.message;
       _isLoading = false;
       notifyListeners();
       return ApiResult(status: _status ?? '', message: _message ?? '');
     }
 
-    /// Ini buat update Profil Utama(if Atas) atau Updater Role(else Bawah)
-    /// Ini Update Profil Utama
-    if (roleUpdated == false) {
-      final updateAuthProfile = await _authService.updateUserAuthData(
-        displayName: displayName,
-        phoneNumber: phoneNumber,
-        photoURL: photoURL,
-      );
+    // Update di auth
+    final updateAuthProfile = await _authService.updateUserAuthData(
+      displayName: displayName,
+      phoneNumber: phoneNumber,
+      photoURL: photoURL,
+    );
 
-      if (updateAuthProfile.status == 'error') {
-        _status = updateAuthProfile.status;
-        _message = updateAuthProfile.message;
-        _isLoading = false;
-        notifyListeners();
-        return ApiResult(status: _status ?? '', message: _message ?? '');
-      }
+    if (updateAuthProfile.status == 'error') {
+      _status = updateAuthProfile.status;
+      _message = updateAuthProfile.message;
+      _isLoading = false;
+      notifyListeners();
+      return ApiResult(status: _status ?? '', message: _message ?? '');
+    }
 
-      final response = await _fireStoreService.getUser(uid);
+    // Load ulang data user
+    final response = await _fireStoreService.getUser(uid);
 
-      _status = response.status;
-      _message = response.message;
-      if (response.status == 'success') {
-        _currentUser = response.data;
-      }
-
-      /// Ini Update Profil Akun Lain
-    } else {
-      final response = await _fireStoreService.getAllUsers();
-
-      _status = response.status;
-      _message = response.message;
-      if (response.status == 'success') {
-        _listAllUser = response.data;
-      }
+    _status = response.status;
+    _message = response.message;
+    if (response.status == 'success') {
+      _currentUser = response.data;
     }
 
     _isLoading = false;
@@ -285,4 +212,68 @@ class UserProvider extends ChangeNotifier {
     /// Notify nya di nonaktifkan karena ini hanya nge set ke null semua, ngga butuh respon perubahan
     // notifyListeners();
   }
+
+  Future<ApiResult> resetPassword(String email) async {
+    _isLoading = true;
+    _status = null;
+    _message = null;
+
+    final response = await _authService.sendPasswordResetEmail(email);
+
+    _status = response.status;
+    _message = response.message;
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
+// Get All Users Function (Saat ini baru digunakan untuk pencocokan nama user yang sudah saja)
+  Future<ApiResult> getAllUsers() async {
+    _isLoading = true;
+    _status = null;
+    _message = null;
+
+    final response = await _fireStoreService.getAllUsers();
+
+    _status = response.status;
+    _message = response.message;
+    if (response.status == 'success') {
+      _listAllUser = response.data;
+      _listUserIsLoaded = true;
+    } else {
+      _listUserIsLoaded = false;
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
+// Register User Function
+/*  Future<ApiResult> registerUser(
+      String email,
+      String password,
+      String dateTime,
+      ) async {
+    _isLoading = true;
+    _status = null;
+    _message = null;
+
+    final response =
+    await _authService.registerUser(email, password, dateTime).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        _message = 'Register operation timed out';
+        return ApiResult(status: 'error', message: _message ?? '');
+      },
+    );
+
+    _status = response.status;
+    _message = response.message;
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }*/
 }
