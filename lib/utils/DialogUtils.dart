@@ -41,10 +41,17 @@ class DialogUtils {
     );
   }
 
-  static Future<void> popUp(BuildContext context,
-      {String? title, required Widget content, String? confirmButton}) async {
+  static Future<void> popUp(
+    BuildContext context, {
+    String? title,
+    bool barrierDismissible = false,
+    required Widget content,
+    String? confirmButton,
+    VoidCallback? onConfirm,
+  }) async {
     return showDialog<void>(
-      context: context, barrierDismissible: false, // user must tap button!
+      context: context,
+      barrierDismissible: barrierDismissible,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
@@ -64,6 +71,7 @@ class DialogUtils {
                     backgroundColor: const Color.fromRGBO(63, 82, 119, 1.0),
                   ),
                   onPressed: () {
+                    if (onConfirm != null) onConfirm();
                     Navigator.of(context).pop();
                   },
                   child: Text(
@@ -79,18 +87,20 @@ class DialogUtils {
     );
   }
 
-  static void showConfirmationDialog({
+  static Future<bool?> showConfirmationDialog({
     required BuildContext context,
     required String title,
     String? confirm,
     String? cancel,
-    bool? withPop = true,
+    bool withPop = true,
+    bool barrierDismissible = false,
     required Widget content,
-    required FutureOr<dynamic> Function()? onConfirm,
-    FutureOr<dynamic> Function()? onCancel,
+    VoidCallback? onConfirm,
+    VoidCallback? onCancel,
   }) {
-    showDialog(
+    return showDialog<bool>(
       context: context,
+      barrierDismissible: barrierDismissible,
       builder: (BuildContext context) {
         final width = screenWidth(context);
         return AlertDialog(
@@ -110,9 +120,11 @@ class DialogUtils {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorsTheme.grayBD,
                     ),
-                    onPressed: () async {
-                      if (onCancel != null) await onCancel();
-                      if (withPop ?? true) Navigator.of(context).pop();
+                    onPressed: () {
+                      if (onCancel != null) onCancel();
+                      if (withPop ?? true)
+                        Navigator.of(context)
+                            .pop(false); // Kembalikan false saat dibatalkan
                     },
                     child: Center(
                       child: Text(
@@ -121,18 +133,19 @@ class DialogUtils {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
                 SizedBox(
                   width: width * 0.30,
                   child: FilledButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorsTheme.blueBD,
                     ),
-                    onPressed: () async {
-                      if (withPop ?? true) Navigator.of(context).pop();
-                      if (onConfirm != null) await onConfirm();
+                    onPressed: () {
+                      if (withPop ?? true) {
+                        Navigator.of(context)
+                            .pop(true); // Kembalikan true saat dikonfirmasi
+                      }
+                      if (onConfirm != null) onConfirm();
                     },
                     child: Center(
                       child: Text(
@@ -149,3 +162,78 @@ class DialogUtils {
     );
   }
 }
+
+/*  static showConfirmationDialog({
+    required BuildContext context,
+    required String title,
+    String? confirm,
+    String? cancel,
+    bool? withPop = true,
+    required Widget content,
+    required VoidCallback
+        onConfirm, // required FutureOr<dynamic> Function()? onConfirm,
+    VoidCallback? onCancel, // FutureOr<dynamic> Function()? onCancel,
+  }) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final width = screenWidth(context);
+        return AlertDialog(
+          title: Text(
+            title,
+            textAlign: TextAlign.center,
+            // style: FontTheme.size20Bold(color: Colors.black),
+          ),
+          content: content,
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                SizedBox(
+                  width: width * 0.30,
+                  child: FilledButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorsTheme.grayBD,
+                    ),
+                    onPressed: () {
+                      if (onCancel != null) onCancel(); // await onCancel();
+                      if (withPop ?? true) Navigator.of(context).pop();
+                    },
+                    child: Center(
+                      child: Text(
+                        cancel ?? 'Tidak',
+                        // style: FontTheme.size14Bold(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(
+                  width: 10,
+                ),
+                SizedBox(
+                  width: width * 0.30,
+                  child: FilledButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorsTheme.blueBD,
+                    ),
+                    onPressed: () {
+                      if (withPop ?? true) Navigator.of(context).pop();
+                      onConfirm(); // if (onConfirm != null) await onConfirm();
+                    },
+                    child: Center(
+                      child: Text(
+                        confirm ?? 'Ya',
+                        // style: FontTheme.size14Bold(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+}*/

@@ -1,4 +1,5 @@
 import 'package:absensitoko/models/UserModel.dart';
+import 'package:absensitoko/utils/DeviceUtils.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:absensitoko/models/SessionModel.dart';
@@ -33,21 +34,6 @@ class _LoginPageState extends BaseState<LoginPage> {
   LatLng? _attendanceLocation;
   String _deviceName = '';
   UserModel? _currentUser;
-
-  // Mendapatkan id perangkat
-  Future<String> getDeviceName() async {
-    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-
-    if (Theme.of(context).platform == TargetPlatform.android) {
-      final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.id;
-    } else if (Theme.of(context).platform == TargetPlatform.iOS) {
-      final IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.name ?? 'Unknown Device';
-    } else {
-      return 'Unsupported Platform';
-    }
-  }
 
   // Minta izin akses lokasi
   Future<void> _cekIzinLokasi() async {
@@ -119,9 +105,10 @@ class _LoginPageState extends BaseState<LoginPage> {
 
     LoadingDialog.show(context);
     await _cekLokasiSekali();
-    await getDeviceName().then((value) {
+    safeContext((context) async {
+      String deviceName = await DeviceUtils.getDeviceName(context);
       setState(() {
-        _deviceName = value;
+        _deviceName = deviceName;
       });
     });
 
@@ -244,157 +231,161 @@ class _LoginPageState extends BaseState<LoginPage> {
           _unFocus();
           _formKey.currentState?.reset();
         },
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 30.0),
-                child: Center(
-                  child: SizedBox(
-                    width: 120,
-                    height: 120,
-                    // child: Image.asset(AppImage.kamus.path, fit: BoxFit.cover),
-                    child: Icon(
-                      Icons.account_circle,
-                      size: 120,
+        child: SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 50.0, bottom: 20),
+                  child: Center(
+                    child: SizedBox(
+                      width: 120,
+                      height: 120,
+                      // child: Image.asset(AppImage.kamus.path, fit: BoxFit.cover),
+                      child: Icon(
+                        Icons.account_circle,
+                        size: 120,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Form(
-                    key: _formKey,
-                    autovalidateMode: _firstSubmit
-                        ? AutovalidateMode.disabled
-                        : AutovalidateMode.always,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: CustomTextFormField(
-                            controller: _emailController,
-                            focusNode: _emailFocusNode,
-                            hintText: 'Email',
-                            labelText: 'Email',
-                            prefixIcon: Icons.email,
-                            autoValidate: _firstSubmit ? true : false,
-                            onChanged: (value) {
-                              setState(() {
-                                if (!_firstSubmit) {
-                                  _formKey.currentState?.validate();
-                                }
-                              });
-                            },
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: CustomTextFormField(
-                            controller: _passwordController,
-                            focusNode: _passwordFocusNode,
-                            hintText: 'Password',
-                            labelText: 'Password',
-                            prefixIcon: Icons.key,
-                            autoValidate: _firstSubmit ? true : false,
-                            onChanged: (value) {
-                              setState(() {
-                                if (!_firstSubmit) {
-                                  _formKey.currentState?.validate();
-                                }
-                              });
-                            },
-                            iconColor: Colors.green,
-                            isPassword: true,
-                          ),
-                        ),
-                        Container(
-                          alignment: Alignment.centerRight,
-                          margin: const EdgeInsets.fromLTRB(0, 0, 20, 0),
-                          child: TextButton(
-                            style: ButtonStyle(
-                              overlayColor:
-                                  WidgetStateProperty.all(Colors.transparent),
-                              splashFactory: NoSplash
-                                  .splashFactory, // Menghilangkan efek splash
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Form(
+                      key: _formKey,
+                      autovalidateMode: _firstSubmit
+                          ? AutovalidateMode.disabled
+                          : AutovalidateMode.always,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: CustomTextFormField(
+                              controller: _emailController,
+                              focusNode: _emailFocusNode,
+                              hintText: 'Email',
+                              labelText: 'Email',
+                              prefixIcon: Icons.email,
+                              autoValidate: _firstSubmit ? true : false,
+                              onChanged: (value) {
+                                setState(() {
+                                  if (!_firstSubmit) {
+                                    _formKey.currentState?.validate();
+                                  }
+                                });
+                              },
                             ),
-                            onPressed: () => SnackbarUtil.showSnackbar(
-                              context: context,
-                              message: 'Hubungi admin ya...',
-                            ),
-                            child: const Text('Forget Password!'),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(28.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              color: Colors.blue,
+                          Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: CustomTextFormField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocusNode,
+                              hintText: 'Password',
+                              labelText: 'Password',
+                              prefixIcon: Icons.key,
+                              autoValidate: _firstSubmit ? true : false,
+                              onChanged: (value) {
+                                setState(() {
+                                  if (!_firstSubmit) {
+                                    _formKey.currentState?.validate();
+                                  }
+                                });
+                              },
+                              iconColor: Colors.green,
+                              isPassword: true,
                             ),
-                            width: MediaQuery.of(context).size.width,
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: _login,
-                              child: const Text(
-                                'Login',
-                                style:
-                                    TextStyle(color: Colors.blue, fontSize: 22),
+                          ),
+                          Container(
+                            alignment: Alignment.centerRight,
+                            margin: const EdgeInsets.fromLTRB(0, 0, 20, 0),
+                            child: TextButton(
+                              style: ButtonStyle(
+                                overlayColor:
+                                    WidgetStateProperty.all(Colors.transparent),
+                                splashFactory: NoSplash
+                                    .splashFactory, // Menghilangkan efek splash
+                              ),
+                              onPressed: () => SnackbarUtil.showSnackbar(
+                                context: context,
+                                message: 'Hubungi admin ya...',
+                              ),
+                              child: const Text('Forget Password!'),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(28.0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                color: Colors.blue,
+                              ),
+                              width: MediaQuery.of(context).size.width,
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: _login,
+                                child: const Text(
+                                  'Login',
+                                  style:
+                                      TextStyle(color: Colors.blue, fontSize: 22),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        // Row(
-                        //   mainAxisAlignment: MainAxisAlignment.center,
-                        //   children: [
-                        //     Padding(
-                        //       padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
-                        //       child: Row(
-                        //         children: [
-                        //           SizedBox(
-                        //             height: 40,
-                        //             width: 40,
-                        //             child: Image.asset(
-                        //               AppImage.najwa.path,
-                        //               fit: BoxFit.cover,
-                        //             ),
-                        //           ),
-                        //           const SizedBox(
-                        //             width: 5,
-                        //           ),
-                        //           SizedBox(
-                        //             height: 70,
-                        //             width: 70,
-                        //             child: Image.asset(
-                        //               AppImage.najwa.path,
-                        //               fit: BoxFit.cover,
-                        //             ),
-                        //           ),
-                        //           const SizedBox(
-                        //             width: 5,
-                        //           ),
-                        //           SizedBox(
-                        //             height: 40,
-                        //             width: 40,
-                        //             child: Image.asset(
-                        //               AppImage.najwa.path,
-                        //               fit: BoxFit.cover,
-                        //             ),
-                        //           ),
-                        //         ],
-                        //       ),
-                        //     ),
-                        //   ],
-                        // ),
-                      ],
+                          // Row(
+                          //   mainAxisAlignment: MainAxisAlignment.center,
+                          //   children: [
+                          //     Padding(
+                          //       padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
+                          //       child: Row(
+                          //         children: [
+                          //           SizedBox(
+                          //             height: 40,
+                          //             width: 40,
+                          //             child: Image.asset(
+                          //               AppImage.najwa.path,
+                          //               fit: BoxFit.cover,
+                          //             ),
+                          //           ),
+                          //           const SizedBox(
+                          //             width: 5,
+                          //           ),
+                          //           SizedBox(
+                          //             height: 70,
+                          //             width: 70,
+                          //             child: Image.asset(
+                          //               AppImage.najwa.path,
+                          //               fit: BoxFit.cover,
+                          //             ),
+                          //           ),
+                          //           const SizedBox(
+                          //             width: 5,
+                          //           ),
+                          //           SizedBox(
+                          //             height: 40,
+                          //             width: 40,
+                          //             child: Image.asset(
+                          //               AppImage.najwa.path,
+                          //               fit: BoxFit.cover,
+                          //             ),
+                          //           ),
+                          //         ],
+                          //       ),
+                          //     ),
+                          //   ],
+                          // ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

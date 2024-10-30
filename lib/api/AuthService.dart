@@ -1,3 +1,4 @@
+import 'package:absensitoko/utils/DialogUtils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:absensitoko/api/ApiResult.dart';
 import 'package:absensitoko/api/FirestoreService.dart';
@@ -67,30 +68,18 @@ class AuthService {
             if (user.loginDevice!.isNotEmpty) {
               print('user babi: ${user.toString()}');
 
-              final result = await showDialog(
+              final result = await DialogUtils.showConfirmationDialog(
                 context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text('Konfirmasi Login'),
-                    content: const Text(
-                        'Anda telah login di perangkat lain sebelumnya, tetap login?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, 'cancel'),
-                        child: Text('Tidak'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, 'confirm'),
-                        child: Text('Ya'),
-                      ),
-                    ],
-                  );
-                },
+                title: 'Konfirmasi Login',
+                content: Text(
+                  'Anda telah login di perangkat lain sebelumnya, Lanjutkan login?',
+                  textAlign: TextAlign.justify,
+                ),
               );
 
-              if (result == 'cancel') {
+              if (!result!) {
                 await _auth.signOut();
-                message = 'Anda telah login di perangkat lain';
+                message = 'Gagal login diperangkat ini! \nAnda telah login di perangkat lain';
               } else {
                 user.loginDevice = loginDevice;
                 final saveResponse = await _fireStoreService.updateUser(user);

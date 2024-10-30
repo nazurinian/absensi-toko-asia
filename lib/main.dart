@@ -1,6 +1,9 @@
 import 'package:absensitoko/AppRouter.dart';
 import 'package:absensitoko/themes/theme.dart';
+import 'package:absensitoko/utils/DeviceUtils.dart';
 import 'package:absensitoko/utils/ThemeUtil.dart';
+import 'package:absensitoko/utils/UpdatePage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,8 +20,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'NoInternetApp.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -32,6 +33,9 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   bool? isLoggedIn = prefs.getBool('isLogin') ?? false;
 
+  // Memeriksa pembaruan sebelum melanjutkan
+  Map<String, String> updateInfo = await checkForUpdates();
+
   runApp(
     MultiProvider(
       providers: [
@@ -40,15 +44,32 @@ void main() async {
         ChangeNotifierProvider(create: (_) => StorageProvider()),
         ChangeNotifierProvider(create: (_) => TimeProvider()),
       ],
-      child: MyApp(isLoggedIn: isLoggedIn),
+      child: MyApp(
+        isLoggedIn: isLoggedIn,
+        needsUpdate: updateInfo['needsUpdate'] == 'true',
+        currentVersion: updateInfo['currentVersion']!,
+        latestVersion: updateInfo['latestVersion']!,
+        downloadLink: updateInfo['downloadLink']!,
+      ),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
   final bool isLoggedIn;
+  final bool needsUpdate;
+  final String currentVersion;
+  final String latestVersion;
+  final String downloadLink;
 
-  const MyApp({super.key, required this.isLoggedIn});
+  const MyApp({
+    super.key,
+    required this.isLoggedIn,
+    required this.needsUpdate,
+    required this.currentVersion,
+    required this.latestVersion,
+    required this.downloadLink,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -57,8 +78,10 @@ class MyApp extends StatelessWidget {
 
     // Use with Google Fonts package to use downloadable fonts
     TextTheme textTheme = createTextTheme(context, "Lato", "Aclonica");
-
     MaterialTheme theme = MaterialTheme(textTheme);
+
+    print(
+        'Needs update: $needsUpdate | Current version: $currentVersion | Latest version: $latestVersion');
     return MaterialApp(
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -73,14 +96,43 @@ class MyApp extends StatelessWidget {
         Locale('ar', 'AE'), // Arabic, United Arab Emirates
         Locale('zh', 'CN'), // Chinese, China
       ],
-
       theme: theme.light(),
       darkTheme: theme.dark(),
       onGenerateRoute: AppRouter.generateRoute,
-
-      home: isLoggedIn ? const HomePage() : const LoginPage(),
-
+      home: needsUpdate
+          ? UpdatePage(
+              currentVersion: currentVersion,
+              latestVersion: latestVersion,
+              downloadLink: downloadLink,
+            )
+          : isLoggedIn
+              ? const HomePage()
+              : const LoginPage(),
       debugShowCheckedModeBanner: false,
     );
   }
+}
+
+Future<Map<String, String>> checkForUpdates() async {
+  Map<String, String> appInfo = await DeviceUtils.getAppInfo();
+  String currentVersion = appInfo['version'] ?? '0.0.0'; // Default jika null
+
+  // Ambil versi terbaru dan link dari Firestore
+  DocumentSnapshot snapshot = await FirebaseFirestore.instance
+      .collection('information')
+      .doc('latest_version')
+      .get();
+
+  String latestVersion = snapshot['version'];
+  String downloadLink = snapshot['link']; // Link unduhan
+
+  // Bandingkan versi
+  bool needsUpdate = currentVersion != latestVersion;
+
+  return {
+    'needsUpdate': needsUpdate.toString(), // "true" atau "false"
+    'currentVersion': currentVersion,
+    'latestVersion': latestVersion,
+    'downloadLink': downloadLink, // Menyimpan link
+  };
 }

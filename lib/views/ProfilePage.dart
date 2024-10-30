@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:absensitoko/generated/assets.dart';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -127,11 +128,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     }
   }
 
-  void _updateProfileDataSession(String key, value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, value);
-  }
-
   void _updateProcess(String title) {
     String dataUpdate = capitalizeEachWord(_controllers[title]!.text).trim();
 
@@ -143,10 +139,8 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     LoadingDialog.show(context);
     if (title == 'Nama' && _user!.displayName!.isEmpty) {
       _updateUserProfileData(title, displayName: dataUpdate);
-      _updateProfileDataSession('displayName', dataUpdate);
     } else if (title == 'Bagian') {
       _updateUserProfileData(title, department: dataUpdate);
-      _updateProfileDataSession('department', dataUpdate);
     } else if (title == 'Nomor Telepon') {
       String hpPenerima;
       if (_selectedCountryCode == '+62') {
@@ -155,105 +149,12 @@ class _ProfilePageState extends BaseState<ProfilePage> {
         hpPenerima = _selectedCountryCode! + dataUpdate;
       }
       _updateUserProfileData(title, phoneNumber: hpPenerima);
-      _updateProfileDataSession('phoneNumber', hpPenerima);
     }
 
     _dataIsChanged = true;
     _controllers[title]!.clear();
     _focusNodes[title]!.unfocus();
   }
-
-  /// Ini Percobaan 1, masih default
-/*  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
-      File imageFile = File(image.path);
-      final prefs = await SharedPreferences.getInstance();
-      String? uid = prefs.getString('uid');
-
-      if (uid != null) {
-        LoadingDialog.show(context);
-        final response =
-            await _storageService.uploadProfilePicture(imageFile, uid);
-        String? imageUrl = response.data;
-        if (response.status == 'success' && imageUrl != null) {
-          print('Berhasil mengupload gambar');
-          ToastUtil.showToast(
-              'Berhasil mengupload gambar', ToastStatus.success);
-          await _updateUserProfileData("Foto Profil", photoURL: imageUrl);
-          _updateProfileDataSession('photoURL', imageUrl);
-        } else {
-          print('Gagal mengupload gambar');
-          ToastUtil.showToast('Gagal mengupload gambar', ToastStatus.error);
-        }
-      } else {
-        print('UID tidak ditemukan');
-        ToastUtil.showToast('UID tidak ditemukan', ToastStatus.error);
-      }
-    }
-  }*/
-
-  /// Ini percobaan 2, udah bisa image croppernya, ada activity image cropper yg ditambahkan
-/*  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
-      // Convert XFile to File
-      File imageFile = File(image.path);
-
-      // Crop the image
-      CroppedFile? croppedFile = await ImageCropper().cropImage(
-        sourcePath: imageFile.path,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Edit Gambar',
-            toolbarColor: Colors.blue,  // Warna AppBar
-            toolbarWidgetColor: Colors.white,  // Warna teks dan ikon
-            statusBarColor: Colors.blueAccent,  // Warna status bar
-            backgroundColor: Colors.black,  // Warna latar belakang layar crop
-            activeControlsWidgetColor: Colors.blue,  // Warna kontrol aktif
-            initAspectRatio: CropAspectRatioPreset.original,  // Rasio aspek awal
-            lockAspectRatio: false,  // Mengunci rasio aspek
-          ),
-          IOSUiSettings(
-            title: 'Edit Gambar',  // Judul di iOS
-            minimumAspectRatio: 1.0,  // Rasio aspek minimum
-          ),
-        ],
-      );
-
-      if (croppedFile != null) {
-        File croppedImageFile = File(croppedFile.path);
-
-        final prefs = await SharedPreferences.getInstance();
-        String? uid = prefs.getString('uid');
-
-        if (uid != null) {
-          LoadingDialog.show(context);
-          final response =
-          await _storageService.uploadProfilePicture(croppedImageFile, uid);
-          String? imageUrl = response.data;
-          if (response.status == 'success' && imageUrl != null) {
-            print('Berhasil mengupload gambar');
-            ToastUtil.showToast(
-                'Berhasil mengupload gambar', ToastStatus.success);
-            await _updateUserProfileData("Foto Profil", photoURL: imageUrl);
-            _updateProfileDataSession('photoURL', imageUrl);
-          } else {
-            print('Gagal mengupload gambar');
-            ToastUtil.showToast('Gagal mengupload gambar', ToastStatus.error);
-          }
-        } else {
-          print('UID tidak ditemukan');
-          ToastUtil.showToast('UID tidak ditemukan', ToastStatus.error);
-        }
-      } else {
-        print('Gambar tidak dicrop');
-        ToastUtil.showToast('Gambar tidak dicrop', ToastStatus.error);
-      }
-    }
-  }*/
 
   /// Ini percobaan 3, bisa dari kamera juga:
   Future<void> _pickImage(ImageSource source) async {
@@ -317,7 +218,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                 ToastUtil.showToast(
                     'Berhasil mengupload gambar', ToastStatus.success);
                 await _updateUserProfileData("Foto Profil", photoURL: imageUrl);
-                _updateProfileDataSession('photoURL', imageUrl);
               } else {
                 safeContext(
                   (context) => LoadingDialog.hide(context),
@@ -435,6 +335,12 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     super.initState();
     _userProvider = Provider.of<UserProvider>(context, listen: false);
     _fetchUserData();
+
+    _focusNodes.forEach((title, focusNode) {
+      focusNode.addListener(() {
+        setState(() {});
+      });
+    });
   }
 
   @override
@@ -443,7 +349,9 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     _controllers.forEach((key, controller) {
       controller.dispose();
     });
+
     _focusNodes.forEach((key, focusNode) {
+      focusNode.removeListener(() {});
       focusNode.dispose();
     });
   }
@@ -474,9 +382,11 @@ class _ProfilePageState extends BaseState<ProfilePage> {
           } else {
             return GestureDetector(
               onTap: _unFocus,
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                width: double.infinity,
+                height: double.infinity,
+                child: SingleChildScrollView(
                   child: Column(
                     children: [
                       Material(
@@ -578,6 +488,13 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     String subtitle, {
     bool isEnabled = true,
   }) {
+    // Pastikan FocusNode sudah ada atau buat baru jika belum
+    if (_focusNodes[title] == null) {
+      _focusNodes[title] = FocusNode();
+    }
+    // Ambil FocusNode dari map yang sudah pasti terinisialisasi
+    FocusNode focusNode = _focusNodes[title]!;
+
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -585,115 +502,118 @@ class _ProfilePageState extends BaseState<ProfilePage> {
         children: [
           Text(
             title,
-            // style: FontTheme.size16Italic(color: Colors.grey),
           ),
           SizedBox(
             height: 40,
             child: TextField(
               controller: _controllers[title],
-              focusNode: _focusNodes[title],
+              focusNode: focusNode,
               keyboardType: title == 'Nomor Telepon'
                   ? TextInputType.number
                   : TextInputType.text,
+              style: FontTheme.titleMedium(
+                context,
+                color: isEnabled
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.primary.withAlpha(400),
+              ),
               decoration: InputDecoration(
                 enabled: isEnabled,
                 hintText: subtitle,
                 hintStyle: TextStyle(
-                  color: isEnabled ?  Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primary.withAlpha(400),
+                  color: isEnabled
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.primary.withAlpha(400),
                 ),
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 6.0, vertical: 10.0),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                ),
-                disabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                ),
-                prefixIcon: title == 'Nomor Telepon'
+                prefix: title == 'Nomor Telepon'
                     ? Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            autofocus: true,
-                            value: _selectedCountryCode,
-                            onChanged: (String? newValue) {
-                              setState(() {
-                                _selectedCountryCode = newValue;
-                              });
-                            },
-                            items: countryCodes.entries
-                                .map<DropdownMenuItem<String>>((entry) {
-                              return DropdownMenuItem<String>(
-                                value: entry.key,
-                                child: Text(entry.key),
-                              );
-                            }).toList()
-                              ..sort((a, b) => a.child
-                                  .toString()
-                                  .compareTo(b.child.toString())),
+                        padding: const EdgeInsets.only(right: 8.0),
+                        // Jarak antara prefix dan input
+                        child: Text(
+                          _selectedCountryCode!,
+                          style: FontTheme.titleMedium(
+                            context,
+                            color: isEnabled
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withAlpha(400),
                           ),
                         ),
                       )
                     : null,
-                suffix: IconButton(
-                  icon: const Icon(Icons.arrow_forward_ios),
-                  onPressed: () {
-                    String infoUpdate =
-                        capitalizeEachWord(_controllers[title]!.text.trim());
-                    if (infoUpdate.isEmpty) {
-                      DialogUtils.popUp(context,
-                          content: const Center(
-                              child: Text('Isian tidak boleh kosong')));
-                    } else {
-                      if (title == 'Nama') {
-                        if (_registeredAccount.contains(infoUpdate)) {
-                          DialogUtils.popUp(context,
-                              content: const Center(
-                                  child: Text(
-                                'Nama sudah terdaftar, silahkan gunakan nama lain',
-                                textAlign: TextAlign.center,
-                              )));
-                          return;
-                        }
-                      }
-                      if (title == 'Nomor Telepon') {
-                        infoUpdate = _selectedCountryCode! +
-                            formatPhoneNumber(infoUpdate);
-                      }
-                      DialogUtils.showConfirmationDialog(
-                        context: context,
-                        title: 'Update $title',
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Yakin ingin melakukan update ${capitalizeEachWord(title)}?',
-                              textAlign: TextAlign.justify,
-                            ),
-                            Text(
-                              infoUpdate,
-                              textAlign: TextAlign.justify,
-                              // style: FontTheme.size18Bold(color: Colors.green),
-                            ),
-                          ],
-                        ),
-                        onConfirm: () => _updateProcess(title),
-                      );
-                      if (title == 'Nama') {
-                        DialogUtils.popUp(
-                          context,
-                          content: const Center(
-                            child: Text(
-                              'Perubahan Nama hanya dapat dilakukan sekali ini saja, setelah anda memproses update ini anda tidak akan dapat mengubah nama anda lagi, jadi pastikan nama yang anda pilih sudah sesuai.\nTerima Kasih.',
-                              textAlign: TextAlign.justify,
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 6.0, vertical: 10.0),
+                enabledBorder: OutlineInputBorder(
+                  borderSide:
+                      BorderSide(color: Theme.of(context).colorScheme.primary),
                 ),
+                disabledBorder: OutlineInputBorder(
+                  borderSide:
+                      BorderSide(color: Theme.of(context).colorScheme.primary),
+                ),
+                // Tampilkan suffixIcon hanya saat TextField fokus
+                suffixIcon: focusNode.hasFocus
+                    ? IconButton(
+                        icon: const Icon(Icons.arrow_forward_ios),
+                        onPressed: () {
+                          String infoUpdate = capitalizeEachWord(
+                              _controllers[title]!.text.trim());
+                          if (infoUpdate.isEmpty) {
+                            DialogUtils.popUp(context,
+                                content: const Center(
+                                    child: Text('Isian tidak boleh kosong')));
+                          } else {
+                            if (title == 'Nama') {
+                              if (_registeredAccount.contains(infoUpdate)) {
+                                DialogUtils.popUp(context,
+                                    content: const Center(
+                                        child: Text(
+                                      'Nama sudah terdaftar, silahkan gunakan nama lain',
+                                      textAlign: TextAlign.center,
+                                    )));
+                                return;
+                              }
+                            }
+                            if (title == 'Nomor Telepon') {
+                              infoUpdate = _selectedCountryCode! +
+                                  formatPhoneNumber(infoUpdate);
+                            }
+                            DialogUtils.showConfirmationDialog(
+                              context: context,
+                              title: 'Update $title',
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Yakin ingin melakukan update ${capitalizeEachWord(title)}?',
+                                    textAlign: TextAlign.justify,
+                                  ),
+                                  Text(
+                                    infoUpdate,
+                                    textAlign: TextAlign.justify,
+                                  ),
+                                ],
+                              ),
+                              onConfirm: () => _updateProcess(title),
+                            );
+                            if (title == 'Nama') {
+                              DialogUtils.popUp(
+                                context,
+                                content: const Center(
+                                  child: Text(
+                                    'Perubahan Nama hanya dapat dilakukan sekali ini saja, setelah anda memproses update ini anda tidak akan dapat mengubah nama anda lagi, jadi pastikan nama yang anda pilih sudah sesuai.\nTerima Kasih.',
+                                    textAlign: TextAlign.justify,
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      )
+                    : null, // Jika tidak fokus, suffixIcon null
               ),
             ),
           ),

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:absensitoko/utils/LoadingDialog.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:absensitoko/api/ApiResult.dart';
 import 'package:absensitoko/api/AuthService.dart';
@@ -63,8 +65,11 @@ class UserProvider extends ChangeNotifier {
       loginLocation,
     )
         .timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
+      const Duration(seconds: 15),
+      onTimeout: () async {
+        LoadingDialog.hide(context);
+        final FirebaseAuth auth = FirebaseAuth.instance;
+        await auth.signOut();
         _message = 'Login operation timed out';
         return ApiResult(status: 'error', message: _message ?? '');
       },

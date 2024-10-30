@@ -41,7 +41,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - Antrian 2 :
 /// - Load datanya bersamaan dengan load posisi dan load breaktime
 /// - (belum ada perbedaan hari disini, harunya hari ahad ato tanggal merah itu masuk toko jam 7.30 brt absen jam 7.20 - 7.80
-/// - Buat fitur mocked gps untuk Pengecekan lokasi absen menggunakan gps fake atau asli
 /// - Buat fitur ambil data absen hari yg sama dulu
 /// - Kalau udah ada data sistem false cek absen di timeprovider diganti dengan cek ada data absennya gak
 /// - Waktu start absen khusus hari libur dan ahad yang berbeda
@@ -68,6 +67,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// * Mbeneri Sistem Tombolnya kapan bisa diklik dan kapan tidak
 /// * kemudian dilanjutkan dengan update di sheets (saat ini masih update disheet aja)
 /// * Keterangan Telat / tidak masuk
+/// * Tambahkan timeout popup absensi, kalo bisa ada timernya juga
 
 /// Yang kurang dihalaman ini adalah : -------------- (FOKUS) --------------
 /// @Timer waktu absen pagi dan siang, timer muncul ketika memasuki rentang waktu absen
@@ -77,13 +77,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// @Kolom absensi T/L, 30 menit awal T, lewat dari itu L (absen pagi atau siang)
 
 /// Lengkapi sisa yg kemarin : -------------- (FOKUS) --------------
-/// * Popup dialog pada saat ada perangkat lain yg sudah login, terus sistem logout otomatis di perangkat lama
-/// * Profil nomor hp hanya +62 yang dipake
-///
-/// * untuk mengecek apakah login dari perangkat yang sama atau tidak, jika dari perangkat yang berbeda maka akan di logout otomatis di perangkat sebelumnya (devicenya berbeda)
-/// * Benerin nomor hp diprofil, kan hanya +62 yang bisa masuk artinya fixed aja gk ush pake dropdown
-///
-/// * Mocked lokasi untuk atasi fake gps
 
 class AbsensiPage extends StatefulWidget {
   final String employeeName;
@@ -182,7 +175,6 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
       }
       setState(() {
         _statusWithDots = '.' * _dotCount;
-        // attendanceLocationStatus = '$statusWithDots${'.' * _dotCount}';
       });
       _dotCount++;
       print(_attendanceLocationStatus + _statusWithDots);
@@ -199,10 +191,26 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
         ),
       );
 
-      setState(() {
-        _userPositionLatitude = posisiPengguna.latitude;
-        _userPositionLongitude = posisiPengguna.longitude;
-      });
+      // setState(() {
+      //   _userPositionLatitude = posisiPengguna.latitude;
+      //   _userPositionLongitude = posisiPengguna.longitude;
+      // });
+
+      // Lokasi menggunakan mock atau fake GPS
+      if (posisiPengguna.isMocked) {
+        setState(() {
+          _attendanceLocationStatus = 'Lokasi palsu terdeteksi!';
+          _attendancePermission = false;
+        });
+      } else {
+        setState(() {
+          _userPositionLatitude = posisiPengguna.latitude;
+          _userPositionLongitude = posisiPengguna.longitude;
+          _attendanceLocationStatus = 'Lokasi asli terdeteksi.';
+        });
+
+        _cekJarak(posisiPengguna); // Cek jarak sekali
+      }
 
       _cekJarak(posisiPengguna); // Cek jarak sekali
 
@@ -267,10 +275,24 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
     _positionStreamSubscription =
         Geolocator.getPositionStream(locationSettings: locationSettings)
             .listen((Position posisiPengguna) {
-      setState(() {
-        _userPositionLatitude = posisiPengguna.latitude;
-        _userPositionLongitude = posisiPengguna.longitude;
-      });
+      // setState(() {
+      //   _userPositionLatitude = posisiPengguna.latitude;
+      //   _userPositionLongitude = posisiPengguna.longitude;
+      // });
+
+      // Deteksi lokasi palsu saat stream berjalan
+      if (posisiPengguna.isMocked) {
+        setState(() {
+          _attendanceLocationStatus =
+              'Lokasi palsu terdeteksi! Tidak dapat mengisi absen.';
+          _attendancePermission = false;
+        });
+      } else {
+        setState(() {
+          _userPositionLatitude = posisiPengguna.latitude;
+          _userPositionLongitude = posisiPengguna.longitude;
+        });
+      }
 
       _cekJarak(posisiPengguna); // Cek jarak setiap kali posisi berubah
     });
@@ -717,7 +739,8 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
                                   '${!_isStreaming ? 'Aktifkan' : 'Nonaktifkan'} Lokasi Real-time'),
                               trailing: Switch(
                                 value: _isStreaming,
-                                onChanged: _permissionGranted ? _toggleSwitch : null,
+                                onChanged:
+                                    _permissionGranted ? _toggleSwitch : null,
                               ),
                               onTap: null,
                             ),

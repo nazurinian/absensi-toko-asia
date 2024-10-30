@@ -1,9 +1,11 @@
+import 'package:absensitoko/api/SessionService.dart';
 import 'package:absensitoko/models/UserModel.dart';
 import 'package:absensitoko/provider/DataProvider.dart';
 import 'package:absensitoko/provider/TimeProvider.dart';
 import 'package:absensitoko/provider/UserProvider.dart';
 import 'package:absensitoko/themes/fonts/Fonts.dart';
 import 'package:absensitoko/utils/BaseState.dart';
+import 'package:absensitoko/utils/DeviceUtils.dart';
 import 'package:absensitoko/utils/DialogUtils.dart';
 import 'package:absensitoko/utils/DisplaySize.dart';
 import 'package:absensitoko/utils/Helper.dart';
@@ -15,25 +17,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// ---------------------------- Update Selanjutnya ----------------------------
-/// * Lengkapi Aplikasi Admin
-/// * Sistem Dashboard atau statistik dari log absensi
-/// * Fix Warna
-/// * Cek pengelolaan atau handle izin
-/// * Cek handle koneksi internet
-/// * Rumus otomatis sheets
-/// * Halaman login dan profil yg kurang menarik (minim desain)
-
-/// ---------------------------- Udah beres ----------------------------
-/// @ attendanceLocationStatus disini pesan yang muncul ketika cek lokasi dan ketika memproses izin akses gps
-/// @ pengaturan izinnya belum disesuaikan
-/// @ FireStore Update, field untuk waktu breaktime dan hari libur, lalu serta update
-/// @ Sistem Login dan Logout dengan Penambahan 3 field baru, nama perangkat, lokasi login, dan waktu login
-/// @ Tambahkan data login user dengan lokasi tempat dan nama perangkat login
-/// @ Buat fitur keterangan
-/// @ Buat fitur simpan data di firestore dengan tambahan gps dan nama perangkat
-/// @ Tombol refresh jadinya untuk refresh lokasi (X-juga bisa untuk refresh load data dan informasi libur-X)
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -44,6 +27,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends BaseState<HomePage> {
   String? displayName = '';
   String infoAkun = '';
+  String _deviceName = '';
 
   UserModel? _user;
 
@@ -53,22 +37,34 @@ class _HomePageState extends BaseState<HomePage> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     UserModel? userData = userProvider.currentUser;
 
+    String deviceName = await DeviceUtils.getDeviceName(context);
+    setState(() {
+      _deviceName = deviceName;
+    });
+
     if (!userProvider.userDataIsLoaded) {
+      await userProvider.loadUserSession();
+      final userDataSession = userProvider.currentUserSession;
+
       try {
-        await userProvider.loadUserSession();
-        final userDataSession = userProvider.currentUserSession;
+        final result = await userProvider.getUser(userDataSession!.uid);
 
-        final message = await userProvider.getUser(userDataSession!.uid);
-
-        if (message.status == 'success') {
+        if (result.status == 'success') {
           userData = userProvider.currentUser;
-          setState(() {
-            _user = userData;
-            displayName = userData?.displayName ?? '';
-          });
-          ToastUtil.showToast('Berhasil memperoleh data', ToastStatus.success);
+          if (userData!.loginDevice != _deviceName) {
+            await SessionService.clearSession();
+            DialogUtils.popUp(context,
+                content: const Text(
+                    'Sesi login telah berakhir, silahkan login kembali!'));
+          } else {
+            setState(() {
+              _user = userData;
+              displayName = userData?.displayName ?? '';
+            });
+            ToastUtil.showToast('Berhasil memperoleh data', ToastStatus.success);
+          }
         } else {
-          ToastUtil.showToast(message.message ?? '', ToastStatus.error);
+          ToastUtil.showToast(result.message ?? '', ToastStatus.error);
         }
       } catch (e) {
         safeContext((context) {
@@ -95,7 +91,6 @@ class _HomePageState extends BaseState<HomePage> {
       final message = await userProvider.signOut(user);
 
       if (message.status == 'success') {
-        print('Tai kambing?');
         Future.delayed(const Duration(seconds: 1), () {
           LoadingDialog.hide(context);
           SnackbarUtil.showSnackbar(
