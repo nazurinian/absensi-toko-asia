@@ -47,3 +47,4 @@ app.*.map.json
 /lib/api/ApiService.dart
 /lib/views/TestPage.dart
 /lib/udh beres.txt
+/lib/utils/Test2Page.dart

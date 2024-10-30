@@ -34,7 +34,13 @@ void main() async {
   bool? isLoggedIn = prefs.getBool('isLogin') ?? false;
 
   // Memeriksa pembaruan sebelum melanjutkan
-  Map<String, String> updateInfo = await checkForUpdates();
+  // Map<String, String> updateInfo = await checkForUpdates();
+  Map<String, String> updateInfo = {
+    'needsUpdate': 'false',
+    'currentVersion': '0.0.0',
+    'latestVersion': '0.0.0',
+    'downloadLink': '',
+  };
 
   runApp(
     MultiProvider(

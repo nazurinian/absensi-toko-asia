@@ -12,6 +12,7 @@ import 'package:absensitoko/utils/CustomTextFormField.dart';
 import 'package:absensitoko/utils/DialogUtils.dart';
 import 'package:absensitoko/utils/Helper.dart';
 import 'package:absensitoko/utils/LoadingDialog.dart';
+import 'package:absensitoko/utils/Test2Page.dart';
 import 'package:absensitoko/views/TestPage.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -77,6 +78,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// @Kolom absensi T/L, 30 menit awal T, lewat dari itu L (absen pagi atau siang)
 
 /// Lengkapi sisa yg kemarin : -------------- (FOKUS) --------------
+/// @ Pembuatan HistoryModel dan AttendanceInfoModel, untuk menyimpan data absensi dan informasi absensi
+/// * Menyelesaikan Sistem DataProvider, (kurang tes read dan update dengan model AttendanceInfoModel)
+/// * Model History Kurang field Timenya update, mungkin ada field lain yg kurang bisa ditambah
+/// * Sistem Cek update by Device belum diselesaikan, karena ini tidak bisa diletakkan di main.dart
+/// * History di simpan di RTDB, info absen dan profil user di simpan di Firestore
 
 class AbsensiPage extends StatefulWidget {
   final String employeeName;
@@ -770,6 +776,19 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
                                     context,
                                     MaterialPageRoute(
                                       builder: (context) => TestPage(),
+                                    )),
+                                iconSize: 40,
+                                icon: const Icon(Icons.telegram),
+                              ),
+                            ),
+                            ListTile(
+                              title: const Text('Testing Page'),
+                              subtitle: Text('(Tes Sistem Keterangan)'),
+                              trailing: IconButton(
+                                onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => TestDataProviderPage(),
                                     )),
                                 iconSize: 40,
                                 icon: const Icon(Icons.telegram),

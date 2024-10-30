@@ -17,8 +17,6 @@ class Attendance {
 
   factory Attendance.fromJson(String str) => Attendance.fromMap(json.decode(str));
 
-  String toJson() => json.encode(toMap());
-
   factory Attendance.fromMap(Map<String, dynamic> json) => Attendance(
     action: json["action"],
     tahunBulan: json["tahunBulan"],
@@ -40,6 +38,8 @@ class Attendance {
         ? List<dynamic>.from((data as List<Data>).map((x) => x.toMap()))
         : (data as Data?)?.toMap(),
   };
+
+  String toJson() => json.encode(toMap());
 
   @override
   String toString() {
