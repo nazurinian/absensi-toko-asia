@@ -1,15 +1,15 @@
 import 'dart:convert';
 
 class AttendanceInfoModel {
-  final String? breaktime;
+  final String? breakTime;
   final String? nationalHoliday;
 
-  AttendanceInfoModel({this.breaktime, this.nationalHoliday});
+  AttendanceInfoModel({this.breakTime, this.nationalHoliday});
 
   // Fungsi untuk mengubah dari Map ke AttendanceModel dengan nilai default
   factory AttendanceInfoModel.fromMap(Map<String, dynamic> map) {
     return AttendanceInfoModel(
-      breaktime: map['breaktime'] as String? ?? 'Data belum tersedia',
+      breakTime: map['break_time'] as String? ?? 'Data belum tersedia',
       nationalHoliday: map['national_holiday'] as String? ?? 'Tidak ada libur',
     );
   }
@@ -17,7 +17,7 @@ class AttendanceInfoModel {
   // Fungsi untuk mengubah dari AttendanceModel ke Map, tanpa menggunakan .isNotEmpty
   Map<String, dynamic> toMap() {
     return {
-      if (breaktime != null && breaktime!.isNotEmpty) 'breaktime': breaktime,
+      if (breakTime != null && breakTime!.isNotEmpty) 'break_time': breakTime,
       if (nationalHoliday != null && nationalHoliday!.isNotEmpty) 'national_holiday': nationalHoliday,
     };
   }

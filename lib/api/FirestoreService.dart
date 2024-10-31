@@ -8,7 +8,8 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // ---------------------------- USER ------------------------------------
-  Future<ApiResult<dynamic>> saveUser(UserModel user) async {
+  // Ini fungsi untuk menyimpan data user pertama kali
+  Future<ApiResult> saveUser(UserModel user) async {
     final dataToSave = user.toMap()..removeWhere((key, value) => value == null);
     try {
       await _db.collection('users').doc(user.uid).set(dataToSave);
@@ -20,7 +21,8 @@ class FirestoreService {
     }
   }
 
-  Future<ApiResult<dynamic>> updateUser(UserModel user) async {
+  // Ini update untuk kebutuhan logout
+  Future<ApiResult> updateUser(UserModel user) async {
     final dataToSave = user.toMap()..removeWhere((key, value) => value == null);
 
     try {
@@ -35,6 +37,7 @@ class FirestoreService {
     }
   }
 
+  // Ini fungsi penting untuk mendapatkan data user
   Future<ApiResult<dynamic>> getUser(String uid) async {
     try {
       DocumentSnapshot doc = await _db.collection('users').doc(uid).get();
@@ -54,6 +57,7 @@ class FirestoreService {
     }
   }
 
+  // Saat ini, fungsi ini untuk cek nama yg sama aja
   Future<ApiResult<dynamic>> getAllUsers() async {
     try {
       QuerySnapshot querySnapshot = await _db.collection('users').get();
@@ -76,6 +80,7 @@ class FirestoreService {
     }
   }
 
+  // Ini update untuk kebutuhan data secara spesifik
   Future<ApiResult<dynamic>> updateUserProfileData(
     String uid, {
     String? displayName,
@@ -104,7 +109,7 @@ class FirestoreService {
   // ---------------------------- DATA ------------------------------------
 
   // Fungsi untuk mendapatkan data attendance
-  Future<ApiResult<AttendanceInfoModel>> getInfoAttendanceData() async {
+  Future<ApiResult<AttendanceInfoModel>> getAttendanceInfo() async {
     try {
       DocumentSnapshot doc =
           await _db.collection('attendance').doc('information').get();
@@ -121,7 +126,7 @@ class FirestoreService {
         status: 'success',
         message: 'Data attendance belum tersedia',
         data: AttendanceInfoModel(
-            breaktime: 'Data belum tersedia',
+            breakTime: 'Data belum tersedia',
             nationalHoliday: 'Tidak ada libur'),
       );
     } catch (e) {
@@ -131,7 +136,7 @@ class FirestoreService {
   }
 
   // Fungsi untuk memperbarui data attendance
-  Future<ApiResult> updateInfoAttendanceData(AttendanceInfoModel data) async {
+  Future<ApiResult> updateAttendanceInfo(AttendanceInfoModel data) async {
     try {
       final Map<String, dynamic> updateData = data.toMap();
 

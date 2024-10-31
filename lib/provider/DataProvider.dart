@@ -10,32 +10,34 @@ import 'package:flutter/material.dart';
 class DataProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   final FirestoreService _fireStoreService = FirestoreService();
-  final RealtimeDatabaseService _realtimeDatabaseService = RealtimeDatabaseService();
+  final RealtimeDatabaseService _realtimeDatabaseService =
+      RealtimeDatabaseService();
 
+  // Data sheet
   Data _dataAbsensi = Data();
+
+  // Data models
   AttendanceInfoModel? _attendanceInfoData;
-  HistoryData? _selectedDateHistory; // Model untuk menyimpan data history berdasarkan tanggal
-  Map<String, HistoryData> _userHistoryData = {};
-  // List<dynamic> _userHistoryData = [];
-  Map<String, Map<String, HistoryData>> _allUserHistoryData = {};
+  HistoryData? _selectedDateHistory;
+  DailyHistory? _userHistoryData;
+  MonthlyHistory? _allUserHistoryData;
+  HistoryModel? _allCompleteHistory;
 
-
-  bool _statusAbsensiPagi = false;
-  bool _statusAbsensiSiang = false;
   bool _isLoading = false;
   String? _status;
   String? _message;
 
-  Data get dataAbsensi => _dataAbsensi;
+  Data? get dataAbsensi => _dataAbsensi;
+
   AttendanceInfoModel? get attendanceInfoData => _attendanceInfoData;
+
   HistoryData? get selectedDateHistory => _selectedDateHistory;
-  Map<String, HistoryData> get userHistoryData => _userHistoryData;
-  // List<dynamic> get userHistoryData => _userHistoryData;
-  Map<String, Map<String, HistoryData>> get allUserHistoryData => _allUserHistoryData;
 
-  bool get statusAbsensiPagi => _statusAbsensiPagi;
+  DailyHistory? get userHistoryData => _userHistoryData;
 
-  bool get statusAbsensiSiang => _statusAbsensiSiang;
+  MonthlyHistory? get allUserHistoryData => _allUserHistoryData;
+
+  HistoryModel? get allCompleteHistory => _allCompleteHistory;
 
   bool get isLoading => _isLoading;
 
@@ -43,42 +45,54 @@ class DataProvider extends ChangeNotifier {
 
   String? get message => _message;
 
-/*
-  // Fungsi untuk mengatur status loading
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
-  }
-*/
+  // Boolean flags to indicate data availability
+  bool get isAttendanceInfoAvailable => _attendanceInfoData != null;
+
+  bool get isSelectedDateHistoryAvailable => _selectedDateHistory != null;
+
+  bool get isUserHistoryDataAvailable => _userHistoryData != null;
+
+  bool get isAllUserHistoryDataAvailable => _allUserHistoryData != null;
+
+  bool get isAllCompleteHistoryAvailable => _allCompleteHistory != null;
+
+  bool get statusAbsensiPagi =>
+      _selectedDateHistory?.tLPagi != null &&
+      _selectedDateHistory!.tLPagi!.isNotEmpty;
+
+  bool get statusAbsensiSiang =>
+      _selectedDateHistory?.tLSiang != null &&
+      _selectedDateHistory!.tLSiang!.isNotEmpty;
 
   // ---------------------------- DATA SHEET ------------------------------------
-  Future<ApiResult> updateAttendance(
-    String waktuAbsensi,
-    Attendance attendance,
-  ) async {
+  Future<ApiResult> updateAttendance(String waktuAbsensi, Attendance attendance,
+      {bool isRefresh = false}) async {
+    resetLoadDataStatus();
+
+    var previousData = _dataAbsensi;
+
     final response = await _apiService.updateAttendance(
-        waktuAbsensi: waktuAbsensi, attendance: attendance);
-    refreshData(true);
+      waktuAbsensi: waktuAbsensi,
+      attendance: attendance,
+    );
 
     _status = response.status;
     _message = response.message;
-    print("tai ayam1: $_status");
-    print("tai kambing: $_message");
+
     if (response.status == 'success') {
-      print("pusing");
-      refreshData(false, dataIsLoaded: false);
       _dataAbsensi = response.data as Data;
-      if (waktuAbsensi == 'pagi') {
-        _statusAbsensiPagi = true;
-      } else {
-        _statusAbsensiSiang = true;
-      }
       print('Hasil response update data: ${_dataAbsensi.toString()}');
     } else {
-      print("gak pusing");
-      refreshData(false, dataIsLoaded: true);
+      if (isRefresh) {
+        _message = 'Gagal memperbarui data absensi';
+        _dataAbsensi = previousData;
+      } else {
+        _dataAbsensi = Data();
+      }
     }
 
+    print(response.message);
+    _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
@@ -86,204 +100,251 @@ class DataProvider extends ChangeNotifier {
   // ---------------------------- DATA FIRE STORE ------------------------------------
 
   // Fungsi untuk mendapatkan data attendance
-  Future<void> getData() async {
-    _isLoading = true;
-    notifyListeners();
+  Future<ApiResult> getAttendanceInfo({bool isRefresh = false}) async {
+    resetLoadDataStatus();
 
-    final response = await _fireStoreService.getInfoAttendanceData();
+    var previousData = _attendanceInfoData;
+
+    final response = await _fireStoreService.getAttendanceInfo();
 
     _status = response.status;
     _message = response.message;
+
     if (response.status == 'success') {
       _attendanceInfoData = response.data;
     } else {
-      _attendanceInfoData = null;
+      if (isRefresh) {
+        _message = 'Gagal memperoleh informasi absensi';
+        _attendanceInfoData = previousData;
+      } else {
+        _attendanceInfoData = null;
+      }
     }
 
+    print(response.message);
     _isLoading = false;
     notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
   // Fungsi untuk memperbarui data attendance
-  Future<void> updateData(AttendanceInfoModel data) async {
-    _isLoading = true;
-    notifyListeners();
+  Future<ApiResult> updateAttendanceInfo(AttendanceInfoModel data) async {
+    resetLoadDataStatus();
 
-    final response = await _fireStoreService.updateInfoAttendanceData(data);
+    final response = await _fireStoreService.updateAttendanceInfo(data);
 
     _status = response.status;
     _message = response.message;
+
+    // Tanpa response data langsung update by apps langsung
     if (response.status == 'success') {
       _attendanceInfoData = AttendanceInfoModel(
-        breaktime: data.breaktime ?? _attendanceInfoData?.breaktime,
+        breakTime: data.breakTime ?? _attendanceInfoData?.breakTime,
         nationalHoliday:
             data.nationalHoliday ?? _attendanceInfoData?.nationalHoliday,
       );
+    } else {
+      print('Gagal melakukan update informasi absensi');
     }
 
+    print(response.message);
     _isLoading = false;
     notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-  // // Untuk Data History
-  // Future<ApiResult> getHistory(String userName, String tanggal) async {
-  //   final response = await _fireStoreService.getHistory(userName, tanggal);
-  //   if (response.status == 'success') {
-  //     _attendanceHistoryData = response.data;
-  //   }
-  //   notifyListeners();
-  //   return response;
-  // }
-  //
-  // Future<ApiResult> updateHistory(
-  //     String userName, String tanggal, HistoryModel data) async {
-  //   final response =
-  //       await _fireStoreService.updateHistory(userName, tanggal, data);
-  //   if (response.status == 'success') {
-  //     _attendanceHistoryData = data; // Atau gunakan update parsial
-  //   }
-  //   notifyListeners();
-  //   return response;
-  // }
-  
-/*  // Mengambil semua history untuk pengguna tertentu
-  Future<void> fetchAllHistory(String userName) async {
-    // _setLoading(true);
-    final result = await _fireStoreService.getAllHistoryForUser(userName);
-    if (result.status == 'success' && result.data != null) {
-      _historyModel = result.data;
-    } else {
-      print(result.message); // Tampilkan pesan jika gagal mengambil data
-    }
-    // _setLoading(false);
-  }
-
-  // Mengambil data history berdasarkan tanggal
-  Future<void> fetchHistoryByDate(String userName, String date) async {
-    // _setLoading(true);
-    final result = await _fireStoreService.getHistoryByDate(userName, date);
-    if (result.status == 'success') {
-      _selectedDateHistory = result.data;
-    } else {
-      print(result.message); // Tampilkan pesan jika gagal mengambil data
-      _selectedDateHistory = null;
-    }
-    // _setLoading(false);
-  }
-
-  // Memperbarui data history untuk tanggal tertentu
-  Future<void> updateHistory(String userName, String date, HistoryData newHistoryData) async {
-    // _setLoading(true);
-    final result = await _fireStoreService.updateHistory(userName, date, newHistoryData);
-    if (result.status == 'success') {
-      // Jika berhasil, perbarui data di dalam provider
-      _selectedDateHistory = newHistoryData;
-
-      // Jika historyModel tidak null, update data secara langsung di dalamnya
-      if (_historyModel != null && _historyModel!.historyData != null) {
-        _historyModel!.historyData![date] = newHistoryData;
-      }
-
-      notifyListeners();
-    } else {
-      print(result.message); // Tampilkan pesan jika gagal memperbarui data
-    }
-    // _setLoading(false);
-  }*/
-
+  // ---------------------------- DATA RTDB ------------------------------------
 
   // Fungsi untuk inisialisasi data history
-  Future<void> initializeHistory(String userName, String date) async {
-    final result = await _realtimeDatabaseService.initializeHistory(userName, date);
-    // Handle the result if needed
+  Future<ApiResult> initializeHistory (String userName, String date, {bool isRefresh = false}) async {
+    resetLoadDataStatus();
+
+    final response =
+        await _realtimeDatabaseService.initializeHistory(userName, date);
+
+    _status = response.status;
+    _message = response.message;
+
+    print(response.message);
+    _isLoading = false;
     notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
   // Fungsi untuk mendapatkan history user berdasarkan tanggal tertentu
-  Future<void> getHistoryForUserByDate(String userName, String date) async {
-    final result = await _realtimeDatabaseService.getHistoryForUserByDate(userName, date);
-    print(result.data.toString());
-    if (result.status == 'success') {
-      _selectedDateHistory = HistoryData.fromMap(result.data);
+  Future<ApiResult> getThisDayHistory(String userName, String date, {bool isRefresh = false}) async {
+    resetLoadDataStatus();
+
+    // Simpan data lama untuk refresh
+    var previousData = _selectedDateHistory;
+
+    final response =
+        await _realtimeDatabaseService.getThisDayHistory(userName, date);
+
+    _status = response.status;
+    _message = response.message;
+
+    if (response.status == 'success') {
+      _selectedDateHistory = response.data;
     } else {
-      // Handle error case
-      print(result.message);
+      // Jika ini adalah refresh, kembalikan data lama jika tidak ada data baru
+      if (isRefresh) {
+        _selectedDateHistory = previousData; // Mengembalikan data lama
+      } else {
+        _selectedDateHistory = null;
+      }
     }
+
+    print(response.message);
+    _isLoading = false;
     notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
   // Fungsi untuk memperbarui data history user
-  Future<void> updateHistory(String userName, String date, HistoryData data) async {
-    final result = await _realtimeDatabaseService.updateHistory(userName, date, data);
-    if (result.status == 'success') {
-      // Update local data if needed, or re-fetch
-      notifyListeners();
+  Future<ApiResult> updateThisDayHistory(String userName, String date, HistoryData data) async {
+    resetLoadDataStatus();
+
+    final response = await _realtimeDatabaseService.updateThisDayHistory(
+        userName, date, data);
+
+    _status = response.status;
+    _message = response.message;
+
+    if (response.status == 'success') {
+      _selectedDateHistory = response.data;
     } else {
-      // Handle error case
-      print(result.message);
+      print('Gagal melakukan pencatatan update pada history');
     }
+
+    print(response.message);
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
   // Fungsi untuk mendapatkan semua history dari user tertentu
-  Future<ApiResult<dynamic>> getAllHistoryForUser(String userName, String date) async {
-    _isLoading = true;
-    _status = null;
-    _message = null;
+  Future<ApiResult> getAllDayHistory(String userName, String date, {bool isRefresh = false}) async {
+    resetLoadDataStatus();
 
-    final response = await _realtimeDatabaseService.getAllHistoryForUser(userName, date);
+    var previousData = _userHistoryData;
+
+    final response =
+        await _realtimeDatabaseService.getAllDayHistory(userName, date);
 
     _status = response.status;
     _message = response.message;
     if (response.status == 'success') {
-      // Fungsi 3: Get All Data by User (Menggunakan Map)
       _userHistoryData = response.data;
-      // Fungsi 3: Get All Data by User (Menggunakan List - Jangan Hapus)
-      // _userHistoryData = response.data; // Simpan data history ke dalam state
     } else {
-      _userHistoryData = {};
-      // _userHistoryData = []; // Kosongkan data jika tidak berhasil
+      if (isRefresh) {
+        _message = 'Gagal merefresh seluruh data history harian user ';
+        _userHistoryData = previousData;
+      } else {
+        _userHistoryData = null;
+      }
     }
 
+    print(response.message);
     _isLoading = false;
-    notifyListeners(); // Beritahu pendengar untuk memperbarui UI
+    notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
   // Fungsi untuk mendapatkan semua history dari semua user
-  Future<void> getAllHistory(String date) async {
-    _isLoading = true;
-    notifyListeners();
+  Future<ApiResult> getAllMonthHistory(String userName, {bool isRefresh = false}) async {
+    resetLoadDataStatus();
 
-    // final response = await _fireStoreService.getAllHistory(date);
-    final response = await _realtimeDatabaseService.getAllHistory(date);
+    var previousData = _allUserHistoryData;
 
-    if (response.isNotEmpty) {
-      _allUserHistoryData = response;
+    final response =
+        await _realtimeDatabaseService.getAllMonthHistory(userName);
+
+    _status = response.status;
+    _message = response.message;
+    if (response.status == 'success') {
+      _allUserHistoryData = response.data;
     } else {
-      _allUserHistoryData = {};
+      if (isRefresh) {
+        _message = 'Gagal merefresh seluruh data history bulanan user';
+        _allUserHistoryData = previousData;
+      } else {
+        _allUserHistoryData = null;
+      }
     }
 
+    print(response.message);
     _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
+  // Fungsi untuk mengambil seluruh history dari semua pengguna
+  Future<ApiResult> getAllCompleteHistory({bool isRefresh = false}) async {
+    resetLoadDataStatus();
+
+    var previousData = _allCompleteHistory;
+
+    final response = await _realtimeDatabaseService.getAllHistoryCompletely();
+
+    _status = response.status;
+    _message = response.message;
+    if (response.status == 'success') {
+      _allCompleteHistory = response.data;
+    } else {
+      if (isRefresh) {
+        _message = 'Gagal merefresh seluruh data history';
+        _allCompleteHistory = previousData;
+      } else {
+        _allCompleteHistory = null;
+      }
+    }
+
+    print(response.message);
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
+  // ---------------------------- CLEAR | REFRESH ------------------------------------
+  // Ini digunakan ketika logout dengan mengosongkan semua data
+  void clearData() {
+    _dataAbsensi = Data();
+    _attendanceInfoData = null;
+    _selectedDateHistory = null;
+    _userHistoryData = null;
+    _allUserHistoryData = null;
+    _allCompleteHistory = null;
+
+    _status = null;
+    _message = null;
+
     notifyListeners();
   }
 
+  // Ini digunakan ketika ingin mengosongkan status dan pesan
+  void resetLoadDataStatus() {
+    _isLoading = true;
+    _status = '';
+    _message = '';
+    // notifyListeners();
+  }
 
-  Map<String, Map<String, Map<String, HistoryData>>> _allCompleteHistory = {};
-  Map<String, Map<String, Map<String, HistoryData>>> get allCompleteHistory => _allCompleteHistory;
+/*
+  // Map<String, HistoryData> _userHistoryData = {};
+  // Map<String, Map<String, HistoryData>> _allUserHistoryData = {};
+  // Map<String, Map<String, Map<String, HistoryData>>> _allCompleteHistory = {};
 
+  // Map<String, HistoryData> get userHistoryData => _userHistoryData;
+  // Map<String, Map<String, HistoryData>> get allUserHistoryData =>
+  //     _allUserHistoryData;
+  // Map<String, Map<String, Map<String, HistoryData>>> get allCompleteHistory =>
+  //     _allCompleteHistory;
 
-  // Fungsi untuk mengambil seluruh history dari semua pengguna
-  Future<void> getAllCompleteHistory() async {
-    try {
-      // Memanggil fungsi getAllHistoryCompletely dari FirestoreService
-      final result = await _realtimeDatabaseService.getAllHistoryCompletely();
-
-      // Update data lokal dan notifikasi
-      _allCompleteHistory = result;
-      notifyListeners();
-    } catch (e) {
-      print('Error in fetchAllCompleteHistory: $e');
-    }
+  // Fungsi untuk mengatur status loading
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 
   // Membersihkan data terpilih (jika ingin mengosongkan state pada tanggal tertentu)
@@ -292,95 +353,18 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---------------------------- CLEAR | REFRESH ------------------------------------
-  void refreshData(bool isRefresh, {bool dataIsLoaded = true}) {
-    if (isRefresh) {
-      _status = null;
-      _message = null;
-      // _isData1Loaded = false;
-      // _isData2Loaded = false;
-      // _responsePostData = Pembukuan();
-    } else {
-      if (dataIsLoaded) {
-        // _isData1Loaded = true;
-        // _isData2Loaded = true;
-      } else {
-        // _isData1Loaded = false;
-        // _isData2Loaded = false;
-      }
-    }
-  }
+  List<String> _data = [];
 
-  void clearData() {
-    // _data = [];
-    // _filteredData = [];
-    // _combinedData = [];
-    // _sheetNames = [];
-    //
-    // _isData1Loaded = false;
-    // _isData2Loaded = false;
-    // _isSheetDataLoaded = false;
-    _isLoading = false;
-    _status = null;
-    _message = null;
+  List<String> get data => _data;
 
-    /// Notify nya di nonaktifkan karena ini hanya nge set ke null semua, ngga butuh respon perubahan
-    // notifyListeners();
-  }
-
-  void statusClear() {
-    _status = 'success';
-    _message = '';
-
+  void addData(String value) {
+    _data.add(value);
     notifyListeners();
   }
 
-/*
-// List<Pembukuan> _data = [];
-// List<Pembukuan> _filteredData = [];
-// List<Pembukuan> _combinedData = [];
-// List<String> _sheetNames = [];
-// Map<String, List<Pembukuan>> _allSheetData = {};
-// Data _responsePostData = Data();
-
-// bool _isData1Loaded = false;
-// bool _isData2Loaded = false;
-// bool _isSheetDataLoaded = false;
-// bool _isAllSheetDataLoaded = false;
-
-// List<Pembukuan> get data => _data;
-//
-// List<Pembukuan> get filteredData => _filteredData;
-//
-// List<Pembukuan> get combinedData => _combinedData;
-
-// List<String> get sheetNames => _sheetNames;
-
-// Map<String, List<Pembukuan>> get allSheetData => _allSheetData;
-
-// Data get responsePostData=> _responsePostData;
-
-// bool get isData1Loaded => _isData1Loaded;
-
-// bool get isData2Loaded => _isData2Loaded;
-
-// bool get isSheetDataLoaded => _isSheetDataLoaded;
-
-// bool get isAllSheetDataLoaded => _isAllSheetDataLoaded;
-
-// List<String> _data = [];
-//
-//   List<String> get data => _data;
-//
-//   void addData(String value) {
-//     _data.add(value);
-//     notifyListeners();
-//   }
-//
-//   void removeData(String value) {
-//     _data.remove(value);
-//     notifyListeners();
-//   }
-
+  void removeData(String value) {
+    _data.remove(value);
+    notifyListeners();
+  }
 */
 }

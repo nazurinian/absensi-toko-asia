@@ -12,7 +12,9 @@ import 'package:absensitoko/utils/CustomTextFormField.dart';
 import 'package:absensitoko/utils/DialogUtils.dart';
 import 'package:absensitoko/utils/Helper.dart';
 import 'package:absensitoko/utils/LoadingDialog.dart';
-import 'package:absensitoko/utils/Test2Page.dart';
+import 'package:absensitoko/utils/NetworkConnectivity.dart';
+import 'package:absensitoko/utils/NetworkHelper.dart';
+import 'package:absensitoko/views/Test2Page.dart';
 import 'package:absensitoko/views/TestPage.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -30,13 +32,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// - Antrian 3 :
 /// - Pembuatan akun admin yang dapat mengelola :
-///     1. Data karyawan
-///     2. Data absensi (ketika diabsenkan bos misalnya, tanpa waktu)
-///     3. Penentuan hari libur
-///     4. Penentuan jam break siang
-///     5. Merubah absensi karyawan
-///     6. Kontrol Absensi karyawan
-///     7. Pembuatan sheet bulan baru
+///     1. Data karyawan (Get all user)
+///     2. Data absensi (ketika diabsenkan bos misalnya, tanpa waktu) (update by admin)
+///     3. Penentuan hari libur (admin only)
+///     4. Penentuan jam break siang (admin only)
+///     5. Merubah absensi karyawan (update by admin)
+///     6. Kontrol Absensi karyawan (Get all user, get all complete data)
+///     7. Pembuatan sheet bulan baru (new sheets)
+///     8. Sistem reset password dan sistem register by admin aja kaya najwa
 /// - Akun admin bisa ngerubah hasil absensi karywan dihari yang sama (misal ada yg lupa absen)
 
 /// - Antrian 2 :
@@ -78,11 +81,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// @Kolom absensi T/L, 30 menit awal T, lewat dari itu L (absen pagi atau siang)
 
 /// Lengkapi sisa yg kemarin : -------------- (FOKUS) --------------
-/// @ Pembuatan HistoryModel dan AttendanceInfoModel, untuk menyimpan data absensi dan informasi absensi
-/// * Menyelesaikan Sistem DataProvider, (kurang tes read dan update dengan model AttendanceInfoModel)
-/// * Model History Kurang field Timenya update, mungkin ada field lain yg kurang bisa ditambah
-/// * Sistem Cek update by Device belum diselesaikan, karena ini tidak bisa diletakkan di main.dart
-/// * History di simpan di RTDB, info absen dan profil user di simpan di Firestore
+/// ! Sistem Cek update by Device belum diselesaikan, karena ini tidak bisa diletakkan di main.dart
+/// * Cara update otomatis seperti initial data otomatis, atau update info absen holiday dengan menyimpan waktu kemarin di shared preference lalu mencocokkannya dengan waktu saat ini di halaman home
+/// * Bagian terakhir dari data provider, yaitu :
+///   * getData, dan autogetdata after update data
+///   * Update data absen di firestoreservice yaitu informasi perangkat, versi dan link
+///   * Create new sheet for absensi bulan baru
+/// * Otak atik UserProvider biar simple kaya DataProvider
+/// * Tambahkan SessionService untuk nyimpen tanggalnya, perangkat dll
+/// * Dafta kelas yg blom dipakek : UpdatePage, TimePicker, PermissionHandler, ListItem, DialogManager, CustomDropDownMenu
+/// * Stop Timer Provider Setiap pindah2 halaman (mungkin atau tetap seperti ini?)
+/// * Buat logo aplikasi
+/// * Buat splash screen
+/// * Memulai pengelolaan versi
+/// * Contoh timeout itu ada dihalaman login tombol login, kalo misalnya 10 detik gak ada respon auto batal login
+/// * urutan sistem otomatis reset data dan init data hari baru adalah:
+///   - Cek data apakah sudah diinit atau belum?
+///   - Jika belum diinit maka init data
+///   - Jika pathnya sudah ada(sudah diinit), maka simpan tanggal hari ini dishared preference
+///   - ketika data udah ada dan tanggal udah ada berati lanjut ke cek tanggal yg udh disimpan sama tgl saat ini
+///   - ketika ganti hari cek tanggal hari ini dengan tanggal yang disimpan di shared preference
+///   - kalau masih sama artinya belum ganti hari, kalau berbeda udh ganti hari maka reset data
+///   - lalu kembali ke awal inti data dulu baru save tanggal hari baru.
 
 class AbsensiPage extends StatefulWidget {
   final String employeeName;
@@ -429,297 +449,157 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
                 appBar: AppBar(
                   title: const Text('Absensi Online'),
                 ),
-                body: Consumer<DataProvider>(
-                    builder: (context, dataProvider, child) {
-                  final pagiAttendanceStatus = dataProvider.statusAbsensiPagi;
-                  final siangAttendanceStatus = dataProvider.statusAbsensiSiang;
+                body: ConnectionChecker(
+                  connectedWidget: Consumer<DataProvider>(
+                      builder: (context, dataProvider, child) {
+                    final pagiAttendanceStatus = dataProvider.statusAbsensiPagi;
+                    final siangAttendanceStatus = dataProvider.statusAbsensiSiang;
 
-                  return Consumer<TimeProvider>(
-                      builder: (context, timeProvider, child) {
-                    final dateTime = timeProvider.currentTime;
-                    final morningAttendanceState =
-                        timeProvider.isPagiButtonActive();
-                    final afternoonAttendanceState =
-                        timeProvider.isSiangButtonActive();
-                    final statusAttendance =
-                        timeProvider.attendanceStatus == 'T'
-                            ? 'Tepat Waktu'
-                            : 'Lewat Waktu';
-                    final keterangan = "";
+                    return Consumer<TimeProvider>(
+                        builder: (context, timeProvider, child) {
+                      final dateTime = timeProvider.currentTime;
+                      final morningAttendanceState =
+                          timeProvider.isPagiButtonActive();
+                      final afternoonAttendanceState =
+                          timeProvider.isSiangButtonActive();
+                      final statusAttendance =
+                          timeProvider.attendanceStatus == 'T'
+                              ? 'Tepat Waktu'
+                              : 'Lewat Waktu';
+                      final keterangan = "";
 
-                    return SingleChildScrollView(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                  bottom: 20, left: 4, right: 4),
-                              child: Text.rich(
-                                style: const TextStyle(fontSize: 18),
-                                TextSpan(
-                                  text: _attendanceLocationStatus,
-                                  // Teks tetap
-                                  children: [
-                                    TextSpan(
-                                      text:
-                                          _statusWithDots, // Titik yang bergerak
-                                    ),
-                                  ],
+                      return SingleChildScrollView(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    bottom: 20, left: 4, right: 4),
+                                child: Text.rich(
+                                  style: const TextStyle(fontSize: 18),
+                                  TextSpan(
+                                    text: _attendanceLocationStatus,
+                                    // Teks tetap
+                                    children: [
+                                      TextSpan(
+                                        text:
+                                            _statusWithDots, // Titik yang bergerak
+                                      ),
+                                    ],
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                                textAlign: TextAlign.center,
                               ),
-                            ),
-                            Card(
-                              color: Colors.blue,
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      timeProvider.countDownText,
-                                      style: TextStyle(
-                                        fontFamily: 'Digital7',
-                                        fontSize: 48,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surface,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    width: double.infinity,
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    child: Card(
-                                      color: Colors.green,
-                                      elevation: 5,
-                                      shadowColor: Colors.white,
-                                      surfaceTintColor: Colors.greenAccent,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(10.0),
-                                        child: Column(
-                                          children: [
-                                            const SizedBox(
-                                              height: 10,
-                                            ),
-                                            Text(
-                                              'Absen Pagi',
-                                              style: FontTheme.bodyMedium(
-                                                context,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 18,
-                                              ),
-                                            ),
-                                            const SizedBox(
-                                              height: 10,
-                                            ),
-                                            ElevatedButton(
-                                              onPressed: !pagiAttendanceStatus ||
-                                                      (morningAttendanceState &&
-                                                          _attendancePermission)
-                                                  ? () {
-                                                      print(
-                                                          'taekkkkk bdm pea: ${dateTime.postTime()}');
-                                                      print(
-                                                          'taekkkkk ayam pea: ${timeProvider.attendanceStatus}');
-                                                      final attendanceData =
-                                                          Data(
-                                                        tLPagi: timeProvider
-                                                            .attendanceStatus,
-                                                        hadirPagi:
-                                                            dateTime.postTime(),
-                                                        pointPagi: '0',
-                                                        // keterangan: 'Yanto',
-                                                      );
-                                                      final attendance =
-                                                          Attendance(
-                                                        action: 'update',
-                                                        // create_attendance
-                                                        tahunBulan: dateTime
-                                                            .getYearMonth(),
-                                                        tanggal: dateTime
-                                                            .getIdnDate(),
-                                                        // namaKaryawan: 'SADIQ',
-                                                        namaKaryawan: widget
-                                                            .employeeName
-                                                            .toUpperCase(),
-                                                        data: attendanceData,
-                                                      );
-                                                      DialogUtils
-                                                          .showConfirmationDialog(
-                                                        context: context,
-                                                        title: "Absen Pagi",
-                                                        content: const Text(
-                                                            'Absen Sekarang?'),
-                                                        onConfirm: () {
-                                                          _attendanceProcess(
-                                                                  'pagi',
-                                                                  attendance)
-                                                              .then((_) => timeProvider
-                                                                  .onButtonClick(
-                                                                      'pagi'));
-                                                        },
-                                                      );
-                                                    }
-                                                  : null,
-                                              child: const Text('Absen Pagi'),
-                                            ),
-                                            attendanceStatus(
-                                              dataProvider,
-                                              attendance: 'pagi',
-                                            ),
-                                          ],
+                              Card(
+                                color: Colors.blue,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Text(
+                                        timeProvider.countDownText,
+                                        style: TextStyle(
+                                          fontFamily: 'Digital7',
+                                          fontSize: 48,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surface,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.all(10.0),
-                                    child: Text(
-                                      timeProvider.morningAttendanceMessage,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontFamily: 'Mulish',
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(
-                                    height: 10,
-                                  ),
-                                  Container(
-                                    width: double.infinity,
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    child: Card(
-                                      color: Colors.red,
-                                      elevation: 5,
-                                      shadowColor: Colors.white,
-                                      surfaceTintColor: Colors.redAccent,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(10.0),
-                                        child: Column(
-                                          children: [
-                                            const SizedBox(
-                                              height: 10,
-                                            ),
-                                            Text(
-                                              'Absen Siang',
-                                              style: FontTheme.bodyMedium(
-                                                context,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 18,
+                                    Container(
+                                      width: double.infinity,
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      child: Card(
+                                        color: Colors.green,
+                                        elevation: 5,
+                                        shadowColor: Colors.white,
+                                        surfaceTintColor: Colors.greenAccent,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(10.0),
+                                          child: Column(
+                                            children: [
+                                              const SizedBox(
+                                                height: 10,
                                               ),
-                                            ),
-                                            const SizedBox(
-                                              height: 10,
-                                            ),
-                                            FilledButton(
-                                              onPressed:
-                                                  (afternoonAttendanceState &&
-                                                          _attendancePermission)
-                                                      ? () {
-                                                          print(
-                                                              'taekkkkk bdm pea: ${dateTime.postTime()}');
-                                                          print(
-                                                              'taekkkkk ayam pea: ${timeProvider.attendanceStatus}');
-                                                          final attendanceData =
-                                                              Data(
-                                                            tLSiang: timeProvider
-                                                                .attendanceStatus,
-                                                            pulangSiang:
-                                                                dateTime
-                                                                    .postTime(),
-                                                            hadirSiang: dateTime
-                                                                .postTime(),
-                                                            pointSiang: '5',
-                                                            // keterangan: 'Anto',
-                                                          );
-                                                          final attendance =
-                                                              Attendance(
-                                                            action: 'update',
-                                                            // create_attendance
-                                                            tahunBulan: dateTime
-                                                                .getYearMonth(),
-                                                            tanggal: dateTime
-                                                                .getIdnDate(),
-                                                            namaKaryawan: widget
-                                                                .employeeName
-                                                                .toUpperCase(),
-                                                            data:
-                                                                attendanceData,
-                                                          );
-                                                          DialogUtils
-                                                              .showConfirmationDialog(
-                                                            context: context,
-                                                            title:
-                                                                "Absen Siang",
-                                                            content: Column(
-                                                              mainAxisSize:
-                                                                  MainAxisSize
-                                                                      .min,
-                                                              children: [
-                                                                const Text(
-                                                                    'Absen Sekarang?'),
-                                                                const SizedBox(
-                                                                  height: 10,
-                                                                ),
-                                                                CustomTextFormField(
-                                                                  hintText:
-                                                                      'Keterangan',
-                                                                  labelText:
-                                                                      'Keterangan',
-                                                                  onChanged:
-                                                                      (value) {
-                                                                    attendanceData
-                                                                            .keterangan =
-                                                                        value;
-                                                                  },
-                                                                  maxLines: 3,
-                                                                  autoValidate:
-                                                                      true,
-                                                                  validator:
-                                                                      (value) {
-                                                                    if (value!
-                                                                        .isEmpty) {
-                                                                      return 'Keterangan tidak boleh kosong';
-                                                                    }
-                                                                    return null;
-                                                                  },
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            onConfirm: () {
-                                                              _attendanceProcess(
-                                                                      'siang',
-                                                                      attendance)
-                                                                  .then(
-                                                                (_) => timeProvider
+                                              Text(
+                                                'Absen Pagi',
+                                                style: FontTheme.bodyMedium(
+                                                  context,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: !pagiAttendanceStatus ||
+                                                        (morningAttendanceState &&
+                                                            _attendancePermission)
+                                                    ? () {
+                                                        print(
+                                                            'taekkkkk bdm pea: ${dateTime.postTime()}');
+                                                        print(
+                                                            'taekkkkk ayam pea: ${timeProvider.attendanceStatus}');
+                                                        final attendanceData =
+                                                            Data(
+                                                          tLPagi: timeProvider
+                                                              .attendanceStatus,
+                                                          hadirPagi:
+                                                              dateTime.postTime(),
+                                                          pointPagi: '0',
+                                                          // keterangan: 'Yanto',
+                                                        );
+                                                        final attendance =
+                                                            Attendance(
+                                                          action: 'update',
+                                                          // create_attendance
+                                                          tahunBulan: dateTime
+                                                              .getYearMonth(),
+                                                          tanggal: dateTime
+                                                              .getIdnDate(),
+                                                          // namaKaryawan: 'SADIQ',
+                                                          namaKaryawan: widget
+                                                              .employeeName
+                                                              .toUpperCase(),
+                                                          data: attendanceData,
+                                                        );
+                                                        DialogUtils
+                                                            .showConfirmationDialog(
+                                                          context: context,
+                                                          title: "Absen Pagi",
+                                                          content: const Text(
+                                                              'Absen Sekarang?'),
+                                                          onConfirm: () {
+                                                            _attendanceProcess(
+                                                                    'pagi',
+                                                                    attendance)
+                                                                .then((_) => timeProvider
                                                                     .onButtonClick(
-                                                                        'siang'),
-                                                              );
-                                                            },
-                                                          );
-                                                        }
-                                                      : null,
-                                              child: const Text('Absen Siang'),
-                                            ),
-                                            attendanceStatus(
-                                              dataProvider,
-                                              attendance: 'siang',
-                                            ),
-                                          ],
+                                                                        'pagi'));
+                                                          },
+                                                        );
+                                                      }
+                                                    : null,
+                                                child: const Text('Absen Pagi'),
+                                              ),
+                                              attendanceStatus(
+                                                dataProvider,
+                                                attendance: 'pagi',
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  if (timeProvider
-                                      .afternoonAttendanceMessage.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.all(10.0),
                                       child: Text(
-                                        timeProvider.afternoonAttendanceMessage,
+                                        timeProvider.morningAttendanceMessage,
                                         textAlign: TextAlign.center,
                                         style: const TextStyle(
                                           fontFamily: 'Mulish',
@@ -727,111 +607,261 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
                                         ),
                                       ),
                                     ),
-                                  const SizedBox(
-                                    height: 10,
-                                  ),
-                                ],
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                    Container(
+                                      width: double.infinity,
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      child: Card(
+                                        color: Colors.red,
+                                        elevation: 5,
+                                        shadowColor: Colors.white,
+                                        surfaceTintColor: Colors.redAccent,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(10.0),
+                                          child: Column(
+                                            children: [
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              Text(
+                                                'Absen Siang',
+                                                style: FontTheme.bodyMedium(
+                                                  context,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              FilledButton(
+                                                onPressed:
+                                                    (afternoonAttendanceState &&
+                                                            _attendancePermission)
+                                                        ? () {
+                                                            print(
+                                                                'taekkkkk bdm pea: ${dateTime.postTime()}');
+                                                            print(
+                                                                'taekkkkk ayam pea: ${timeProvider.attendanceStatus}');
+                                                            final attendanceData =
+                                                                Data(
+                                                              tLSiang: timeProvider
+                                                                  .attendanceStatus,
+                                                              pulangSiang:
+                                                                  dateTime
+                                                                      .postTime(),
+                                                              hadirSiang: dateTime
+                                                                  .postTime(),
+                                                              pointSiang: '5',
+                                                              // keterangan: 'Anto',
+                                                            );
+                                                            final attendance =
+                                                                Attendance(
+                                                              action: 'update',
+                                                              // create_attendance
+                                                              tahunBulan: dateTime
+                                                                  .getYearMonth(),
+                                                              tanggal: dateTime
+                                                                  .getIdnDate(),
+                                                              namaKaryawan: widget
+                                                                  .employeeName
+                                                                  .toUpperCase(),
+                                                              data:
+                                                                  attendanceData,
+                                                            );
+                                                            DialogUtils
+                                                                .showConfirmationDialog(
+                                                              context: context,
+                                                              title:
+                                                                  "Absen Siang",
+                                                              content: Column(
+                                                                mainAxisSize:
+                                                                    MainAxisSize
+                                                                        .min,
+                                                                children: [
+                                                                  const Text(
+                                                                      'Absen Sekarang?'),
+                                                                  const SizedBox(
+                                                                    height: 10,
+                                                                  ),
+                                                                  CustomTextFormField(
+                                                                    hintText:
+                                                                        'Keterangan',
+                                                                    labelText:
+                                                                        'Keterangan',
+                                                                    onChanged:
+                                                                        (value) {
+                                                                      attendanceData
+                                                                              .keterangan =
+                                                                          value;
+                                                                    },
+                                                                    maxLines: 3,
+                                                                    autoValidate:
+                                                                        true,
+                                                                    validator:
+                                                                        (value) {
+                                                                      if (value!
+                                                                          .isEmpty) {
+                                                                        return 'Keterangan tidak boleh kosong';
+                                                                      }
+                                                                      return null;
+                                                                    },
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                              onConfirm: () {
+                                                                _attendanceProcess(
+                                                                        'siang',
+                                                                        attendance)
+                                                                    .then(
+                                                                  (_) => timeProvider
+                                                                      .onButtonClick(
+                                                                          'siang'),
+                                                                );
+                                                              },
+                                                            );
+                                                          }
+                                                        : null,
+                                                child: const Text('Absen Siang'),
+                                              ),
+                                              attendanceStatus(
+                                                dataProvider,
+                                                attendance: 'siang',
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    if (timeProvider
+                                        .afternoonAttendanceMessage.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.all(10.0),
+                                        child: Text(
+                                          timeProvider.afternoonAttendanceMessage,
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontFamily: 'Mulish',
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ),
+                                    const SizedBox(
+                                      height: 10,
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-                            const Divider(
-                              thickness: 3,
-                            ),
-                            // Switch untuk mengaktifkan dan menonaktifkan stream
-                            ListTile(
-                              title: Text(
-                                  '${!_isStreaming ? 'Aktifkan' : 'Nonaktifkan'} Lokasi Real-time'),
-                              trailing: Switch(
-                                value: _isStreaming,
-                                onChanged:
-                                    _permissionGranted ? _toggleSwitch : null,
+                              const SizedBox(
+                                height: 10,
                               ),
-                              onTap: null,
-                            ),
-                            ListTile(
-                              title: const Text('Cek Lokasi Anda dan Toko'),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.map),
-                                iconSize: 40,
-                                onPressed: () => _cekIzinLokasi('mapCheck'),
+                              const Divider(
+                                thickness: 3,
                               ),
-                              onTap: null,
-                            ),
-                            ListTile(
-                              title: const Text('Perbarui Waktu Break Siang'),
-                              subtitle: Text('(Mulai pukul 12.00 WITA)'),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.dining_outlined),
-                                iconSize: 40,
-                                onPressed: _updateBreakTime,
+                              // Switch untuk mengaktifkan dan menonaktifkan stream
+                              ListTile(
+                                title: Text(
+                                    '${!_isStreaming ? 'Aktifkan' : 'Nonaktifkan'} Lokasi Real-time'),
+                                trailing: Switch(
+                                  value: _isStreaming,
+                                  onChanged:
+                                      _permissionGranted ? _toggleSwitch : null,
+                                ),
+                                onTap: null,
                               ),
-                            ),
-                            ListTile(
-                              title: const Text('Testing Page'),
-                              subtitle: Text('(Tes Sistem Keterangan)'),
-                              trailing: IconButton(
-                                onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => TestPage(),
-                                    )),
-                                iconSize: 40,
-                                icon: const Icon(Icons.telegram),
+                              ListTile(
+                                title: const Text('Cek Lokasi Anda dan Toko'),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.map),
+                                  iconSize: 40,
+                                  onPressed: () => _cekIzinLokasi('mapCheck'),
+                                ),
+                                onTap: null,
                               ),
-                            ),
-                            ListTile(
-                              title: const Text('Testing Page'),
-                              subtitle: Text('(Tes Sistem Keterangan)'),
-                              trailing: IconButton(
-                                onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => TestDataProviderPage(),
-                                    )),
-                                iconSize: 40,
-                                icon: const Icon(Icons.telegram),
+                              ListTile(
+                                title: const Text('Perbarui Waktu Break Siang'),
+                                subtitle: const Text('(Mulai pukul 12.00 WITA)'),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.dining_outlined),
+                                  iconSize: 40,
+                                  onPressed: _updateBreakTime,
+                                ),
                               ),
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-                            const Divider(),
-                            const SizedBox(
-                              height: 10,
-                            ),
-                            const Text(
-                              'Keterangan: ',
-                              style: TextStyle(
-                                fontFamily: 'Mulish',
-                                fontSize: 16,
+                              ListTile(
+                                title: const Text('Testing Page'),
+                                subtitle: const Text('(Tes Sistem Keterangan)'),
+                                trailing: IconButton(
+                                  onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const TestPage(),
+                                      )),
+                                  iconSize: 40,
+                                  icon: const Icon(Icons.telegram),
+                                ),
                               ),
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-                            const Text(
-                              'Izin / Sakit / Terlambat',
-                              style: TextStyle(
-                                fontFamily: 'Mulish',
-                                fontSize: 20,
+                              ListTile(
+                                title: const Text('Testing Page'),
+                                subtitle: const Text('(Tes Sistem Keterangan)'),
+                                trailing: IconButton(
+                                  onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const TestDataProviderPage(),
+                                      )),
+                                  iconSize: 40,
+                                  icon: const Icon(Icons.telegram),
+                                ),
                               ),
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-                            const SizedBox(
-                              height: 20,
-                            ),
-                          ],
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              const Divider(),
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              const Text(
+                                'Keterangan: ',
+                                style: TextStyle(
+                                  fontFamily: 'Mulish',
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              const Text(
+                                'Izin / Sakit / Terlambat',
+                                style: TextStyle(
+                                  fontFamily: 'Mulish',
+                                  fontSize: 20,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              const SizedBox(
+                                height: 20,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  });
-                }),
+                      );
+                    });
+                  }),
+                ),
                 floatingActionButton: FloatingActionButton(
-                  onPressed: _fabLoading ? null : _updateLocation,
+                  onPressed: _fabLoading ? null : () async {
+                    bool isConnected = await NetworkHelper.hasInternetConnection();
+                    if (!isConnected) {
+                      ToastUtil.showToast(
+                          'Tidak ada koneksi internet', ToastStatus.error);
+                      return;
+                    }
+                    _updateLocation();
+                  },
                   // Disable button saat loading
                   child: AnimatedBuilder(
                     animation: _controller,
@@ -861,7 +891,7 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
     String? lat,
     String? long,
   }) {
-    final attendanceData = dataProvider.dataAbsensi;
+    final attendanceData = dataProvider.dataAbsensi!;
     if (attendance == 'pagi') {
       if (attendanceData.hadirPagi == null ||
           attendanceData.hadirPagi!.isEmpty) {
@@ -879,7 +909,7 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
     }
 
     if (attendance == 'siang') {
-      if (attendanceData.hadirSiang == null ||
+      if (attendanceData!.hadirSiang == null ||
           attendanceData.hadirSiang!.isEmpty) {
         return const SizedBox();
       } else {
@@ -924,7 +954,7 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
         const SizedBox(
           height: 10,
         ),
-        Text('Keterangan: ${attendanceData.keterangan ?? '-'}'),
+        Text('Keterangan: ${attendanceData!.keterangan ?? '-'}'),
         const SizedBox(
           height: 10,
         ),

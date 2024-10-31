@@ -1,17 +1,15 @@
-import 'package:absensitoko/api/SessionService.dart';
 import 'package:absensitoko/models/UserModel.dart';
 import 'package:absensitoko/provider/DataProvider.dart';
 import 'package:absensitoko/provider/TimeProvider.dart';
 import 'package:absensitoko/provider/UserProvider.dart';
 import 'package:absensitoko/themes/fonts/Fonts.dart';
 import 'package:absensitoko/utils/BaseState.dart';
-import 'package:absensitoko/utils/DeviceUtils.dart';
 import 'package:absensitoko/utils/DialogUtils.dart';
 import 'package:absensitoko/utils/DisplaySize.dart';
 import 'package:absensitoko/utils/Helper.dart';
 import 'package:absensitoko/utils/ListMenu.dart';
 import 'package:absensitoko/utils/LoadingDialog.dart';
-import 'package:absensitoko/views/LoginPage.dart';
+import 'package:absensitoko/utils/NetworkHelper.dart';
 import 'package:absensitoko/views/ProfilePage.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -25,26 +23,20 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends BaseState<HomePage> {
-  String? displayName = '';
-  String infoAkun = '';
-  String _deviceName = '';
-
   UserModel? _user;
 
+  // String? _infoRole = '';
   // bool _lockAccess = false;
 
-  void _fetchUserdata() async {
+  Future<void> _fetchUserdata() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     UserModel? userData = userProvider.currentUser;
-
-    String deviceName = await DeviceUtils.getDeviceName(context);
-    setState(() {
-      _deviceName = deviceName;
-    });
 
     if (!userProvider.userDataIsLoaded) {
       await userProvider.loadUserSession();
       final userDataSession = userProvider.currentUserSession;
+      final _deviceName = userProvider.deviceID;
+      print('Nama Perangkat: $_deviceName');
 
       try {
         final result = await userProvider.getUser(userDataSession!.uid);
@@ -52,16 +44,17 @@ class _HomePageState extends BaseState<HomePage> {
         if (result.status == 'success') {
           userData = userProvider.currentUser;
           if (userData!.loginDevice != _deviceName) {
-            await SessionService.clearSession();
-            DialogUtils.popUp(context,
-                content: const Text(
-                    'Sesi login telah berakhir, silahkan login kembali!'));
+            DialogUtils.showSessionExpiredDialog(context).then((value) {
+              if (value!) {
+                _handleLogout();
+              }
+            });
           } else {
             setState(() {
               _user = userData;
-              displayName = userData?.displayName ?? '';
             });
-            ToastUtil.showToast('Berhasil memperoleh data', ToastStatus.success);
+            ToastUtil.showToast(
+                'Berhasil memperoleh data', ToastStatus.success);
           }
         } else {
           ToastUtil.showToast(result.message ?? '', ToastStatus.error);
@@ -79,15 +72,26 @@ class _HomePageState extends BaseState<HomePage> {
     // _lockAccess = !roleList.contains(_user?.role?.toLowerCase());
   }
 
-  void _handleLogout(UserModel user) async {
+  void _handleLogout() async {
+    final userDataSession = Provider.of<UserProvider>(context, listen: false)
+        .currentUserSession!
+        .uid;
+    final currentTime = Provider.of<TimeProvider>(context, listen: false)
+        .currentTime
+        .postTime();
+    UserModel user = UserModel(
+      uid: userDataSession,
+      logoutTimestamp: currentTime,
+      loginTimestamp: '',
+      loginLat: '',
+      loginLong: '',
+      loginDevice: '',
+    );
+
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    // final currentTime = Provider.of<TimeProvider>(context, listen: false)
-    //     .currentTime
-    //     .postTime();
 
     LoadingDialog.show(context);
     try {
-      // String uid = _user!.uid;
       final message = await userProvider.signOut(user);
 
       if (message.status == 'success') {
@@ -95,16 +99,12 @@ class _HomePageState extends BaseState<HomePage> {
           LoadingDialog.hide(context);
           SnackbarUtil.showSnackbar(
               context: context, message: 'Anda telah logout');
-
           userProvider.clearAccountData();
           Provider.of<DataProvider>(context, listen: false).clearData();
           print('Data Cleared');
         }).then((_) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
-            (route) => false,
-          );
+          Navigator.pushNamedAndRemoveUntil(
+              context, '/login', (route) => false);
         });
         // });
       } else {
@@ -190,16 +190,22 @@ class _HomePageState extends BaseState<HomePage> {
                                       offset: const Offset(0, 50),
                                       onSelected: (value) async {
                                         if (value == 'logout') {
-                                          DialogUtils.showConfirmationDialog(
-                                            context: context,
-                                            title: 'Logout',
-                                            content: const Text(
-                                                'Keluar dari aplikasi?'),
-                                            onConfirm: () {
-                                              UserModel user = UserModel(uid: _user!.uid, logoutTimestamp: dateTime.postTime(), loginTimestamp: '', loginLat: '', loginLong: '', loginDevice: '',);
-                                              _handleLogout(user);
-                                            },
-                                          );
+                                          bool isConnected = await NetworkHelper.hasInternetConnection();
+                                          if (isConnected) {
+                                            DialogUtils.showConfirmationDialog(
+                                              context: context,
+                                              title: 'Logout',
+                                              content: const Text(
+                                                  'Keluar dari aplikasi?'),
+                                              onConfirm: () {
+                                                _handleLogout();
+                                              },
+                                            );
+                                          } else {
+                                            ToastUtil.showToast(
+                                                'Tidak ada koneksi internet',
+                                                ToastStatus.error);
+                                          }
                                         } else if (value == 'profile') {
                                           bool updateProfile =
                                               await Navigator.push(
@@ -213,8 +219,9 @@ class _HomePageState extends BaseState<HomePage> {
                                           }
                                           // Memastikan data diperbarui setelah kembali dari halaman edit
                                           WidgetsBinding.instance
-                                              .addPostFrameCallback((_) {
-                                            Provider.of<UserProvider>(context,
+                                              .addPostFrameCallback((_) async {
+                                            await Provider.of<UserProvider>(
+                                                    context,
                                                     listen: false)
                                                 .getUser(_user!.uid);
                                           });
@@ -308,12 +315,19 @@ class _HomePageState extends BaseState<HomePage> {
                                     child: InkWell(
                                       borderRadius: BorderRadius.circular(16),
                                       splashColor: Colors.greenAccent,
-                                      onTap: () {
-                                        Navigator.pushNamed(context, '/absensi',
-                                            arguments: _user != null
-                                                ? _user?.displayName
-                                                    ?.toUpperCase()
-                                                : 'ANONYMOUS');
+                                      onTap: () async {
+                                        bool isConnected = await NetworkHelper.hasInternetConnection();
+                                        if (isConnected) {
+                                          Navigator.pushNamed(context, '/absensi',
+                                              arguments: _user != null
+                                                  ? _user?.displayName
+                                                  ?.toUpperCase()
+                                                  : 'ANONYMOUS');
+                                        } else {
+                                          ToastUtil.showToast(
+                                              'Tidak ada koneksi internet',
+                                              ToastStatus.error);
+                                        }
                                         // Provider.of<TimeProvider>(context, listen: false).stopUpdatingTime();
                                       },
                                       child: Container(
@@ -440,13 +454,20 @@ class _HomePageState extends BaseState<HomePage> {
                                                   const EdgeInsets.symmetric(
                                                       horizontal: 8.0),
                                               child: FilledButton(
-                                                onPressed: () {
-                                                  Navigator.pushNamed(
-                                                      context, '/absensi',
-                                                      arguments: _user != null
-                                                          ? _user?.displayName
-                                                              ?.toUpperCase()
-                                                          : 'ANONYMOUS');
+                                                onPressed: () async {
+                                                  bool isConnected = await NetworkHelper.hasInternetConnection();
+                                                  if (isConnected) {
+                                                    Navigator.pushNamed(
+                                                        context, '/absensi',
+                                                        arguments: _user != null
+                                                            ? _user?.displayName
+                                                            ?.toUpperCase()
+                                                            : 'ANONYMOUS');
+                                                  } else {
+                                                    ToastUtil.showToast(
+                                                        'Tidak ada koneksi internet',
+                                                        ToastStatus.error);
+                                                  }
                                                 },
                                                 child:
                                                     const Text('Pergi Absen'),
@@ -600,7 +621,9 @@ class _HomePageState extends BaseState<HomePage> {
                                                 _user != null
                                                     ? _user!.displayName!
                                                     : '',
-                                                style: FontTheme.bodyMedium(context, fontSize: 14),
+                                                style: FontTheme.bodyMedium(
+                                                    context,
+                                                    fontSize: 14),
                                               ),
                                             ),
                                             ListTile(
@@ -609,16 +632,21 @@ class _HomePageState extends BaseState<HomePage> {
                                                 _user != null
                                                     ? _user!.email!
                                                     : '',
-                                                style: FontTheme.bodyMedium(context, fontSize: 14),
+                                                style: FontTheme.bodyMedium(
+                                                    context,
+                                                    fontSize: 14),
                                               ),
                                             ),
                                             ListTile(
                                               title: const Text('Bagian'),
                                               trailing: Text(
                                                 _user != null
-                                                    ? _user!.department!.toUpperCase()
+                                                    ? _user!.department!
+                                                        .toUpperCase()
                                                     : '',
-                                                style: FontTheme.bodyMedium(context, fontSize: 14),
+                                                style: FontTheme.bodyMedium(
+                                                    context,
+                                                    fontSize: 14),
                                               ),
                                             ),
                                             ListTile(
@@ -631,7 +659,9 @@ class _HomePageState extends BaseState<HomePage> {
                                                         ? _user!.loginTimestamp!
                                                         : _user!.firstTimeLogin!
                                                     : '',
-                                                style: FontTheme.bodyMedium(context, fontSize: 14),
+                                                style: FontTheme.bodyMedium(
+                                                    context,
+                                                    fontSize: 14),
                                               ),
                                             ),
                                           ],

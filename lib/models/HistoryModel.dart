@@ -1,38 +1,100 @@
 import 'dart:convert';
 
+// Struktur Model untuk Tiga Turunan
+// 1. HistoryModel: Model utama yang menyimpan data history per pengguna (userName).
+// 2. MonthlyHistory: Menyimpan semua data untuk tiap bulan (tahunBulan) dari seorang pengguna.
+// 3. DailyHistory: Menyimpan semua data untuk tiap (tanggal) hari di bulan tertentu dari seorang pengguna.
+// 4. HistoryData: Menyimpan data detail per tanggal.
+
 class HistoryModel {
-  final String? userName; // Nama pengguna
-  final Map<String, HistoryData>? historyData; // Data history berdasarkan tanggal
+  final Map<String, MonthlyHistory>
+      allUsersHistory; // userName -> MonthlyHistory
 
-  HistoryModel({this.userName, this.historyData});
+  HistoryModel({required this.allUsersHistory});
 
-  // Fungsi untuk mengubah dari Map ke HistoryModel
-  factory HistoryModel.fromMap(String userName, Map<String, dynamic> map) {
+  factory HistoryModel.fromJson(String str) =>
+      HistoryModel.fromMap(json.decode(str));
+
+  factory HistoryModel.fromMap(Map<String, dynamic> json) {
     return HistoryModel(
-      userName: userName,
-      historyData: map.map((key, value) => MapEntry(key, HistoryData.fromMap(value))),
+      allUsersHistory: json
+          .map((key, value) => MapEntry(key, MonthlyHistory.fromMap(value))),
     );
   }
 
-  // Fungsi untuk mengubah dari HistoryModel ke Map
   Map<String, dynamic> toMap() {
-    return {
-      'userName': userName,
-      'historyData': historyData?.map((key, value) => MapEntry(key, value.toMap())),
-    };
+    return allUsersHistory.map((key, value) => MapEntry(key, value.toMap()));
   }
 
-  // Fungsi untuk mengubah HistoryModel menjadi JSON
   String toJson() => json.encode(toMap());
 
   @override
-  String toString() {
-    return toJson();
+  String toString() => toJson();
+}
+
+class MonthlyHistory {
+  final Map<String, DailyHistory>? dayHistory; // tahunBulan -> DayHistory
+
+  MonthlyHistory({required this.dayHistory});
+
+  factory MonthlyHistory.fromJson(String str) =>
+      MonthlyHistory.fromMap(json.decode(str));
+
+  factory MonthlyHistory.fromMap(Map<String, dynamic> json) {
+    return MonthlyHistory(
+      dayHistory:
+          json.map((key, value) => MapEntry(key, DailyHistory.fromMap(value))),
+    );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'dayHistory':
+          dayHistory?.map((key, value) => MapEntry(key, value.toMap()))
+    };
+  }
+
+  String toJson() => json.encode(toMap());
+
+  @override
+  String toString() => toJson();
+}
+
+class DailyHistory {
+  final Map<String, HistoryData>? historyData; // tanggal -> HistoryData
+
+  DailyHistory({required this.historyData});
+
+  factory DailyHistory.fromJson(String str) =>
+      DailyHistory.fromMap(json.decode(str));
+
+  // Menggunakan Map.from() jika Anda memerlukan salinan yang independen dari data sumber untuk menghindari efek samping dari modifikasi data asli.
+  factory DailyHistory.fromMap(Map<String, dynamic> json) {
+    return DailyHistory(
+      historyData:
+          json.map((key, value) => MapEntry(key, HistoryData.fromMap(value))),
+      // historyData: Map.from(json["historyData"]!).map((key, value) => MapEntry<String, HistoryData>(key, HistoryData.fromMap(value))),  // ini dr quicktype
+    );
+  }
+
+  // Jika tidak ada kebutuhan untuk salinan terpisah, cukup gunakan map.map() tanpa Map.from() karena lebih efisien.
+  Map<String, dynamic> toMap() {
+    return {
+      'historyData':
+          historyData?.map((key, value) => MapEntry(key, value.toMap())),
+      // "historyData": Map.from(historyData!).map((key, value) => MapEntry<String, dynamic>(key, value.toMap())),
+    };
+  }
+
+  String toJson() => json.encode(toMap());
+
+  @override
+  String toString() => toJson();
 }
 
 class HistoryData {
-  final String? tanggal;
+  final String? tanggalCreate;
+  final String? tanggalUpdate;
   final String? hari;
   final String? tLPagi;
   final String? hadirPagi;
@@ -47,7 +109,8 @@ class HistoryData {
   final String? deviceInfo;
 
   HistoryData({
-    this.tanggal,
+    this.tanggalCreate,
+    this.tanggalUpdate,
     this.hari,
     this.tLPagi,
     this.hadirPagi,
@@ -62,29 +125,42 @@ class HistoryData {
     this.deviceInfo,
   });
 
+  factory HistoryData.fromJson(String str) =>
+      HistoryData.fromMap(json.decode(str));
+
   // Fungsi untuk mengubah dari Map ke HistoryData
-  factory HistoryData.fromMap(Map<String, dynamic> map) {
+  factory HistoryData.fromMap(Map<String, dynamic> json) {
     return HistoryData(
-      tanggal: map['tanggal'] as String?,
-      hari: map['hari'] as String?,
-      tLPagi: map['tLPagi'] as String?,
-      hadirPagi: map['hadirPagi'] as String?,
-      pointPagi: map['pointPagi'] as String?,
-      tLSiang: map['tLSiang'] as String?,
-      pulangSiang: map['pulangSiang'] as String?,
-      hadirSiang: map['hadirSiang'] as String?,
-      pointSiang: map['pointSiang'] as String?,
-      keterangan: map['keterangan'] as String?,
-      lat: map['lat'] != null ? (map['lat'] is int ? (map['lat'] as int).toDouble() : map['lat'] as double) : null,
-      lang: map['lang'] != null ? (map['lang'] is int ? (map['lang'] as int).toDouble() : map['lang'] as double) : null,
-      deviceInfo: map['deviceInfo'] as String?,
+      tanggalCreate: json['tanggal'] as String?,
+      tanggalUpdate: json['tanggal'] as String?,
+      hari: json['hari'] as String?,
+      tLPagi: json['tLPagi'] as String?,
+      hadirPagi: json['hadirPagi'] as String?,
+      pointPagi: json['pointPagi'] as String?,
+      tLSiang: json['tLSiang'] as String?,
+      pulangSiang: json['pulangSiang'] as String?,
+      hadirSiang: json['hadirSiang'] as String?,
+      pointSiang: json['pointSiang'] as String?,
+      keterangan: json['keterangan'] as String?,
+      lat: json['lat'] != null
+          ? (json['lat'] is int
+              ? (json['lat'] as int).toDouble()
+              : json['lat'] as double)
+          : null,
+      lang: json['lang'] != null
+          ? (json['lang'] is int
+              ? (json['lang'] as int).toDouble()
+              : json['lang'] as double)
+          : null,
+      deviceInfo: json['deviceInfo'] as String?,
     );
   }
 
   // Fungsi untuk mengubah dari HistoryData ke Map
   Map<String, dynamic> toMap() {
     return {
-      'tanggal': tanggal ?? '',
+      'tanggalCreate': tanggalCreate ?? '',
+      'tanggalUpdate': tanggalUpdate ?? '',
       'hari': hari ?? '',
       'tLPagi': tLPagi ?? '',
       'hadirPagi': hadirPagi ?? '',
@@ -99,4 +175,9 @@ class HistoryData {
       'deviceInfo': deviceInfo ?? '',
     };
   }
+
+  String toJson() => json.encode(toMap());
+
+  @override
+  String toString() => toJson();
 }

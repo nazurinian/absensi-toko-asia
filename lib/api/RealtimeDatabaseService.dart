@@ -6,28 +6,27 @@ class RealtimeDatabaseService {
   final DatabaseReference _db = FirebaseDatabase.instance.ref();
 
   // Fungsi untuk menginisialisasi data history
-  Future<ApiResult<dynamic>> initializeHistory(
-      String userName, String date) async {
+  Future<ApiResult> initializeHistory(
+    String userName,
+    String date,
+  ) async {
     String tahunBulan = date.substring(0, 7); // Ambil YYYY-MM
     String tanggal = date.substring(8); // Ambil tanggal
-    try {
-      final initialData = HistoryData().toMap();
-      final checkRef = _db.child('history/$userName/$tahunBulan/$tanggal');
+    final initialData = HistoryData().toMap();
+    final checkRef = _db.child('history/$userName/$tahunBulan/$tanggal');
 
+    try {
       final checkSnapshot = await checkRef.get();
-      // final initialData = {
-      //   'tanggal': '2024-10-30',
-      //   'hari': 'Rabu',
-      //   'tLPagi': '08:00',
-      //   'hadirPagi': 'Ya',
-      // };
-      print(initialData.toString());
       if (checkSnapshot.value == null) {
         await checkRef.set(initialData);
       } else {
-        print('Data sudah ada');
+        return ApiResult(
+          status: 'success',
+          message: 'Data history sudah ada untuk tanggal ini.',
+        );
       }
 
+      print(initialData.toString());
       return ApiResult(
         status: 'success',
         message: 'Inisialisasi data history berhasil untuk pengguna: $userName',
@@ -39,22 +38,28 @@ class RealtimeDatabaseService {
   }
 
   // Fungsi untuk mendapatkan data history user berdasarkan tanggal tertentu
-  Future<ApiResult<dynamic>> getHistoryForUserByDate(
-      String userName, String date) async {
+  Future<ApiResult<HistoryData>> getThisDayHistory(
+    String userName,
+    String date,
+  ) async {
     String tahunBulan = date.substring(0, 7); // Ambil YYYY-MM
     String tanggal = date.substring(8); // Ambil tanggal
-    try {
-      final ref = _db.child('history/$userName/$tahunBulan/$tanggal');
-      final snapshot = await ref.get();
+    final ref = _db.child('history/$userName/$tahunBulan/$tanggal');
+    final snapshot = await ref.get();
 
+    try {
       if (snapshot.value != null) {
         final data = (snapshot.value as Map<Object?, Object?>).map(
           (key, value) => MapEntry(key as String, value as dynamic),
         );
+
+        final historyData = HistoryData.fromMap(data);
+
+        print(data.toString());
         return ApiResult(
           status: 'success',
           message: 'Data history berhasil diperoleh.',
-          data: data,
+          data: historyData,
         );
       } else {
         return ApiResult(status: 'error', message: 'Data tidak ditemukan.');
@@ -66,20 +71,31 @@ class RealtimeDatabaseService {
   }
 
   // Fungsi untuk memperbarui data history user
-  Future<ApiResult<dynamic>> updateHistory(
-      String userName, String date, HistoryData data) async {
+  Future<ApiResult<HistoryData>> updateThisDayHistory(
+    String userName,
+    String date,
+    HistoryData data,
+  ) async {
     String tahunBulan = date.substring(0, 7); // Ambil YYYY-MM
     String tanggal = date.substring(8); // Ambil tanggal
-    try {
-      final updateData = data.toMap()
-        ..removeWhere((key, value) => value == null);
+    final updateData = data.toMap()..removeWhere((key, value) => value == null);
+    final ref = _db.child('history/$userName/$tahunBulan/$tanggal');
 
-      final ref = _db.child('history/$userName/$tahunBulan/$tanggal');
+    try {
       await ref.update(updateData);
 
+      final snapshot = await ref.get();
+      final newData = (snapshot.value as Map<Object?, Object?>).map(
+        (key, value) => MapEntry(key as String, value as dynamic),
+      );
+      final newHistoryData = HistoryData.fromMap(newData);
+
+      print('update Data: ${data.toString()}');
+      print('new Data: ${newData.toString()}');
       return ApiResult(
         status: 'success',
         message: 'Data history berhasil diperbarui.',
+        data: newHistoryData,
       );
     } catch (e) {
       print('Error updating history: $e');
@@ -88,11 +104,14 @@ class RealtimeDatabaseService {
   }
 
 // Fungsi untuk mendapatkan semua history dari user tertentu
-  Future<ApiResult<dynamic>> getAllHistoryForUser(
-      String userName, String date) async {
+  Future<ApiResult<DailyHistory>> getAllDayHistory(
+    String userName,
+    String date,
+  ) async {
     String tahunBulan = date.substring(0, 7); // Ambil YYYY-MM
+    final ref = _db.child('history/$userName/$tahunBulan');
+
     try {
-      final ref = _db.child('history/$userName/$tahunBulan');
       final snapshot = await ref.get();
 
       if (snapshot.value != null) {
@@ -108,14 +127,17 @@ class RealtimeDatabaseService {
                   Map<String, dynamic>.from(value as Map<Object?, Object?>)));
         });
 
+        final dayHistory = DailyHistory(historyData: historyList);
+
         return ApiResult(
           status: 'success',
-          data: historyList,
+          message: 'Seluruh data history harian anda bulan ini berhasil diperoleh.',
+          data: dayHistory,
         );
       } else {
         return ApiResult(
           status: 'error',
-          message: 'Tidak ada history untuk user ini.',
+          message: 'Data history harian user tidak ditemukan.',
         );
       }
     } catch (e) {
@@ -124,63 +146,86 @@ class RealtimeDatabaseService {
     }
   }
 
-  Future<Map<String, Map<String, HistoryData>>> getAllHistory(
-      String date) async {
-    String tahunBulan = date.substring(0, 7); // Ambil YYYYMM
-    DatabaseReference ref = FirebaseDatabase.instance.ref().child('history');
+  Future<ApiResult<MonthlyHistory>> getAllMonthHistory(String userName) async {
+    final ref = _db.child('history/$userName');
 
     try {
       final snapshot = await ref.get();
       if (!snapshot.exists) {
-        return {};
+        return ApiResult(
+          status: 'error',
+          message: 'Data history bulanan user tidak ditemukan.',
+        );
       }
 
-      Map<String, Map<String, HistoryData>> allHistory = {};
+      Map<String, DailyHistory> monthlyHistoryMap = {};
 
-      for (var userSnapshot in snapshot.children) {
-        String userName = userSnapshot.key ?? ''; // Nama pengguna
-        final userHistoryMap = <String, HistoryData>{};
+      // Iterasi untuk setiap bulan (tahunBulan)
+      for (var monthSnapshot in snapshot.children) {
+        String monthKey = monthSnapshot.key ?? ''; // contoh: '2024-10'
 
-        // Akses child berdasarkan bulan yang diminta
-        final monthSnapshot = userSnapshot.child(tahunBulan);
-        if (monthSnapshot.exists) {
-          for (var monthDoc in monthSnapshot.children) {
-            String monthKey = monthDoc.key ?? ''; // Kunci bulan
-            HistoryData historyData = HistoryData.fromMap(
-                Map<String, dynamic>.from(monthDoc.value as Map));
-            userHistoryMap[monthKey] =
-                historyData; // Mengisi map dengan bulan sebagai kunci
+        Map<String, HistoryData> dayHistoryMap = {};
+
+        // Iterasi untuk setiap hari dalam bulan
+        for (var daySnapshot in monthSnapshot.children) {
+          String dateKey = daySnapshot.key ?? ''; // contoh: '01' untuk tanggal 1
+
+          // Memastikan daySnapshot.value adalah Map<String, dynamic>
+          if (daySnapshot.value is Map) {
+            try {
+              // Konversi menjadi Map<String, dynamic> untuk HistoryData
+              HistoryData historyData = HistoryData.fromMap(
+                  Map<String, dynamic>.from(daySnapshot.value as Map));
+              dayHistoryMap[dateKey] = historyData; // Isi dayHistoryMap dengan tanggal dan data
+            } catch (e) {
+              print('Data tidak valid untuk tanggal: $dateKey, tipe data: ${daySnapshot.value.runtimeType}, error: $e');
+            }
+          } else {
+            print('Data tidak valid untuk tanggal: $dateKey, tipe data: ${daySnapshot.value.runtimeType}');
           }
         }
 
-        allHistory[userName] =
-            userHistoryMap; // Mengisi map dengan nama pengguna
+        // Buat objek DailyHistory dari dayHistoryMap
+        final dailyHistory = DailyHistory(historyData: dayHistoryMap);
+        monthlyHistoryMap[monthKey] = dailyHistory; // Tambahkan ke monthlyHistoryMap
       }
 
-      return allHistory;
+      // Buat objek MonthlyHistory dari monthlyHistoryMap
+      final monthlyHistory = MonthlyHistory(dayHistory: monthlyHistoryMap);
+
+      return ApiResult(
+        status: 'success',
+        message: 'Seluruh data history bulanan anda berhasil diperoleh.',
+        data: monthlyHistory,
+      );
     } catch (e) {
       print('Error getting all history: $e');
-      return {};
+      return ApiResult(status: 'error', message: e.toString());
     }
   }
 
-  Future<Map<String, Map<String, Map<String, HistoryData>>>>
+// Fungsi untuk mendapatkan semua data history dari semua user
+  Future<ApiResult<HistoryModel>>
       getAllHistoryCompletely() async {
-    DatabaseReference ref = FirebaseDatabase.instance.ref().child('history');
+    final ref = _db.child('history');
 
     try {
       final snapshot = await ref.get();
       if (!snapshot.exists) {
-        return {};
+        return ApiResult(
+          status: 'error',
+          message: 'Data history tidak ditemukan.',
+        );
       }
 
-      Map<String, Map<String, Map<String, HistoryData>>> allCompleteHistory =
-          {};
+      // Map<String, Map<String, Map<String, HistoryData>>> allCompleteHistory = {};
+      Map<String, MonthlyHistory> allUsersHistoryMap = {};
 
       // Loop melalui setiap pengguna
       for (var userSnapshot in snapshot.children) {
         String userName = userSnapshot.key ?? '';
-        final userCompleteHistoryMap = <String, Map<String, HistoryData>>{};
+        // final userCompleteHistoryMap = <String, Map<String, HistoryData>>{};
+        final monthlyHistoryMap = <String, DailyHistory>{};
 
         // Loop melalui setiap tahunBulan untuk pengguna ini
         for (var yearMonthSnapshot in userSnapshot.children) {
@@ -195,45 +240,22 @@ class RealtimeDatabaseService {
             dateMap[date] = historyData; // Masukkan ke map tanggal
           }
 
-          userCompleteHistoryMap[tahunBulan] =
-              dateMap; // Masukkan ke map tahunBulan
+          // userCompleteHistoryMap[tahunBulan] = dateMap; // Masukkan ke map tahunBulan
+          monthlyHistoryMap[tahunBulan] = DailyHistory(historyData: dateMap);
         }
 
-        allCompleteHistory[userName] =
-            userCompleteHistoryMap; // Masukkan ke map nama pengguna
+        // allCompleteHistory[userName] = userCompleteHistoryMap; // Masukkan ke map nama pengguna
+        allUsersHistoryMap[userName] = MonthlyHistory(dayHistory: monthlyHistoryMap);
       }
 
-      return allCompleteHistory;
+      return ApiResult(
+        status: 'success',
+        message: 'Seluruh data history berhasil diperoleh.',
+        data: HistoryModel(allUsersHistory: allUsersHistoryMap),
+      );
     } catch (e) {
       print('Error getting all complete history: $e');
-      return {};
+      return ApiResult(status: 'error', message: e.toString());
     }
   }
-
-// Fungsi untuk mendapatkan semua data history dari semua user
-/*  Future<Map<String, Map<String, Map<String, HistoryData>>>> getAllHistoryCompletely() async {
-    try {
-      final snapshot = await _db.child('history').once();
-      Map<String, Map<String, Map<String, HistoryData>>> allCompleteHistory = {};
-
-      if (snapshot.snapshot.value != null) {
-        Map<String, dynamic> allData = Map<String, dynamic>.from(snapshot.value);
-        allData.forEach((userName, userData) {
-          Map<String, Map<String, HistoryData>> userCompleteHistoryMap = {};
-          Map<String, dynamic>.from(userData).forEach((tahunBulan, dateData) {
-            Map<String, HistoryData> dateMap = {};
-            Map<String, dynamic>.from(dateData).forEach((tanggal, historyData) {
-              dateMap[tanggal] = HistoryData.fromMap(Map<String, dynamic>.from(historyData));
-            });
-            userCompleteHistoryMap[tahunBulan] = dateMap;
-          });
-          allCompleteHistory[userName] = userCompleteHistoryMap;
-        });
-      }
-      return allCompleteHistory;
-    } catch (e) {
-      print('Error getting all complete history: $e');
-      return {};
-    }
-  }*/
 }

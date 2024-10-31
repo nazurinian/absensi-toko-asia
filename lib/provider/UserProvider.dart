@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:absensitoko/utils/LoadingDialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +17,12 @@ class UserProvider extends ChangeNotifier {
   SessionModel? _currentUserSession;
   UserModel? _currentUser;
   List<UserModel> _listAllUser = [];
+  String? _deviceId;
+  String? _lastDate;
 
-  bool _isLoading = false;
   bool _userDataIsLoaded = false;
   bool _listUserIsLoaded = false;
+  bool _isLoading = false;
   String? _status;
   String? _message;
 
@@ -30,6 +31,10 @@ class UserProvider extends ChangeNotifier {
   UserModel? get currentUser => _currentUser;
 
   List<UserModel> get listAllUser => _listAllUser;
+
+  String? get deviceID => _deviceId;
+
+  String? get lastDate => _lastDate;
 
   bool get userDataIsLoaded => _userDataIsLoaded;
 
@@ -190,49 +195,6 @@ class UserProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-  /// Session Service Provider
-  Future<void> loadUserSession() async {
-    _currentUserSession = await SessionService.getSession();
-    notifyListeners();
-  }
-
-  Future<void> saveSession(SessionModel user) async {
-    await SessionService.saveSession(user);
-    _currentUserSession = await SessionService.getSession();
-
-    notifyListeners();
-  }
-
-  void clearAccountData() {
-    _currentUserSession = null;
-    _currentUser = null;
-    _listAllUser = [];
-
-    _isLoading = false;
-    _userDataIsLoaded = false;
-    _listUserIsLoaded = false;
-    _status = null;
-    _message = null;
-
-    /// Notify nya di nonaktifkan karena ini hanya nge set ke null semua, ngga butuh respon perubahan
-    // notifyListeners();
-  }
-
-  Future<ApiResult> resetPassword(String email) async {
-    _isLoading = true;
-    _status = null;
-    _message = null;
-
-    final response = await _authService.sendPasswordResetEmail(email);
-
-    _status = response.status;
-    _message = response.message;
-
-    _isLoading = false;
-    notifyListeners();
-    return ApiResult(status: _status ?? '', message: _message ?? '');
-  }
-
 // Get All Users Function (Saat ini baru digunakan untuk pencocokan nama user yang sudah saja)
   Future<ApiResult> getAllUsers() async {
     _isLoading = true;
@@ -254,6 +216,70 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
+
+  /// Session Service Provider
+  Future<void> loadUserSession() async {
+    _currentUserSession = await SessionService.getSession();
+    _deviceId = await SessionService.getDeviceId();
+
+    notifyListeners();
+  }
+
+  Future<void> saveSession(SessionModel user, deviceId) async {
+    await SessionService.saveSession(user);
+    _currentUserSession = await SessionService.getSession();
+
+    await SessionService.saveDeviceId(deviceId);
+    notifyListeners();
+  }
+
+  Future<void> loadLastDate() async {
+    _lastDate = await SessionService.loadLastDate();
+    notifyListeners();
+  }
+
+  Future<void> saveLastDate(String lastDate) async {
+    await SessionService.saveLastDate(lastDate);
+    notifyListeners();
+  }
+
+  Future<void> clearLastDate() async {
+    await SessionService.clearLastDate();
+    _lastDate = null;
+
+    notifyListeners();
+  }
+
+
+  void clearAccountData() {
+    _currentUserSession = null;
+    _currentUser = null;
+    _listAllUser = [];
+
+    _isLoading = false;
+    _userDataIsLoaded = false;
+    _listUserIsLoaded = false;
+    _status = null;
+    _message = null;
+
+    notifyListeners();
+  }
+
+// Reset Password Function
+/*  Future<ApiResult> resetPassword(String email) async {
+    _isLoading = true;
+    _status = null;
+    _message = null;
+
+    final response = await _authService.sendPasswordResetEmail(email);
+
+    _status = response.status;
+    _message = response.message;
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }*/
 
 // Register User Function
 /*  Future<ApiResult> registerUser(

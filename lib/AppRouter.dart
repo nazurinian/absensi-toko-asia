@@ -9,7 +9,7 @@ class AppRouter {
   // Method untuk menangani routing dengan onGenerateRoute
   static Route<dynamic>? generateRoute(RouteSettings settings) {
     switch (settings.name) {
-      case '/':
+      case '/home':
         return MaterialPageRoute(builder: (_) => const HomePage());
       case '/login':
         return MaterialPageRoute(builder: (_) => const LoginPage());

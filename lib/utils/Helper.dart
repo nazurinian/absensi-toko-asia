@@ -27,7 +27,7 @@ class ToastUtil {
       gravity: ToastGravity.BOTTOM,
       timeInSecForIosWeb: 1,
       backgroundColor: backgroundColor,
-      textColor: Colors.blueAccent,
+      textColor: Colors.white70,
     );
   }
 }

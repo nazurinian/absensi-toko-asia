@@ -1,6 +1,8 @@
+import 'package:absensitoko/api/ApiResult.dart';
 import 'package:absensitoko/models/UserModel.dart';
 import 'package:absensitoko/utils/DeviceUtils.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:absensitoko/utils/ListItem.dart';
+import 'package:absensitoko/utils/NetworkHelper.dart';
 import 'package:flutter/material.dart';
 import 'package:absensitoko/models/SessionModel.dart';
 import 'package:absensitoko/provider/TimeProvider.dart';
@@ -8,7 +10,6 @@ import 'package:absensitoko/utils/BaseState.dart';
 import 'package:absensitoko/utils/CustomTextFormField.dart';
 import 'package:absensitoko/utils/Helper.dart';
 import 'package:absensitoko/utils/LoadingDialog.dart';
-import 'package:absensitoko/views/HomePage.dart';
 import 'package:absensitoko/provider/UserProvider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -33,7 +34,6 @@ class _LoginPageState extends BaseState<LoginPage> {
   String _attendanceLocationStatus = 'Get Location Permission';
   LatLng? _attendanceLocation;
   String _deviceName = '';
-  UserModel? _currentUser;
 
   // Minta izin akses lokasi
   Future<void> _cekIzinLokasi() async {
@@ -77,101 +77,90 @@ class _LoginPageState extends BaseState<LoginPage> {
           posisiPengguna.longitude,
         );
       });
-
     } catch (e) {
       setState(() {
         _attendanceLocationStatus = 'Terjadi kesalahan: $e';
       });
       safeContext((context) => LoadingDialog.hide(context));
     }
+
   }
 
   Future<void> _login() async {
     _cekIzinLokasi();
 
-    setState(() {
-      _firstSubmit = false;
-    });
-
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    // Set state untuk first submit dan validasi form
+    _firstSubmit = false;
+    if (!_validateForm()) return;
 
     _unFocus();
+    LoadingDialog.show(context);
+
+    // Cek lokasi dan ambil nama perangkat
+    await _cekLokasiSekali();
+    await _fetchDeviceName();
+
+    // Lakukan proses login
+    try {
+      final message = await _loginProcess();
+      _handleLoginResult(message);
+    } catch (e) {
+      _showError(e.toString());
+    }
+  }
+
+  bool _validateForm() {
+    setState(() {});
+    return _formKey.currentState?.validate() ?? false;
+  }
+
+  Future<void> _fetchDeviceName() async {
+    if (mounted) {
+      final deviceName = await DeviceUtils.getDeviceName(context);
+      setState(() => _deviceName = deviceName);
+    }
+  }
+
+  Future<ApiResult> _loginProcess() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final currentTime = Provider.of<TimeProvider>(context, listen: false)
         .currentTime
         .postTime();
 
-    LoadingDialog.show(context);
-    await _cekLokasiSekali();
-    safeContext((context) async {
-      String deviceName = await DeviceUtils.getDeviceName(context);
-      setState(() {
-        _deviceName = deviceName;
-      });
-    });
+    return await userProvider.loginUser(
+      context,
+      _emailController.text,
+      _passwordController.text,
+      currentTime,
+      _deviceName,
+      _attendanceLocation!,
+    );
+  }
 
-    try {
-      safeContext((context) async {
-        final message = await userProvider.loginUser(
-          context,
-          _emailController.text,
-          _passwordController.text,
-          currentTime,
-          _deviceName,
-          _attendanceLocation!,
-        );
+  void _handleLoginResult(ApiResult result) {
+    LoadingDialog.hide(context);
+    SnackbarUtil.showSnackbar(context: context, message: result.message ?? '');
 
-        if (message.status == 'success') {
-          final userData = userProvider.currentUser!;
+    if (result.status == 'success') {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final userData = userProvider.currentUser!;
+      final userSession = SessionModel(
+        uid: userData.uid,
+        email: userData.email,
+        role: userData.role,
+        loginTimestamp: userData.loginTimestamp,
+        loginDevice: _deviceName,
+        isLogin: true,
+      );
 
-          if (userProvider.currentUser != null) {
-            final user = SessionModel(
-              uid: userData.uid,
-              email: userData.email,
-              role: userData.role,
-              loginTimestamp: userData.loginTimestamp,
-              loginDevice: _deviceName,
-              isLogin: true,
-            );
-
-            await userProvider.saveSession(user);
-
-            safeContext((context) {
-              LoadingDialog.hide(context);
-              SnackbarUtil.showSnackbar(
-                  context: context, message: message.message ?? '');
-
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HomePage(),
-                ),
-                (route) => false,
-              );
-            });
-          } else {
-            safeContext((context) {
-              LoadingDialog.hide(context);
-              SnackbarUtil.showSnackbar(
-                  context: context, message: message.message ?? '');
-            });
-          }
-        } else {
-          safeContext((context) {
-            LoadingDialog.hide(context);
-            SnackbarUtil.showSnackbar(
-                context: context, message: message.message ?? '');
-          });
-        }
-      });
-    } catch (e) {
-      safeContext((context) {
-        LoadingDialog.hide(context);
-        SnackbarUtil.showSnackbar(context: context, message: e.toString());
-      });
+      userProvider.saveSession(userSession, _deviceName);
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     }
+  }
+
+  void _showError(String errorMessage) {
+    LoadingDialog.hide(context);
+    SnackbarUtil.showSnackbar(context: context, message: errorMessage);
   }
 
   void _unFocus() {
@@ -328,57 +317,68 @@ class _LoginPageState extends BaseState<LoginPage> {
                               width: MediaQuery.of(context).size.width,
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: _login,
+                                onPressed: () async {
+                                  bool isConnected = await NetworkHelper
+                                      .hasInternetConnection();
+                                  if (isConnected) {
+                                    _login();
+                                  } else {
+                                    SnackbarUtil.showSnackbar(
+                                      context: context,
+                                      message: 'Tidak ada koneksi internet',
+                                    );
+                                  }
+                                },
                                 child: const Text(
                                   'Login',
-                                  style:
-                                      TextStyle(color: Colors.blue, fontSize: 22),
+                                  style: TextStyle(
+                                      color: Colors.blue, fontSize: 22),
                                 ),
                               ),
                             ),
                           ),
-                          // Row(
-                          //   mainAxisAlignment: MainAxisAlignment.center,
-                          //   children: [
-                          //     Padding(
-                          //       padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
-                          //       child: Row(
-                          //         children: [
-                          //           SizedBox(
-                          //             height: 40,
-                          //             width: 40,
-                          //             child: Image.asset(
-                          //               AppImage.najwa.path,
-                          //               fit: BoxFit.cover,
-                          //             ),
-                          //           ),
-                          //           const SizedBox(
-                          //             width: 5,
-                          //           ),
-                          //           SizedBox(
-                          //             height: 70,
-                          //             width: 70,
-                          //             child: Image.asset(
-                          //               AppImage.najwa.path,
-                          //               fit: BoxFit.cover,
-                          //             ),
-                          //           ),
-                          //           const SizedBox(
-                          //             width: 5,
-                          //           ),
-                          //           SizedBox(
-                          //             height: 40,
-                          //             width: 40,
-                          //             child: Image.asset(
-                          //               AppImage.najwa.path,
-                          //               fit: BoxFit.cover,
-                          //             ),
-                          //           ),
-                          //         ],
-                          //       ),
-                          //     ),
-                          //   ],
-                          // ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      height: 50,
+                                      width: 50,
+                                      child: Image.asset(
+                                        AppImage.leaf.path,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      width: 5,
+                                    ),
+                                    SizedBox(
+                                      height: 70,
+                                      width: 70,
+                                      child: Image.asset(
+                                        AppImage.stopwatch.path,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      width: 5,
+                                    ),
+                                    SizedBox(
+                                      height: 50,
+                                      width: 50,
+                                      child: Image.asset(
+                                        AppImage.leaf_flipped.path,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -391,4 +391,89 @@ class _LoginPageState extends BaseState<LoginPage> {
       ),
     );
   }
+
+// Fungsi login sebelum disederhanakan
+/*  Future<void> _login() async {
+    _cekIzinLokasi();
+
+    setState(() {
+      _firstSubmit = false;
+    });
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    _unFocus();
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final currentTime = Provider.of<TimeProvider>(context, listen: false)
+        .currentTime
+        .postTime();
+
+    LoadingDialog.show(context);
+    await _cekLokasiSekali();
+
+    if(mounted) {
+      String deviceName = await DeviceUtils.getDeviceName(context);
+      setState(() {
+        _deviceName = deviceName;
+      });
+    }
+
+    print('device: $_deviceName');
+    try {
+      safeContext((context) async {
+        final message = await userProvider.loginUser(
+          context,
+          _emailController.text,
+          _passwordController.text,
+          currentTime,
+          _deviceName,
+          _attendanceLocation!,
+        );
+
+        if (message.status == 'success') {
+          final userData = userProvider.currentUser!;
+
+          if (userProvider.currentUser != null) {
+            final user = SessionModel(
+              uid: userData.uid,
+              email: userData.email,
+              role: userData.role,
+              loginTimestamp: userData.loginTimestamp,
+              loginDevice: _deviceName,
+              isLogin: true,
+            );
+
+            await userProvider.saveSession(user, _deviceName);
+
+            safeContext((context) {
+              LoadingDialog.hide(context);
+              SnackbarUtil.showSnackbar(
+                  context: context, message: message.message ?? '');
+
+              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+            });
+          } else {
+            safeContext((context) {
+              LoadingDialog.hide(context);
+              SnackbarUtil.showSnackbar(
+                  context: context, message: message.message ?? '');
+            });
+          }
+        } else {
+          safeContext((context) {
+            LoadingDialog.hide(context);
+            SnackbarUtil.showSnackbar(
+                context: context, message: message.message ?? '');
+          });
+        }
+      });
+    } catch (e) {
+      safeContext((context) {
+        LoadingDialog.hide(context);
+        SnackbarUtil.showSnackbar(context: context, message: e.toString());
+      });
+    }
+  }*/
 }

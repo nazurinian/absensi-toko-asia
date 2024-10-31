@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:absensitoko/generated/assets.dart';
+import 'package:absensitoko/provider/ConnectionProvider.dart';
+import 'package:absensitoko/utils/NetworkHelper.dart';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,6 +35,8 @@ class _ProfilePageState extends BaseState<ProfilePage> {
   final String _heroTag = 'profile-picture';
   String? _selectedCountryCode = '+62';
   bool _dataIsChanged = false;
+  bool _hasShownDialog = false;
+  bool _lastConnectionStatus = true;
 
   final Map<String, TextEditingController> _controllers = {
     'Nama': TextEditingController(),
@@ -330,9 +334,27 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     });
   }
 
+  void _showConnectionStatusDialog(bool isConnected) {
+    if (isConnected && _hasShownDialog) {
+      // Tampilkan popup ketika koneksi normal
+      ToastUtil.showToast('Kembali terhubung ke internet', ToastStatus.success);
+    } else if (!isConnected && _lastConnectionStatus) {
+      // Tampilkan popup ketika koneksi terputus
+      _hasShownDialog = true; // Tandai bahwa popup telah ditampilkan
+      ToastUtil.showToast('Koneksi internet terputus', ToastStatus.error);
+    }
+
+    _lastConnectionStatus = isConnected; // Update status koneksi terakhir
+  }
+
   @override
   void initState() {
     super.initState();
+
+    final connectionProvider = Provider.of<ConnectionProvider>(context, listen: false);
+    _lastConnectionStatus = connectionProvider.isConnected;
+    _showConnectionStatusDialog(_lastConnectionStatus); // Tampilkan dialog saat awal
+
     _userProvider = Provider.of<UserProvider>(context, listen: false);
     _fetchUserData();
 
@@ -367,118 +389,127 @@ class _ProfilePageState extends BaseState<ProfilePage> {
           },
         ),
       ),
-      body: Consumer<UserProvider>(
-        builder: (context, userProvider, child) {
-          if (userProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (userProvider.status != 'success') {
-            return Center(
-                child: Text(
-              'Error: ${userProvider.message}',
-              textAlign: TextAlign.center,
-            ));
-          } else if (_user == null) {
-            return const Center(child: Text('No data available'));
-          } else {
-            return GestureDetector(
-              onTap: _unFocus,
-              child: Container(
-                padding: const EdgeInsets.all(8.0),
-                width: double.infinity,
-                height: double.infinity,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Material(
-                        color: Colors.transparent,
-                        borderOnForeground: true,
-                        borderRadius: BorderRadius.circular(80),
-                        elevation: 25,
-                        child: GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DetailProfilePicturePage(
-                                  imageUrl: _user?.photoURL ?? '',
-                                  heroTag: _heroTag),
-                            ),
-                          ),
-                          child: ProfileAvatar(
-                            pageName: 'Profile',
-                            photoURL: _user!.photoURL,
-                            heroTag: _heroTag,
-                            onEdit: _requestPermissions,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 20,
-                      ),
-                      _buildTextFromListTile('Nama', _user!.displayName!,
-                          isEnabled:
-                              _user!.displayName!.isEmpty ? true : false),
-                      _buildTextFromListTile('Email', _user!.email!,
-                          isEnabled: false),
-                      _buildTextFromListTile('Bagian', _user!.department!),
-                      _buildTextFromListTile('Nomor Telepon',
-                          formatPhoneNumber(_user!.phoneNumber!)),
-                      _buildTextFromListTile('Role', _user!.role!.toUpperCase(),
-                          isEnabled: false),
-                      const SizedBox(
-                        height: 25,
-                      ),
-                      /*Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 25.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
-                              child: Row(
-                                children: [
-                                  SizedBox(
-                                    height: 40,
-                                    width: 40,
-                                    child: Image.asset(
-                                      AppImage.najwa.path,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  const SizedBox(
-                                    width: 5,
-                                  ),
-                                  SizedBox(
-                                    height: 70,
-                                    width: 70,
-                                    child: Image.asset(
-                                      AppImage.najwa.path,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  const SizedBox(
-                                    width: 5,
-                                  ),
-                                  SizedBox(
-                                    height: 40,
-                                    width: 40,
-                                    child: Image.asset(
-                                      AppImage.najwa.path,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ],
+      body: Consumer<ConnectionProvider>(
+          builder: (context, connectionProvider, child) {
+            // Jika status koneksi berubah, tampilkan popup sesuai status
+            if (connectionProvider.isConnected != _lastConnectionStatus) {
+              _showConnectionStatusDialog(connectionProvider.isConnected);
+            }
+
+          return Consumer<UserProvider>(
+            builder: (context, userProvider, child) {
+              if (userProvider.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (userProvider.status != 'success') {
+                return Center(
+                    child: Text(
+                  'Error: ${userProvider.message}',
+                  textAlign: TextAlign.center,
+                ));
+              } else if (_user == null) {
+                return const Center(child: Text('No data available'));
+              } else {
+                return GestureDetector(
+                  onTap: _unFocus,
+                  child: Container(
+                    padding: const EdgeInsets.all(8.0),
+                    width: double.infinity,
+                    height: double.infinity,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          Material(
+                            color: Colors.transparent,
+                            borderOnForeground: true,
+                            borderRadius: BorderRadius.circular(80),
+                            elevation: 25,
+                            child: GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DetailProfilePicturePage(
+                                      imageUrl: _user?.photoURL ?? '',
+                                      heroTag: _heroTag),
+                                ),
+                              ),
+                              child: ProfileAvatar(
+                                pageName: 'Profile',
+                                photoURL: _user!.photoURL,
+                                heroTag: _heroTag,
+                                onEdit: _requestPermissions,
                               ),
                             ),
-                          ],
-                        ),
-                      ),*/
-                    ],
+                          ),
+                          const SizedBox(
+                            height: 20,
+                          ),
+                          _buildTextFromListTile('Nama', _user!.displayName!,
+                              isEnabled:
+                                  _user!.displayName!.isEmpty ? true : false),
+                          _buildTextFromListTile('Email', _user!.email!,
+                              isEnabled: false),
+                          _buildTextFromListTile('Bagian', _user!.department!),
+                          _buildTextFromListTile('Nomor Telepon',
+                              formatPhoneNumber(_user!.phoneNumber!)),
+                          _buildTextFromListTile('Role', _user!.role!.toUpperCase(),
+                              isEnabled: false),
+                          const SizedBox(
+                            height: 25,
+                          ),
+                          /*Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 25.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        height: 40,
+                                        width: 40,
+                                        child: Image.asset(
+                                          AppImage.najwa.path,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(
+                                        width: 5,
+                                      ),
+                                      SizedBox(
+                                        height: 70,
+                                        width: 70,
+                                        child: Image.asset(
+                                          AppImage.najwa.path,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(
+                                        width: 5,
+                                      ),
+                                      SizedBox(
+                                        height: 40,
+                                        width: 40,
+                                        child: Image.asset(
+                                          AppImage.najwa.path,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),*/
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          }
-        },
+                );
+              }
+            },
+          );
+        }
       ),
     );
   }
@@ -555,7 +586,7 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                       BorderSide(color: Theme.of(context).colorScheme.primary),
                 ),
                 // Tampilkan suffixIcon hanya saat TextField fokus
-                suffixIcon: focusNode.hasFocus
+                suffixIcon: focusNode.hasFocus && _lastConnectionStatus
                     ? IconButton(
                         icon: const Icon(Icons.arrow_forward_ios),
                         onPressed: () {

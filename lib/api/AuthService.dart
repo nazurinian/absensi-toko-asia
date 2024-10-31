@@ -63,11 +63,7 @@ class AuthService {
             user.loginLat = loginLocation.latitude.toString();
             user.loginLong = loginLocation.longitude.toString();
 
-            print('user anjing: ${user.loginDevice.toString()}');
-
             if (user.loginDevice!.isNotEmpty) {
-              print('user babi: ${user.toString()}');
-
               final result = await DialogUtils.showConfirmationDialog(
                 context: context,
                 title: 'Konfirmasi Login',
@@ -92,7 +88,6 @@ class AuthService {
               }
               return ApiResult(status: 'error', message: message);
             } else {
-              print('user setan: ${user.toString()}');
               user.loginDevice = loginDevice;
               final saveResponse = await _fireStoreService.updateUser(user);
               if (saveResponse.status == 'error') {
@@ -199,7 +194,8 @@ class AuthService {
     }
   }
 
-  Future<ApiResult<dynamic>> sendPasswordResetEmail(
+// Reset Password Function
+/*  Future<ApiResult<dynamic>> sendPasswordResetEmail(
     String email,
   ) async {
     try {
@@ -216,7 +212,7 @@ class AuthService {
       print('Login error: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
-  }
+  }*/
 
 // Register User Function
 /*  Future<ApiResult<dynamic>> registerUser(

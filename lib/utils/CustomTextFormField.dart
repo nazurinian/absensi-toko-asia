@@ -72,20 +72,21 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
         hintText: widget.hintText,
         hintStyle: const TextStyle(color: Colors.grey),
         labelText: widget.labelText,
-        labelStyle: widget.focusNode != null
-            ? (widget.focusNode!.hasFocus
-                ? const TextStyle(color: Colors.black)
-                : const TextStyle(color: Colors.blueAccent))
-            : const TextStyle(color: Colors.black),
+        // labelStyle: widget.focusNode != null
+        //     ? (widget.focusNode!.hasFocus
+        //         ? const TextStyle(color: Colors.black)
+        //         : const TextStyle(color: Colors.blueAccent))
+        //     : const TextStyle(color: Colors.black),
+        labelStyle: const TextStyle(color: Colors.blueAccent),
         prefixIcon: widget.prefixIcon != null
             ? Icon(widget.prefixIcon, color: widget.iconColor)
             : null,
         // errorStyle: TextStyle(color: widget.errorColor, fontSize: 18.0),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(9.0),
-          borderSide: const BorderSide(
-            color: Colors.black,
-            width: 0.5,
+          borderSide: BorderSide(
+            color: Theme.of(context).primaryColorLight,
+            width: 2,
           ),
         ),
         errorBorder: OutlineInputBorder(

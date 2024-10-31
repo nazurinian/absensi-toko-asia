@@ -43,4 +43,39 @@ class SessionService {
     await prefs.remove('loginDevice');
     await prefs.setBool('isLogin', false);
   }
+
+  // Ini untuk mengeluarkan akun dari device lain (logout) satu akun satu device aja yg boleh login
+  static Future<String> getDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? deviceId = prefs.getString('deviceId');
+    return deviceId ?? '';
+  }
+
+  static Future<void> saveDeviceId(String deviceId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('deviceId', deviceId);
+  }
+
+  // Ini untuk mengakali update otomatis dan init data diawal
+  static Future<String> loadLastDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? lastDate = prefs.getString('lastDate');
+    return lastDate ?? '';
+  }
+
+  static Future<void> saveLastDate(String lastDate) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('lastDate', lastDate);
+  }
+
+  static Future<void> clearLastDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('lastDate');
+  }
+
+  // Gak usah diclear sih karena device id itu unik
+  // static Future<void> clearDeviceId() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   await prefs.remove('deviceId');
+  // }
 }

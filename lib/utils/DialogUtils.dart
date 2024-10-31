@@ -66,9 +66,9 @@ class DialogUtils {
             Center(
               child: SizedBox(
                 width: 120,
-                child: ElevatedButton(
+                child: FilledButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromRGBO(63, 82, 119, 1.0),
+                    backgroundColor: ColorsTheme.blueBD,
                   ),
                   onPressed: () {
                     if (onConfirm != null) onConfirm();
@@ -82,6 +82,47 @@ class DialogUtils {
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  static Future<bool?> showSessionExpiredDialog(BuildContext context) async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: const Text(
+              'Sesi Berakhir',
+              textAlign: TextAlign.center,
+            ),
+            content: const Text(
+              'Sesi login telah berakhir, silahkan login kembali!',
+              textAlign: TextAlign.center,
+            ),
+            actions: <Widget>[
+              Center(
+                child: SizedBox(
+                  width: 120,
+                  child: FilledButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorsTheme.blueBD,
+                    ),
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop(true);
+                    },
+                    child: Text(
+                      'Ok',
+                      style: FontTheme.bodySmall(context, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -122,13 +163,14 @@ class DialogUtils {
                     ),
                     onPressed: () {
                       if (onCancel != null) onCancel();
-                      if (withPop ?? true)
+                      if (withPop ?? true) {
                         Navigator.of(context)
                             .pop(false); // Kembalikan false saat dibatalkan
+                      }
                     },
                     child: Center(
                       child: Text(
-                        cancel ?? 'Tidak',
+                        cancel ?? 'Tidak', style: FontTheme.bodyMedium(context, color: Colors.white),
                       ),
                     ),
                   ),
@@ -149,7 +191,7 @@ class DialogUtils {
                     },
                     child: Center(
                       child: Text(
-                        confirm ?? 'Ya',
+                        confirm ?? 'Ya', style: FontTheme.bodyMedium(context, color:  Colors.white),
                       ),
                     ),
                   ),
