@@ -4,7 +4,7 @@ import 'package:absensitoko/provider/ConnectionProvider.dart';
 import 'package:absensitoko/themes/theme.dart';
 import 'package:absensitoko/utils/DeviceUtils.dart';
 import 'package:absensitoko/utils/ThemeUtil.dart';
-import 'package:absensitoko/views/UpdatePage.dart';
+import 'package:absensitoko/views/update_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
