@@ -2,6 +2,7 @@ import 'package:absensitoko/api/ApiResult.dart';
 import 'package:absensitoko/api/ApiService.dart';
 import 'package:absensitoko/api/FirestoreService.dart';
 import 'package:absensitoko/api/RealtimeDatabaseService.dart';
+import 'package:absensitoko/models/AppVersionModel.dart';
 import 'package:absensitoko/models/AttendanceInfoModel.dart';
 import 'package:absensitoko/models/AttendanceModel.dart';
 import 'package:absensitoko/models/HistoryModel.dart';
@@ -152,6 +153,22 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
+
+
+  AppVersionModel? _appVersion;
+
+  AppVersionModel? get appVersion => _appVersion;
+
+  Future<void> getAppVersion() async {
+    _appVersion = await _fireStoreService.getAppVersion();
+    notifyListeners();
+  }
+
+/*  Future<void> updateAppVersion(AppVersionModel appVersion) async {
+    await _fireStoreService.updateAppVersion(appVersion);
+    _appVersion = appVersion;
+    notifyListeners();
+  }*/
 
   // ---------------------------- DATA RTDB ------------------------------------
 
@@ -305,6 +322,8 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
+
+
 
   // ---------------------------- CLEAR | REFRESH ------------------------------------
   // Ini digunakan ketika logout dengan mengosongkan semua data

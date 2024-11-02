@@ -1,5 +1,4 @@
 import 'package:absensitoko/api/ApiResult.dart';
-import 'package:absensitoko/models/UserModel.dart';
 import 'package:absensitoko/utils/DeviceUtils.dart';
 import 'package:absensitoko/utils/ListItem.dart';
 import 'package:absensitoko/utils/NetworkHelper.dart';

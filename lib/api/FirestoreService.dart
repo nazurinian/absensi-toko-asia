@@ -1,3 +1,4 @@
+import 'package:absensitoko/models/AppVersionModel.dart';
 import 'package:absensitoko/models/AttendanceInfoModel.dart';
 import 'package:absensitoko/models/HistoryModel.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -151,6 +152,21 @@ class FirestoreService {
     }
   }
 
+  Future<AppVersionModel?> getAppVersion() async {
+    final snapshot = await _db.collection('information').doc('latest_version').get();
+    if (snapshot.exists) {
+      AppVersionModel data = AppVersionModel.fromMap(snapshot.data() as Map<String, dynamic>);
+      return data;
+      // return AppVersionModel.fromDocument(snapshot);
+    }
+    return null;
+  }
+
+/*  Future<void> updateAppVersion(AppVersionModel appVersion) async {
+    await _db.collection('information').doc('latest_version').set(appVersion.toMap());
+  }*/
+
+  // (GAK JADI PAKE FIRESTORE, GANTI PAKE RTDB) Fungsi untuk mendapatkan data history
 /*  // Fungsi untuk menginisialisasi data history
   Future<ApiResult<dynamic>> initializeHistory(
     String userName,

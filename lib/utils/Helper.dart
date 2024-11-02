@@ -9,15 +9,19 @@ enum ToastStatus { success, error, warning }
 class ToastUtil {
   static void showToast(String message, ToastStatus status) {
     Color backgroundColor;
+    Color textColor;
     switch (status) {
       case ToastStatus.success:
         backgroundColor = Colors.green;
+        textColor = Colors.white70;
         break;
       case ToastStatus.error:
         backgroundColor = Colors.red;
+        textColor = Colors.white70;
         break;
       case ToastStatus.warning:
         backgroundColor = Colors.yellow;
+        textColor = Colors.black87;
         break;
     }
 
@@ -27,7 +31,7 @@ class ToastUtil {
       gravity: ToastGravity.BOTTOM,
       timeInSecForIosWeb: 1,
       backgroundColor: backgroundColor,
-      textColor: Colors.white70,
+      textColor: textColor,
     );
   }
 }

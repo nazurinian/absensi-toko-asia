@@ -1,4 +1,5 @@
 import 'package:absensitoko/AppRouter.dart';
+import 'package:absensitoko/ServiceLocator.dart';
 import 'package:absensitoko/provider/ConnectionProvider.dart';
 import 'package:absensitoko/themes/theme.dart';
 import 'package:absensitoko/utils/DeviceUtils.dart';
@@ -34,15 +35,7 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   bool? isLoggedIn = prefs.getBool('isLogin') ?? false;
 
-  // Memeriksa pembaruan sebelum melanjutkan
-  // Map<String, String> updateInfo = await checkForUpdates();
-  Map<String, String> updateInfo = {
-    'needsUpdate': 'false',
-    'currentVersion': '0.0.0',
-    'latestVersion': '0.0.0',
-    'downloadLink': '',
-  };
-
+  setupLocator();
   runApp(
     MultiProvider(
       providers: [
@@ -52,32 +45,15 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TimeProvider()),
         ChangeNotifierProvider(create: (_) => ConnectionProvider()),
       ],
-      child: MyApp(
-        isLoggedIn: isLoggedIn,
-        needsUpdate: updateInfo['needsUpdate'] == 'true',
-        currentVersion: updateInfo['currentVersion']!,
-        latestVersion: updateInfo['latestVersion']!,
-        downloadLink: updateInfo['downloadLink']!,
-      ),
+      child: MyApp(isLoggedIn: isLoggedIn),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
   final bool isLoggedIn;
-  final bool needsUpdate;
-  final String currentVersion;
-  final String latestVersion;
-  final String downloadLink;
 
-  const MyApp({
-    super.key,
-    required this.isLoggedIn,
-    required this.needsUpdate,
-    required this.currentVersion,
-    required this.latestVersion,
-    required this.downloadLink,
-  });
+  const MyApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -88,8 +64,6 @@ class MyApp extends StatelessWidget {
     TextTheme textTheme = createTextTheme(context, "Lato", "Aclonica");
     MaterialTheme theme = MaterialTheme(textTheme);
 
-    print(
-        'Needs update: $needsUpdate | Current version: $currentVersion | Latest version: $latestVersion');
     return MaterialApp(
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -107,40 +81,8 @@ class MyApp extends StatelessWidget {
       theme: theme.light(),
       darkTheme: theme.dark(),
       onGenerateRoute: AppRouter.generateRoute,
-      home: needsUpdate
-          ? UpdatePage(
-              currentVersion: currentVersion,
-              latestVersion: latestVersion,
-              downloadLink: downloadLink,
-            )
-          : isLoggedIn
-              ? const HomePage()
-              : const LoginPage(),
+      home: isLoggedIn ? const HomePage() : const LoginPage(),
       debugShowCheckedModeBanner: false,
     );
   }
-}
-
-Future<Map<String, String>> checkForUpdates() async {
-  Map<String, String> appInfo = await DeviceUtils.getAppInfo();
-  String currentVersion = appInfo['version'] ?? '0.0.0'; // Default jika null
-
-  // Ambil versi terbaru dan link dari Firestore
-  DocumentSnapshot snapshot = await FirebaseFirestore.instance
-      .collection('information')
-      .doc('latest_version')
-      .get();
-
-  String latestVersion = snapshot['version'];
-  String downloadLink = snapshot['link']; // Link unduhan
-
-  // Bandingkan versi
-  bool needsUpdate = currentVersion != latestVersion;
-
-  return {
-    'needsUpdate': needsUpdate.toString(), // "true" atau "false"
-    'currentVersion': currentVersion,
-    'latestVersion': latestVersion,
-    'downloadLink': downloadLink, // Menyimpan link
-  };
 }

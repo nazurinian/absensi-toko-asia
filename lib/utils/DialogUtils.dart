@@ -87,20 +87,27 @@ class DialogUtils {
     );
   }
 
-  static Future<bool?> showSessionExpiredDialog(BuildContext context) async {
+  static Future<bool?> showExpiredDialog(
+    BuildContext context, {
+    required String title,
+    required String content,
+    String buttonText = 'Ok',
+    bool barrierDismissible = false,
+    bool canPop = false,
+  }) async {
     return showDialog<bool>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: barrierDismissible,
       builder: (BuildContext dialogContext) {
         return PopScope(
-          canPop: false,
+          canPop: canPop,
           child: AlertDialog(
-            title: const Text(
-              'Sesi Berakhir',
+            title: Text(
+              title,
               textAlign: TextAlign.center,
             ),
-            content: const Text(
-              'Sesi login telah berakhir, silahkan login kembali!',
+            content: Text(
+              content,
               textAlign: TextAlign.center,
             ),
             actions: <Widget>[
@@ -115,7 +122,7 @@ class DialogUtils {
                       Navigator.of(dialogContext).pop(true);
                     },
                     child: Text(
-                      'Ok',
+                      buttonText,
                       style: FontTheme.bodySmall(context, color: Colors.white),
                     ),
                   ),
@@ -170,7 +177,9 @@ class DialogUtils {
                     },
                     child: Center(
                       child: Text(
-                        cancel ?? 'Tidak', style: FontTheme.bodyMedium(context, color: Colors.white),
+                        cancel ?? 'Tidak',
+                        style:
+                            FontTheme.bodyMedium(context, color: Colors.white),
                       ),
                     ),
                   ),
@@ -191,7 +200,9 @@ class DialogUtils {
                     },
                     child: Center(
                       child: Text(
-                        confirm ?? 'Ya', style: FontTheme.bodyMedium(context, color:  Colors.white),
+                        confirm ?? 'Ya',
+                        style:
+                            FontTheme.bodyMedium(context, color: Colors.white),
                       ),
                     ),
                   ),
@@ -204,78 +215,3 @@ class DialogUtils {
     );
   }
 }
-
-/*  static showConfirmationDialog({
-    required BuildContext context,
-    required String title,
-    String? confirm,
-    String? cancel,
-    bool? withPop = true,
-    required Widget content,
-    required VoidCallback
-        onConfirm, // required FutureOr<dynamic> Function()? onConfirm,
-    VoidCallback? onCancel, // FutureOr<dynamic> Function()? onCancel,
-  }) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        final width = screenWidth(context);
-        return AlertDialog(
-          title: Text(
-            title,
-            textAlign: TextAlign.center,
-            // style: FontTheme.size20Bold(color: Colors.black),
-          ),
-          content: content,
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                SizedBox(
-                  width: width * 0.30,
-                  child: FilledButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ColorsTheme.grayBD,
-                    ),
-                    onPressed: () {
-                      if (onCancel != null) onCancel(); // await onCancel();
-                      if (withPop ?? true) Navigator.of(context).pop();
-                    },
-                    child: Center(
-                      child: Text(
-                        cancel ?? 'Tidak',
-                        // style: FontTheme.size14Bold(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(
-                  width: 10,
-                ),
-                SizedBox(
-                  width: width * 0.30,
-                  child: FilledButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ColorsTheme.blueBD,
-                    ),
-                    onPressed: () {
-                      if (withPop ?? true) Navigator.of(context).pop();
-                      onConfirm(); // if (onConfirm != null) await onConfirm();
-                    },
-                    child: Center(
-                      child: Text(
-                        confirm ?? 'Ya',
-                        // style: FontTheme.size14Bold(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-}*/

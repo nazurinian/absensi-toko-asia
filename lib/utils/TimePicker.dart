@@ -1,22 +1,21 @@
-/*
 import 'package:absensitoko/utils/DisplaySize.dart';
 import 'package:flutter/material.dart';
 
 class TimePicker {
-  static void customTime(BuildContext context, String schedule, int initHour,
-      int initMinute, Function(TimeOfDay) onSelecttime) {
+  static void customTime(BuildContext context, String schedule, {int initHour = 12, int initMinute = 0, required Function(TimeOfDay) onSelecttime}) {
     showTimePicker(
       helpText: schedule,
       initialTime: TimeOfDay(hour: initHour, minute: initMinute),
       initialEntryMode: TimePickerEntryMode.dial,
       context: context,
       builder: (context, child) {
-        return SafeArea(
-          child: Container(
-            margin: EdgeInsets.symmetric(
-                vertical: screenHeight(context) * 0.08,
-                horizontal: screenWidth(context) * 0.08),
-            child: child!,
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: SafeArea(
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              child: child!,
+            ),
           ),
         );
       },
@@ -29,4 +28,3 @@ class TimePicker {
     );
   }
 }
-*/

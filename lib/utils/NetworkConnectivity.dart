@@ -34,26 +34,25 @@ class ConnectionChecker extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ConnectionProvider>(
         builder: (context, connectionProvider, child) {
-          if (connectionProvider.isConnected != _lastConnectionStatus) {
-            _showConnectionStatusDialog(connectionProvider.isConnected);
-          }
-        return StreamBuilder<List<ConnectivityResult>>(
-          stream: Connectivity().onConnectivityChanged,
-          initialData: const [ConnectivityResult.none],
-          builder: (context, snapshot) {
-            final connectionStatus = snapshot.data!;
-
-            if (kIsWeb) {
-              return connectedWidget;
-            } else {
-              return connectionStatus.contains(ConnectivityResult.none)
-                  ? disconnectedWidget ?? _defaultDisconnectedWidget()
-                  : connectedWidget;
-            }
-          },
-        );
+      if (connectionProvider.isConnected != _lastConnectionStatus) {
+        _showConnectionStatusDialog(connectionProvider.isConnected);
       }
-    );
+      return StreamBuilder<List<ConnectivityResult>>(
+        stream: Connectivity().onConnectivityChanged,
+        initialData: const [ConnectivityResult.mobile, ConnectivityResult.wifi],
+        builder: (context, snapshot) {
+          final connectionStatus = snapshot.data!;
+
+          if (kIsWeb) {
+            return connectedWidget;
+          } else {
+            return !connectionStatus.contains(ConnectivityResult.none)
+                ? connectedWidget
+                : disconnectedWidget ?? _defaultDisconnectedWidget();
+          }
+        },
+      );
+    });
   }
 
   Widget _defaultDisconnectedWidget() {
