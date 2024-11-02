@@ -41,11 +41,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-/lib/firebase_options.dart
+/lib/core/config/firebase_options.dart
 /android/app/google-services.json
 /android/app/src/main/AndroidManifest.xml
-/lib/api/ApiService.dart
-/lib/views/TestPage.dart
+/lib/api/services/api_service.dart
+/lib/ui/test/keterangan_test_page.dart
 /lib/udh beres.txt
-/lib/views/Test2Page.dart
-/lib/views/Test2Page.dart
+/lib/ui/test/data_provider_test_page.dart
+/lib/ui/test/data_provider_test_page.dart
