@@ -2,10 +2,7 @@ import 'package:absensitoko/routes.dart';
 import 'package:absensitoko/locator.dart';
 import 'package:absensitoko/data/providers/connection_provider.dart';
 import 'package:absensitoko/core/themes/theme.dart';
-import 'package:absensitoko/utils/device_util.dart';
 import 'package:absensitoko/utils/theme_util.dart';
-import 'package:absensitoko/ui/screens/update_page.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,7 +32,7 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   bool? isLoggedIn = prefs.getBool('isLogin') ?? false;
 
-  setupLocator();
+  setupLocator(); // Locator get_it instance
   runApp(
     MultiProvider(
       providers: [
@@ -65,6 +62,7 @@ class MyApp extends StatelessWidget {
     MaterialTheme theme = MaterialTheme(textTheme);
 
     return MaterialApp(
+      navigatorKey: locator<GlobalKey<NavigatorState>>(),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

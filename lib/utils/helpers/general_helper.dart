@@ -59,6 +59,18 @@ String formatKeterangan(String kategoriUtama, {String? subKategori, required Str
   }
 }
 
+bool isCurrentTimeWithinRange(DateTime now, String startTime, String endTime) {
+  // Parse waktu mulai dan waktu akhir dari String ke DateTime dengan tanggal hari ini
+  final start = DateTime(now.year, now.month, now.day,
+      int.parse(startTime.split(':')[0]), int.parse(startTime.split(':')[1]));
+  final end = DateTime(now.year, now.month, now.day,
+      int.parse(endTime.split(':')[0]), int.parse(endTime.split(':')[1]));
+
+  // Cek apakah waktu sekarang berada di antara start dan end
+  return now.isAfter(start) && now.isBefore(end);
+}
+
+
 /*
 String getListSheet(String dateString) {
   // Parsing string 'yyyyMM' ke dalam DateTime

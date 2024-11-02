@@ -1,4 +1,7 @@
 import 'package:absensitoko/api/api_result.dart';
+import 'package:absensitoko/locator.dart';
+import 'package:absensitoko/utils/base/location_service.dart';
+import 'package:absensitoko/utils/base/version_checker.dart';
 import 'package:absensitoko/utils/device_util.dart';
 import 'package:absensitoko/core/constants/items_list.dart';
 import 'package:absensitoko/utils/helpers/network_helper.dart';
@@ -10,6 +13,7 @@ import 'package:absensitoko/ui/widgets/custom_text_form_field.dart';
 import 'package:absensitoko/utils/popup_util.dart';
 import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
 import 'package:absensitoko/data/providers/user_provider.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -22,7 +26,8 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends BaseState<LoginPage> {
+class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
+  final locationService = locator<LocationService>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _emailFocusNode = FocusNode();
@@ -36,53 +41,23 @@ class _LoginPageState extends BaseState<LoginPage> {
 
   // Minta izin akses lokasi
   Future<void> _cekIzinLokasi() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      setState(() {
-        _attendanceLocationStatus = 'Izin lokasi belum diberikan';
-      });
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          _attendanceLocationStatus =
-              'Izin lokasi ditolak, harap berikan izin lokasi';
-        });
-        return;
-      }
+    PermissionStatusResult permissionResult = await locationService.cekIzinLokasi();
+    if(!permissionResult.isGranted) {
+      ToastUtil.showToast(permissionResult.statusMessage, ToastStatus.error);
     }
-
-    if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _attendanceLocationStatus =
-            'Izin lokasi ditolak permanen, harap berikan izin lokasi di pengaturan';
-      });
-      openAppSettings();
-      return;
-    }
+    print(permissionResult.statusMessage);
   }
 
   // Cek apakah pengguna berada dalam radius absensi
   Future<void> _cekLokasiSekali() async {
-    try {
-      Position posisiPengguna = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
-      setState(() {
-        _attendanceLocation = LatLng(
-          posisiPengguna.latitude,
-          posisiPengguna.longitude,
-        );
-      });
-    } catch (e) {
-      setState(() {
-        _attendanceLocationStatus = 'Terjadi kesalahan: $e';
-      });
-      safeContext((context) => LoadingDialog.hide(context));
+    LocationCheckResult locationCheckResult = await locationService.cekLokasiSekali();
+    _attendanceLocationStatus = locationCheckResult.statusMessage;
+    if(locationCheckResult.position == null) {
+      SnackbarUtil.showSnackbar(context: context, message: 'Gagal login, gps bermasalah!');
+      return;
     }
 
+    _attendanceLocation = LatLng(locationCheckResult.position?.latitude ?? 0.0, locationCheckResult.position?.longitude ?? 0.0);
   }
 
   Future<void> _login() async {
@@ -167,6 +142,15 @@ class _LoginPageState extends BaseState<LoginPage> {
     _passwordFocusNode.unfocus();
   }
 
+  Future<void> _getAppVersion() async {
+    await VersionChecker.checkForUpdates();
+  }
+
+/*  Future<void> _updateAppVersion() async {
+    AppVersionModel appVersion = AppVersionModel(version: '3.0.0', buildNumber: 1, mandatory: false, link: 'https://play.google.com/store/apps/details?id=com.absensitoko.absensitoko');
+    VersionChecker.setAppVersion(appVersion);
+  }*/
+
   void _controllerListener() {
     _emailController.addListener(() {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -191,6 +175,7 @@ class _LoginPageState extends BaseState<LoginPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     _cekIzinLokasi();
     _controllerListener();
@@ -198,14 +183,26 @@ class _LoginPageState extends BaseState<LoginPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+
     _emailController.removeListener(() {});
     _passwordController.removeListener(() {});
     _emailController.dispose();
     _passwordController.dispose();
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
+
     super.dispose();
   }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _getAppVersion();
+    }
+    super.didChangeAppLifecycleState(state);
+  }
+
 
   @override
   Widget build(BuildContext context) {

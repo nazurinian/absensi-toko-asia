@@ -1,8 +1,9 @@
 import 'package:absensitoko/utils/display_size_util.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class TimePicker {
-  static void customTime(BuildContext context, String schedule, {int initHour = 12, int initMinute = 0, required Function(TimeOfDay) onSelecttime}) {
+  static void customTime(BuildContext context, String schedule, {int initHour = 12, int initMinute = 0, required Function(String) onSelectedTime}) {
     showTimePicker(
       helpText: schedule,
       initialTime: TimeOfDay(hour: initHour, minute: initMinute),
@@ -22,7 +23,17 @@ class TimePicker {
     ).then(
       (time) {
         if (time != null) {
-          onSelecttime(time);
+          DateTime date =
+          DateFormat.jm().parse(
+              time.format(
+                  context));
+          String timeFormatted =
+              DateFormat(
+                  'HH:mm')
+                  .format(date);
+          onSelectedTime(timeFormatted);
+        } else {
+          onSelectedTime('');
         }
       },
     );

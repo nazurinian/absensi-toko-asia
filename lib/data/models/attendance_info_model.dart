@@ -9,8 +9,8 @@ class AttendanceInfoModel {
   // Fungsi untuk mengubah dari Map ke AttendanceModel dengan nilai default
   factory AttendanceInfoModel.fromMap(Map<String, dynamic> map) {
     return AttendanceInfoModel(
-      breakTime: map['break_time'] as String? ?? 'Data belum tersedia',
-      nationalHoliday: map['national_holiday'] as String? ?? 'Tidak ada libur',
+      breakTime: map['break_time'] as String,
+      nationalHoliday: map['national_holiday'] as String,
     );
   }
 

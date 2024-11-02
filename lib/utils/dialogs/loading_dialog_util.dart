@@ -4,12 +4,15 @@ class LoadingDialog {
   static void show(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: true,
+      barrierDismissible: false,
       builder: (BuildContext context) {
-        return const Dialog(
-          backgroundColor: Colors.transparent,
-          child: Center(
-            child: CircularProgressIndicator(),
+        return const PopScope(
+          canPop: false,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
           ),
         );
       },

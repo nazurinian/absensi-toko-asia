@@ -1,15 +1,22 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:absensitoko/core/constants/constants.dart';
+import 'package:absensitoko/data/models/attendance_info_model.dart';
+import 'package:absensitoko/data/models/history_model.dart';
+import 'package:absensitoko/locator.dart';
 import 'package:absensitoko/routes.dart';
 import 'package:absensitoko/data/models/attendance_model.dart';
 import 'package:absensitoko/data/models/time_model.dart';
 import 'package:absensitoko/data/providers/data_provider.dart';
 import 'package:absensitoko/data/providers/time_provider.dart';
 import 'package:absensitoko/core/themes/fonts/fonts.dart';
+import 'package:absensitoko/ui/widgets/CustomListTile.dart';
 import 'package:absensitoko/utils/base/base_state.dart';
 import 'package:absensitoko/ui/widgets/custom_text_form_field.dart';
+import 'package:absensitoko/utils/base/location_service.dart';
 import 'package:absensitoko/utils/dialogs/dialog_utils.dart';
+import 'package:absensitoko/utils/helpers/general_helper.dart';
 import 'package:absensitoko/utils/popup_util.dart';
 import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
 import 'package:absensitoko/ui/widgets/network_connectivity.dart';
@@ -81,11 +88,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// @Kolom absensi T/L, 30 menit awal T, lewat dari itu L (absen pagi atau siang)
 
 /// Lengkapi sisa yg kemarin : -------------- (FOKUS) --------------
-/// ! Sistem Cek update by Device belum diselesaikan, karena ini tidak bisa diletakkan di main.dart
 /// * Cara update otomatis seperti initial data otomatis, atau update info absen holiday dengan menyimpan waktu kemarin di shared preference lalu mencocokkannya dengan waktu saat ini di halaman home
 /// * Bagian terakhir dari data provider, yaitu :
 ///   * getData, dan autogetdata after update data
-///   * Update data absen di firestoreservice yaitu informasi perangkat, versi dan link
 ///   * Create new sheet for absensi bulan baru
 /// * Otak atik UserProvider biar simple kaya DataProvider
 /// * Tambahkan SessionService untuk nyimpen tanggalnya, perangkat dll
@@ -103,6 +108,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   - ketika ganti hari cek tanggal hari ini dengan tanggal yang disimpan di shared preference
 ///   - kalau masih sama artinya belum ganti hari, kalau berbeda udh ganti hari maka reset data
 ///   - lalu kembali ke awal inti data dulu baru save tanggal hari baru.
+/// (Mocked masih gak berfungsi ya)
 
 class AbsensiPage extends StatefulWidget {
   final String employeeName;
@@ -115,143 +121,76 @@ class AbsensiPage extends StatefulWidget {
 
 class _AbsensiPageState extends BaseState<AbsensiPage>
     with SingleTickerProviderStateMixin {
-  StreamSubscription<Position>? _positionStreamSubscription;
-  bool _isStreaming = false; // untuk switch status
-  // bool _isAbsenPagi = false;
-  // bool _isAbsenSiang = false;
+  final locationService = locator<LocationService>();
+  late DataProvider _dataProvider;
+  late TimeProvider _timeProvider;
 
   // Titik absensi yang ditentukan
   final double _storeLatitude = -8.5404;
   final double _storeLongitude = 118.4611;
+  final double _maxDistance = 8.0;
   double? _userPositionLatitude;
   double? _userPositionLongitude;
 
-  // Jarak maksimal dalam meter
-  final double _maxDistance = 8.0;
+  // Pengecek izin absen yang dibolehkan
+  bool _permissionGranted = false;
   bool _attendancePermission = false;
   String _attendanceLocationStatus = 'Mengecek lokasi absen';
-  String _statusWithDots = '';
   Timer? _coordinateCheckTimer;
+  String _statusWithDots = '';
   int _dotCount = 1;
 
+  // Stream lokasi pengguna
+  StreamSubscription<Position>? _positionStreamSubscription;
+  bool _isStreaming = false; // untuk switch status
+  bool _initStreamLocation = true;
+
+  // Animasi FAB
   late AnimationController _controller;
   bool _fabLoading = false;
-  bool _permissionGranted = false;
+
+  // Data Absensi
+  late String _employeeName;
+  late String _currentTime;
+  late int _weekday;
 
   // Minta izin akses lokasi
   Future<void> _cekIzinLokasi(String check, {bool? switchValue}) async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      setState(() {
-        _permissionGranted = false;
-        _attendanceLocationStatus = 'Izin lokasi belum diberikan';
-      });
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          _permissionGranted = false;
-          _attendanceLocationStatus =
-              'Izin lokasi ditolak, harap berikan izin lokasi';
-        });
-        return;
-      }
+    PermissionStatusResult permissionResult =
+        await locationService.cekIzinLokasi();
+    print(permissionResult.statusMessage);
+
+    setState(() => _permissionGranted = permissionResult.isGranted);
+
+    if (!_permissionGranted) {
+      return; // Jika izin tidak diberikan, keluar dari fungsi
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _permissionGranted = false;
-        _attendanceLocationStatus =
-            'Izin lokasi ditolak permanen, harap berikan izin lokasi di pengaturan';
-      });
-      openAppSettings();
-      return;
-    }
-
-    _permissionGranted = true;
-    // Jika izin diberikan, lanjutkan cek lokasi
-    if (check == 'oneTimeCheck') {
-      _loadCoordinateLocation();
-      await _cekLokasiSekali();
-    } else if (check == 'realTimeCheck') {
-      _toggleStreaming(switchValue!);
-    } else if (check == 'mapCheck') {
-      Navigator.pushNamed(
-        context,
-        '/map',
-        arguments: MapPageArguments(
-          storeLocation: LatLng(_storeLatitude, _storeLongitude),
-          storeRadius: _maxDistance,
-        ),
-      );
+    switch (check) {
+      case 'oneTimeCheck':
+        _loadingGetCoordinateLocation();
+        await _cekLokasiSekali();
+        break;
+      case 'realTimeCheck':
+        _toggleStreaming(switchValue!);
+        break;
+      case 'mapCheck':
+        _navigateToMap();
+        break;
     }
   }
 
-  // Animasi pesan status pada saat loading cek lokasi
-  void _loadCoordinateLocation() {
-    setState(() {
-      _attendanceLocationStatus = 'Mengecek lokasi absen';
-      _dotCount = 1;
-    });
-    _coordinateCheckTimer =
-        Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      if (_dotCount == 6) {
-        setState(() {
-          _dotCount = 1;
-        });
-      }
-      setState(() {
-        _statusWithDots = '.' * _dotCount;
-      });
-      _dotCount++;
-      print(_attendanceLocationStatus + _statusWithDots);
-    });
+  void _navigateToMap() {
+    Navigator.pushNamed(
+      context,
+      '/map',
+      arguments: MapPageArguments(
+        storeLocation: LatLng(_storeLatitude, _storeLongitude),
+        storeRadius: _maxDistance,
+      ),
+    );
   }
 
-  // Cek apakah pengguna berada dalam radius absensi
-  Future<void> _cekLokasiSekali() async {
-    try {
-      safeContext((context) => LoadingDialog.show(context));
-      Position posisiPengguna = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      );
-
-      // setState(() {
-      //   _userPositionLatitude = posisiPengguna.latitude;
-      //   _userPositionLongitude = posisiPengguna.longitude;
-      // });
-
-      // Lokasi menggunakan mock atau fake GPS
-      if (posisiPengguna.isMocked) {
-        setState(() {
-          _attendanceLocationStatus = 'Lokasi palsu terdeteksi!';
-          _attendancePermission = false;
-        });
-      } else {
-        setState(() {
-          _userPositionLatitude = posisiPengguna.latitude;
-          _userPositionLongitude = posisiPengguna.longitude;
-          _attendanceLocationStatus = 'Lokasi asli terdeteksi.';
-        });
-
-        _cekJarak(posisiPengguna); // Cek jarak sekali
-      }
-
-      _cekJarak(posisiPengguna); // Cek jarak sekali
-
-      safeContext((context) => LoadingDialog.hide(context));
-    } catch (e) {
-      setState(() {
-        _attendanceLocationStatus = 'Terjadi kesalahan: $e';
-      });
-      safeContext((context) => LoadingDialog.hide(context));
-    } finally {
-      _coordinateCheckTimer?.cancel();
-    }
-  }
-
-  // Fungsi untuk cek jarak dari posisi pengguna ke titik absensi
   void _cekJarak(Position posisiPengguna) {
     double jarak = Geolocator.distanceBetween(
       _storeLatitude,
@@ -260,24 +199,70 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
       posisiPengguna.longitude,
     );
 
-    if (jarak <= _maxDistance) {
-      setState(() {
-        _statusWithDots = '';
-        _attendancePermission = true;
-        _attendanceLocationStatus =
-            'Dapat mengisi absen.\nAnda berada dalam radius absensi toko ${jarak.toStringAsFixed(2)} meter.';
-      });
-    } else {
-      setState(() {
-        _statusWithDots = '';
-        _attendancePermission = false;
-        _attendanceLocationStatus =
-            'Tidak dapat mengisi absen.\nAnda terlalu jauh dari Toko,\nJarak ke Toko: ${jarak.toStringAsFixed(2)} meter.';
-      });
+    if (_initStreamLocation) {
+      _coordinateCheckTimer?.cancel();
+      setState(() => _initStreamLocation = false);
     }
+
+    setState(() {
+      _statusWithDots = '';
+      _attendancePermission = jarak <= _maxDistance;
+      _attendanceLocationStatus = _attendancePermission
+          ? 'Dapat mengisi absen.\nAnda berada dalam radius absensi toko ${jarak.toStringAsFixed(2)} meter.'
+          : 'Tidak dapat mengisi absen.\nAnda terlalu jauh dari Toko,\nJarak ke Toko: ${jarak.toStringAsFixed(2)} meter.';
+    });
   }
 
-// Fungsi untuk toggle stream saat switch diaktifkan/dinonaktifkan
+  Future<void> _cekLokasiSekali() async {
+    await locationService.cekLokasiSekali().then((posisiPengguna) {
+      if (posisiPengguna.isMocked) {
+        setState(() {
+          _attendanceLocationStatus = 'Lokasi palsu terdeteksi!';
+          _attendancePermission = false;
+        });
+      } else {
+        setState(() {
+          _userPositionLatitude = posisiPengguna.position!.latitude;
+          _userPositionLongitude = posisiPengguna.position!.longitude;
+          _attendanceLocationStatus = 'Lokasi asli terdeteksi.';
+        });
+
+        _cekJarak(posisiPengguna.position!);
+
+        safeContext((context) => LoadingDialog.hide(context));
+        _coordinateCheckTimer?.cancel();
+      }
+    });
+  }
+
+  void _loadingGetCoordinateLocation() {
+    setState(() {
+      _attendanceLocationStatus = 'Mengecek lokasi absen';
+      _dotCount = 1;
+    });
+    _coordinateCheckTimer = Timer.periodic(
+      const Duration(milliseconds: 500),
+      (timer) {
+        setState(() {
+          _dotCount = (_dotCount % 6) + 1;
+          _statusWithDots = '.' * _dotCount;
+        });
+        print(_attendanceLocationStatus + _statusWithDots);
+      },
+    );
+  }
+
+  void _fabUpdateLocation() async {
+    setState(() => _fabLoading = true);
+    _controller.repeat();
+    await Future.delayed(const Duration(seconds: 1));
+    await _cekIzinLokasi('oneTimeCheck');
+    setState(() => _fabLoading = false);
+    await _controller.animateTo(1.0,
+        duration: const Duration(milliseconds: 500));
+    _controller.reset();
+  }
+
   void _toggleStreaming(bool isStreaming) {
     setState(() {
       _isStreaming = isStreaming;
@@ -289,24 +274,16 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
     });
   }
 
-  // Fungsi untuk memulai stream
   void _startListeningLocationUpdates() {
     if (_positionStreamSubscription != null) return;
 
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
     );
 
     _positionStreamSubscription =
         Geolocator.getPositionStream(locationSettings: locationSettings)
             .listen((Position posisiPengguna) {
-      // setState(() {
-      //   _userPositionLatitude = posisiPengguna.latitude;
-      //   _userPositionLongitude = posisiPengguna.longitude;
-      // });
-
-      // Deteksi lokasi palsu saat stream berjalan
       if (posisiPengguna.isMocked) {
         setState(() {
           _attendanceLocationStatus =
@@ -318,62 +295,34 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
           _userPositionLatitude = posisiPengguna.latitude;
           _userPositionLongitude = posisiPengguna.longitude;
         });
+        _cekJarak(posisiPengguna);
       }
-
-      _cekJarak(posisiPengguna); // Cek jarak setiap kali posisi berubah
     });
   }
 
-  // Fungsi untuk menghentikan stream
   void _stopListeningLocationUpdates() {
     _positionStreamSubscription?.cancel();
     _positionStreamSubscription = null;
   }
 
-  // Memuat status Switch Stream Lokasi dari SharedPreferences
-  Future<void> _loadSwitchState() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isStreaming =
-          prefs.getBool('isStreaming') ?? false; // Default false jika belum ada
-    });
-  }
-
-  // Mengubah status Switch Stream Lokasi dan menyimpannya ke SharedPreferences
   Future<void> _toggleSwitch(bool value) async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isStreaming = value;
-    });
-    await prefs
-        .setBool('isStreaming', _isStreaming)
-        .then((_) => _cekIzinLokasi('realTimeCheck', switchValue: value));
+    setState(() => _isStreaming = value);
+    await prefs.setBool('isStreaming', _isStreaming);
+    await _cekIzinLokasi('realTimeCheck', switchValue: value);
   }
 
-  void _updateLocation() {
-    setState(() {
-      _fabLoading = true;
-    });
-    _controller.repeat();
-    Future.delayed(const Duration(seconds: 3), () async {
-      await _cekIzinLokasi('oneTimeCheck');
-      setState(() {
-        _fabLoading = false;
-      });
-      // Hentikan animasi secara halus dan kembalikan ke posisi awal
-      await _controller.animateTo(1.0,
-          duration: const Duration(milliseconds: 500));
-      _controller.reset();
-    });
-  }
+  Future<void> _loadLocationState() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool isStreaming = prefs.getBool('isStreaming') ?? false;
+    setState(() => _isStreaming = isStreaming);
 
-  void _updateBreakTime() {
-    ToastUtil.showToast('Masih dalam pengembangan', ToastStatus.warning);
-    // onPressed: () {
-    //   Provider.of<TimeProvider>(context, listen: false)
-    //       .updateBreakTime(15, 10);
-    // },
-    // child: const Icon(Icons.refresh),
+    if (_isStreaming) {
+      _loadingGetCoordinateLocation();
+      _cekIzinLokasi('realTimeCheck', switchValue: _isStreaming);
+    } else {
+      _cekIzinLokasi('oneTimeCheck');
+    }
   }
 
   Future<void> _attendanceProcess(
@@ -384,10 +333,7 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
     try {
       final message =
           await dataProvider.updateAttendance(waktuAbsensi, attendance);
-
-      safeContext(
-        (context) => LoadingDialog.hide(context),
-      );
+      safeContext((context) => LoadingDialog.hide(context));
 
       print("Status and Message: $message");
       if (message.status == 'success') {
@@ -395,25 +341,77 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
       } else {
         ToastUtil.showToast(message.message ?? '', ToastStatus.error);
       }
-
-      // await Future.wait([
-      //   dataProvider.fetchData(_currentTime.getYearMonth()),
-      //   dataProvider.fetchCurrentAndLastMonthData(
-      //       _currentTime.getYearMonth(), _currentTime.getLastMonthYearMonth()),
-      // ]);
     } catch (e) {
-      safeContext(
-        (context) => LoadingDialog.hide(context),
-      );
+      safeContext((context) => LoadingDialog.hide(context));
       ToastUtil.showToast('Gagal memproses kehadiran', ToastStatus.error);
     }
+  }
+
+  Future<void> _updateBreakTime(bool refresh) async {
+    if (!_dataProvider.isAttendanceInfoAvailable || refresh) {
+      print('${!refresh ? 'Mendapatkan' : 'Memperbarui'} Waktu Break Siang');
+      final result = await _dataProvider.getAttendanceInfo(isRefresh: refresh);
+      if (result.status == 'success') {
+        // final info = dataProvider.attendanceInfoData!;
+        String breakTime = '12:00';
+
+        if(_weekday == DateTime.friday){
+          breakTime = '$fridayAfternoonStartHour:$fridayAfternoonStartMinute';
+        } else if (_weekday == DateTime.sunday) {
+          breakTime = '$sundayAfternoonStartHour:$sundayAfternoonStartMinute';
+        } else {
+          // Default Break Time Sama kek di timeProvider
+          breakTime = _dataProvider.attendanceInfoData?.breakTime ?? '12:00';
+        }
+        List<String> breakTimeParts = breakTime.split(':');
+        int breakHour = int.parse(breakTimeParts[0]);
+        int breakMinute = int.parse(breakTimeParts[1]);
+
+        _timeProvider.updateBreakTime(breakHour, breakMinute);
+        ToastUtil.showToast(
+            'Berhasil ${!refresh ? 'Mendapatkan' : 'Memperbarui'} Waktu Break Siang', ToastStatus.success);
+      } else {
+        ToastUtil.showToast(result.message ?? '', ToastStatus.error);
+      }
+    } else {
+      ToastUtil.showToast('Informasi Absen sudah ada', ToastStatus.success);
+      print('Informasi Absen sudah ada');
+    }
+  }
+
+  Future<void> getAttendanceHistory(bool refresh) async {
+    if (!_dataProvider.isSelectedDateHistoryAvailable || refresh) {
+      print('${!refresh ? 'Mendapatkan' : 'Memperbarui'} Data Absensi');
+      final result = await _dataProvider
+          .getThisDayHistory(_employeeName, _currentTime, isRefresh: refresh);
+      if (result.status == 'success') {
+        ToastUtil.showToast(
+            'Berhasil mendapatkan data absensi', ToastStatus.success);
+      } else {
+        ToastUtil.showToast(result.message ?? '', ToastStatus.error);
+      }
+    } else {
+      print('Data Absensi sudah ada');
+    }
+  }
+
+  Future<void> _initData() async {
+    _employeeName = widget.employeeName;
+    _dataProvider = Provider.of<DataProvider>(context, listen: false);
+    _timeProvider = Provider.of<TimeProvider>(context, listen: false);
+    _currentTime = _timeProvider.currentTime.postHistory();
+    _weekday = _timeProvider.currentTime.getWeekday();
+    _dataProvider.initializeHistory(_employeeName, _currentTime);
+    getAttendanceHistory(false);
   }
 
   @override
   void initState() {
     super.initState();
-    _loadSwitchState();
-    _cekIzinLokasi('oneTimeCheck');
+    _initData();
+
+    _loadLocationState();
+    _updateBreakTime(false);
 
     _controller = AnimationController(
       vsync: this,
@@ -423,9 +421,6 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
 
   @override
   void dispose() {
-    // if(!mounted){
-    //   Provider.of<TimeProvider>(context, listen: false).stopUpdatingTime();
-    // }
     _controller.dispose();
     _stopListeningLocationUpdates();
     super.dispose();
@@ -450,418 +445,247 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
                   title: const Text('Absensi Online'),
                 ),
                 body: ConnectionChecker(
-                  connectedWidget: Consumer<DataProvider>(
-                      builder: (context, dataProvider, child) {
-                    final pagiAttendanceStatus = dataProvider.statusAbsensiPagi;
-                    final siangAttendanceStatus = dataProvider.statusAbsensiSiang;
-
-                    return Consumer<TimeProvider>(
-                        builder: (context, timeProvider, child) {
-                      final dateTime = timeProvider.currentTime;
-                      final morningAttendanceState =
-                          timeProvider.isPagiButtonActive();
-                      final afternoonAttendanceState =
-                          timeProvider.isSiangButtonActive();
-                      final statusAttendance =
-                          timeProvider.attendanceStatus == 'T'
-                              ? 'Tepat Waktu'
-                              : 'Lewat Waktu';
-                      final keterangan = "";
-
-                      return SingleChildScrollView(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    bottom: 20, left: 4, right: 4),
-                                child: Text.rich(
-                                  style: const TextStyle(fontSize: 18),
+                  connectedWidget: SingleChildScrollView(
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                bottom: 20, left: 4, right: 4),
+                            child: Text.rich(
+                              style: const TextStyle(fontSize: 18),
+                              TextSpan(
+                                text: _attendanceLocationStatus,
+                                // Teks tetap
+                                children: [
                                   TextSpan(
-                                    text: _attendanceLocationStatus,
-                                    // Teks tetap
-                                    children: [
-                                      TextSpan(
-                                        text:
-                                            _statusWithDots, // Titik yang bergerak
-                                      ),
-                                    ],
+                                    text: _statusWithDots,
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
+                                ],
                               ),
-                              Card(
-                                color: Colors.blue,
-                                child: Column(
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text(
-                                        timeProvider.countDownText,
-                                        style: TextStyle(
-                                          fontFamily: 'Digital7',
-                                          fontSize: 48,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .surface,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      width: double.infinity,
-                                      margin: const EdgeInsets.only(bottom: 10),
-                                      child: Card(
-                                        color: Colors.green,
-                                        elevation: 5,
-                                        shadowColor: Colors.white,
-                                        surfaceTintColor: Colors.greenAccent,
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(10.0),
-                                          child: Column(
-                                            children: [
-                                              const SizedBox(
-                                                height: 10,
-                                              ),
-                                              Text(
-                                                'Absen Pagi',
-                                                style: FontTheme.bodyMedium(
-                                                  context,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                              const SizedBox(
-                                                height: 10,
-                                              ),
-                                              ElevatedButton(
-                                                onPressed: !pagiAttendanceStatus ||
-                                                        (morningAttendanceState &&
-                                                            _attendancePermission)
-                                                    ? () {
-                                                        print(
-                                                            'taekkkkk bdm pea: ${dateTime.postTime()}');
-                                                        print(
-                                                            'taekkkkk ayam pea: ${timeProvider.attendanceStatus}');
-                                                        final attendanceData =
-                                                            Data(
-                                                          tLPagi: timeProvider
-                                                              .attendanceStatus,
-                                                          hadirPagi:
-                                                              dateTime.postTime(),
-                                                          pointPagi: '0',
-                                                          // keterangan: 'Yanto',
-                                                        );
-                                                        final attendance =
-                                                            Attendance(
-                                                          action: 'update',
-                                                          // create_attendance
-                                                          tahunBulan: dateTime
-                                                              .getYearMonth(),
-                                                          tanggal: dateTime
-                                                              .getIdnDate(),
-                                                          // namaKaryawan: 'SADIQ',
-                                                          namaKaryawan: widget
-                                                              .employeeName
-                                                              .toUpperCase(),
-                                                          data: attendanceData,
-                                                        );
-                                                        DialogUtils
-                                                            .showConfirmationDialog(
-                                                          context: context,
-                                                          title: "Absen Pagi",
-                                                          content: const Text(
-                                                              'Absen Sekarang?'),
-                                                          onConfirm: () {
-                                                            _attendanceProcess(
-                                                                    'pagi',
-                                                                    attendance)
-                                                                .then((_) => timeProvider
-                                                                    .onButtonClick(
-                                                                        'pagi'));
-                                                          },
-                                                        );
-                                                      }
-                                                    : null,
-                                                child: const Text('Absen Pagi'),
-                                              ),
-                                              attendanceStatus(
-                                                dataProvider,
-                                                attendance: 'pagi',
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.all(10.0),
-                                      child: Text(
-                                        timeProvider.morningAttendanceMessage,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontFamily: 'Mulish',
-                                          fontSize: 18,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 10,
-                                    ),
-                                    Container(
-                                      width: double.infinity,
-                                      margin: const EdgeInsets.only(bottom: 10),
-                                      child: Card(
-                                        color: Colors.red,
-                                        elevation: 5,
-                                        shadowColor: Colors.white,
-                                        surfaceTintColor: Colors.redAccent,
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(10.0),
-                                          child: Column(
-                                            children: [
-                                              const SizedBox(
-                                                height: 10,
-                                              ),
-                                              Text(
-                                                'Absen Siang',
-                                                style: FontTheme.bodyMedium(
-                                                  context,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                              const SizedBox(
-                                                height: 10,
-                                              ),
-                                              FilledButton(
-                                                onPressed:
-                                                    (afternoonAttendanceState &&
-                                                            _attendancePermission)
-                                                        ? () {
-                                                            print(
-                                                                'taekkkkk bdm pea: ${dateTime.postTime()}');
-                                                            print(
-                                                                'taekkkkk ayam pea: ${timeProvider.attendanceStatus}');
-                                                            final attendanceData =
-                                                                Data(
-                                                              tLSiang: timeProvider
-                                                                  .attendanceStatus,
-                                                              pulangSiang:
-                                                                  dateTime
-                                                                      .postTime(),
-                                                              hadirSiang: dateTime
-                                                                  .postTime(),
-                                                              pointSiang: '5',
-                                                              // keterangan: 'Anto',
-                                                            );
-                                                            final attendance =
-                                                                Attendance(
-                                                              action: 'update',
-                                                              // create_attendance
-                                                              tahunBulan: dateTime
-                                                                  .getYearMonth(),
-                                                              tanggal: dateTime
-                                                                  .getIdnDate(),
-                                                              namaKaryawan: widget
-                                                                  .employeeName
-                                                                  .toUpperCase(),
-                                                              data:
-                                                                  attendanceData,
-                                                            );
-                                                            DialogUtils
-                                                                .showConfirmationDialog(
-                                                              context: context,
-                                                              title:
-                                                                  "Absen Siang",
-                                                              content: Column(
-                                                                mainAxisSize:
-                                                                    MainAxisSize
-                                                                        .min,
-                                                                children: [
-                                                                  const Text(
-                                                                      'Absen Sekarang?'),
-                                                                  const SizedBox(
-                                                                    height: 10,
-                                                                  ),
-                                                                  CustomTextFormField(
-                                                                    hintText:
-                                                                        'Keterangan',
-                                                                    labelText:
-                                                                        'Keterangan',
-                                                                    onChanged:
-                                                                        (value) {
-                                                                      attendanceData
-                                                                              .keterangan =
-                                                                          value;
-                                                                    },
-                                                                    maxLines: 3,
-                                                                    autoValidate:
-                                                                        true,
-                                                                    validator:
-                                                                        (value) {
-                                                                      if (value!
-                                                                          .isEmpty) {
-                                                                        return 'Keterangan tidak boleh kosong';
-                                                                      }
-                                                                      return null;
-                                                                    },
-                                                                  ),
-                                                                ],
-                                                              ),
-                                                              onConfirm: () {
-                                                                _attendanceProcess(
-                                                                        'siang',
-                                                                        attendance)
-                                                                    .then(
-                                                                  (_) => timeProvider
-                                                                      .onButtonClick(
-                                                                          'siang'),
-                                                                );
-                                                              },
-                                                            );
-                                                          }
-                                                        : null,
-                                                child: const Text('Absen Siang'),
-                                              ),
-                                              attendanceStatus(
-                                                dataProvider,
-                                                attendance: 'siang',
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    if (timeProvider
-                                        .afternoonAttendanceMessage.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.all(10.0),
-                                        child: Text(
-                                          timeProvider.afternoonAttendanceMessage,
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            fontFamily: 'Mulish',
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                      ),
-                                    const SizedBox(
-                                      height: 10,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              const Divider(
-                                thickness: 3,
-                              ),
-                              // Switch untuk mengaktifkan dan menonaktifkan stream
-                              ListTile(
-                                title: Text(
-                                    '${!_isStreaming ? 'Aktifkan' : 'Nonaktifkan'} Lokasi Real-time'),
-                                trailing: Switch(
-                                  value: _isStreaming,
-                                  onChanged:
-                                      _permissionGranted ? _toggleSwitch : null,
-                                ),
-                                onTap: null,
-                              ),
-                              ListTile(
-                                title: const Text('Cek Lokasi Anda dan Toko'),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.map),
-                                  iconSize: 40,
-                                  onPressed: () => _cekIzinLokasi('mapCheck'),
-                                ),
-                                onTap: null,
-                              ),
-                              ListTile(
-                                title: const Text('Perbarui Waktu Break Siang'),
-                                subtitle: const Text('(Mulai pukul 12.00 WITA)'),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.dining_outlined),
-                                  iconSize: 40,
-                                  onPressed: _updateBreakTime,
-                                ),
-                              ),
-                              ListTile(
-                                title: const Text('Testing Page'),
-                                subtitle: const Text('(Tes Sistem Keterangan)'),
-                                trailing: IconButton(
-                                  onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const TestPage(),
-                                      )),
-                                  iconSize: 40,
-                                  icon: const Icon(Icons.telegram),
-                                ),
-                              ),
-                              ListTile(
-                                title: const Text('Testing Page'),
-                                subtitle: const Text('(Tes Sistem Keterangan)'),
-                                trailing: IconButton(
-                                  onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const TestDataProviderPage(),
-                                      )),
-                                  iconSize: 40,
-                                  icon: const Icon(Icons.telegram),
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              const Divider(),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              const Text(
-                                'Keterangan: ',
-                                style: TextStyle(
-                                  fontFamily: 'Mulish',
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              const Text(
-                                'Izin / Sakit / Terlambat',
-                                style: TextStyle(
-                                  fontFamily: 'Mulish',
-                                  fontSize: 20,
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 10,
-                              ),
-                              const SizedBox(
-                                height: 20,
-                              ),
-                            ],
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                        ),
-                      );
-                    });
-                  }),
+                          Consumer<DataProvider>(
+                            builder: (context, dataProvider, child) {
+                              if (!dataProvider.isAttendanceInfoAvailable) {
+                                return const SizedBox.shrink();
+                              }
+
+                              if (!dataProvider
+                                  .isSelectedDateHistoryAvailable) {
+                                return const SizedBox.shrink();
+                              }
+
+                              final infoAttendance =
+                                  dataProvider.attendanceInfoData!;
+                              final breakTimeStart = infoAttendance
+                                      .breakTime!.isNotEmpty
+                                  ? 'Waktu break mulai jam : ${infoAttendance.breakTime}'
+                                  : 'Waktu break belum diperbarui';
+                              // final pagiAttendanceStatus =
+                              //     dataProvider.statusAbsensiPagi;
+                              // final siangAttendanceStatus =
+                              //     dataProvider.statusAbsensiSiang;
+
+                              HistoryData historyData =
+                                  dataProvider.selectedDateHistory ??
+                                      HistoryData();
+
+                              return Consumer<TimeProvider>(
+                                builder: (context, timeProvider, child) {
+                                  final dateTime = timeProvider.currentTime;
+                                  final morningAttendanceState =
+                                      timeProvider.isPagiButtonActive(
+                                          historyData, infoAttendance.nationalHoliday ?? '');
+                                  final afternoonAttendanceState =
+                                      timeProvider.isSiangButtonActive(
+                                          historyData);
+                                  final isBreakTime = isCurrentTimeWithinRange(
+                                    dateTime.getDefaultDateTime(),
+                                    '12:00',
+                                    '17:30',
+                                  );
+
+                                  return Card(
+                                    color: Colors.blue,
+                                    child: Stack(
+                                      children: [
+                                        Column(
+                                          children: [
+                                            _buildCountdownText(timeProvider),
+                                            AttendanceCard(
+                                              title: 'Absen Pagi',
+                                              buttonText: 'Absen Pagi',
+                                              buttonActive:
+                                                  morningAttendanceState &&
+                                                      _attendancePermission,
+                                              onButtonPressed: () {
+                                                _onAttendanceButtonPressed(
+                                                  context,
+                                                  timeProvider,
+                                                  'pagi',
+                                                  dateTime,
+                                                  widget.employeeName,
+                                                );
+                                              },
+                                              attendanceStatus:
+                                                  attendanceStatus(dataProvider,
+                                                      attendance: 'pagi'),
+                                              message: timeProvider
+                                                  .morningAttendanceMessage,
+                                            ),
+                                            AttendanceCard(
+                                              title: 'Absen Siang',
+                                              buttonText: 'Absen Siang',
+                                              buttonActive:
+                                                  afternoonAttendanceState &&
+                                                      _attendancePermission,
+                                              onButtonPressed: () {
+                                                _onAttendanceButtonPressed(
+                                                  context,
+                                                  timeProvider,
+                                                  'siang',
+                                                  dateTime,
+                                                  widget.employeeName,
+                                                );
+                                              },
+                                              attendanceStatus:
+                                                  attendanceStatus(dataProvider,
+                                                      attendance: 'siang'),
+                                              message: timeProvider
+                                                  .afternoonAttendanceMessage,
+                                            ),
+                                            if (isBreakTime)
+                                              Text(
+                                                breakTimeStart,
+                                                style: const TextStyle(
+                                                  fontFamily: 'Mulish',
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                            ElevatedButton(onPressed: () {
+                                              print('Pagi: $morningAttendanceState');
+                                              print('Siang: $afternoonAttendanceState');
+                                              print('Permission: $_attendancePermission');
+                                            }, child: Text('Check')),
+                                          ],
+                                        ),
+                                        if (dataProvider.isLoading)
+                                          const Positioned.fill(
+                                            child: Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          const Divider(
+                            thickness: 3,
+                          ),
+                          CustomListTile(
+                            title: 'Aktifkan atau Nonaktifkan Lokasi Real-time',
+                            trailing: Switch(
+                              value: _isStreaming,
+                              onChanged:
+                                  _permissionGranted ? _toggleSwitch : null,
+                            ),
+                          ),
+                          // Switch untuk mengaktifkan dan menonaktifkan stream
+                          CustomListTile(
+                            title: 'Cek Lokasi Anda dan Toko',
+                            trailing: IconButton(
+                              icon: const Icon(Icons.map),
+                              iconSize: 40,
+                              onPressed: () => _cekIzinLokasi('mapCheck'),
+                            ),
+                          ),
+                          CustomListTile(
+                            title: 'Perbarui Waktu Break Siang',
+                            subtitle: '(Mulai pukul 12.00 WITA)',
+                            trailing: IconButton(
+                              icon: const Icon(Icons.dining_outlined),
+                              iconSize: 40,
+                              onPressed: () async => _updateBreakTime(true),
+                            ),
+                          ),
+                          CustomListTile(
+                            title: 'Testing Page',
+                            subtitle: '(Tes Sistem Keterangan)',
+                            trailing: IconButton(
+                              icon: const Icon(Icons.telegram),
+                              iconSize: 40,
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const TestPage(),
+                                ),
+                              ),
+                            ),
+                          ),
+                          CustomListTile(
+                            title: 'Testing Page 2',
+                            subtitle: '(Tes Sistem Data Provider)',
+                            trailing: IconButton(
+                              icon: const Icon(Icons.telegram),
+                              iconSize: 40,
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const TestDataProviderPage(),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Divider(),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Keterangan: ',
+                            style: TextStyle(
+                              fontFamily: 'Mulish',
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Izin / Sakit / Terlambat',
+                            style: TextStyle(
+                              fontFamily: 'Mulish',
+                              fontSize: 20,
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
                 floatingActionButton: FloatingActionButton(
-                  onPressed: _fabLoading ? null : () async {
-                    bool isConnected = await NetworkHelper.hasInternetConnection();
-                    if (!isConnected) {
-                      ToastUtil.showToast(
-                          'Tidak ada koneksi internet', ToastStatus.error);
-                      return;
-                    }
-                    _updateLocation();
-                  },
+                  onPressed: _fabLoading
+                      ? null
+                      : () async {
+                          bool isConnected =
+                              await NetworkHelper.hasInternetConnection();
+                          if (!isConnected) {
+                            ToastUtil.showToast('Tidak ada koneksi internet',
+                                ToastStatus.error);
+                            return;
+                          }
+                          _fabUpdateLocation();
+                        },
                   // Disable button saat loading
                   child: AnimatedBuilder(
                     animation: _controller,
@@ -878,6 +702,52 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCountdownText(TimeProvider timeProvider) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Text(
+        timeProvider.countDownText,
+        style: const TextStyle(
+          fontFamily: 'Digital7',
+          fontSize: 48,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  void _onAttendanceButtonPressed(
+    BuildContext context,
+    TimeProvider timeProvider,
+    String attendanceType,
+    CustomTime dateTime,
+    String employeeName,
+  ) {
+    final attendanceData = Data(
+      tLPagi: timeProvider.attendanceStatus,
+      hadirPagi: dateTime.postTime(),
+      pointPagi: '0',
+    );
+    final attendance = Attendance(
+      action: 'update',
+      tahunBulan: dateTime.getYearMonth(),
+      tanggal: dateTime.getIdnDate(),
+      namaKaryawan: employeeName.toUpperCase(),
+      data: attendanceData,
+    );
+
+    DialogUtils.showConfirmationDialog(
+      context: context,
+      title: 'Absen $attendanceType',
+      content: const Text('Absen Sekarang?'),
+      onConfirm: () {
+        _attendanceProcess(attendanceType, attendance).then(
+          (_) => timeProvider.onButtonClick(attendanceType),
+        );
+      },
     );
   }
 
@@ -963,45 +833,212 @@ class _AbsensiPageState extends BaseState<AbsensiPage>
   }
 }
 
-// SwitchListTile(
-//   title: Text('${!_isStreaming ? 'Aktifkan' : 'Nonaktifkan'} Lokasi Real-time'),
-//   value: _isStreaming,
-//   onChanged: (bool value) {
-//     _toggleStreaming(value);
-//   },
-// ),
-// const SizedBox(height: 20),
-// Row(
-//   mainAxisAlignment: MainAxisAlignment.center,
-//   children: [
-//     ElevatedButton(
-//       onPressed: _cekLokasiSekali,
-//       child: const Text('Cek Lokasi'),
-//     ),
-//     IconButton(
-//         onPressed: () => Navigator.push(
-//             context,
-//             MaterialPageRoute(
-//               builder: (context) => TestPage(),
-//             )),
-//         icon:
-//             const Icon(Icons.check_circle_outline)),
-//   ],
-// ),
-// FilledButton(
-//   onPressed: () {
-//     Navigator.pushNamed(
-//       context,
-//       '/map',
-//       arguments: MapPageArguments(
-//         storeLocation:
-//             LatLng(_storeLatitude, _storeLongitude),
-//         storeRadius: _maxDistance,
-//       ),
-//     );
-//   },
-//   child: const Text('Lihat Posisi'),
-// ),
-// const SizedBox(
-//   height: 20,
-// ),
+class AttendanceCard extends StatelessWidget {
+  final String title;
+  final String buttonText;
+  final bool buttonActive;
+  final VoidCallback onButtonPressed;
+  final Widget attendanceStatus;
+  final String message;
+
+  const AttendanceCard({
+    required this.title,
+    required this.buttonText,
+    required this.buttonActive,
+    required this.onButtonPressed,
+    required this.attendanceStatus,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Card(
+        color: Colors.green,
+        elevation: 5,
+        shadowColor: Colors.white,
+        surfaceTintColor: Colors.greenAccent,
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: FontTheme.bodyMedium(
+                  context,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: buttonActive ? onButtonPressed : null,
+                child: Text(buttonText),
+              ),
+              attendanceStatus,
+              if (message.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Mulish',
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Cek izin pengguna untuk mengakses lokasi
+/*
+  // Minta izin akses lokasi
+  Future<void> _cekIzinLokasi(String check, {bool? switchValue}) async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      setState(() {
+        _permissionGranted = false;
+        _attendanceLocationStatus = 'Izin lokasi belum diberikan';
+      });
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          _permissionGranted = false;
+          _attendanceLocationStatus =
+              'Izin lokasi ditolak, harap berikan izin lokasi';
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        _permissionGranted = false;
+        _attendanceLocationStatus =
+            'Izin lokasi ditolak permanen, harap berikan izin lokasi di pengaturan';
+      });
+      openAppSettings();
+      return;
+    }
+
+    _permissionGranted = true;
+    // Jika izin diberikan, lanjutkan cek lokasi
+    if (check == 'oneTimeCheck') {
+      _loadCoordinateLocation();
+      await _cekLokasiSekali();
+    } else if (check == 'realTimeCheck') {
+      _toggleStreaming(switchValue!);
+    } else if (check == 'mapCheck') {
+      Navigator.pushNamed(
+        context,
+        '/map',
+        arguments: MapPageArguments(
+          storeLocation: LatLng(_storeLatitude, _storeLongitude),
+          storeRadius: _maxDistance,
+        ),
+      );
+    }
+  }
+*/
+
+// Cek apakah pengguna berada dalam radius absensi
+/*
+  Future<void> _cekLokasiSekali() async {
+    try {
+      safeContext((context) => LoadingDialog.show(context));
+      Position posisiPengguna = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      // setState(() {
+      //   _userPositionLatitude = posisiPengguna.latitude;
+      //   _userPositionLongitude = posisiPengguna.longitude;
+      // });
+
+      // Lokasi menggunakan mock atau fake GPS
+      if (posisiPengguna.isMocked) {
+        setState(() {
+          _attendanceLocationStatus = 'Lokasi palsu terdeteksi!';
+          _attendancePermission = false;
+        });
+      } else {
+        setState(() {
+          _userPositionLatitude = posisiPengguna.latitude;
+          _userPositionLongitude = posisiPengguna.longitude;
+          _attendanceLocationStatus = 'Lokasi asli terdeteksi.';
+        });
+
+        _cekJarak(posisiPengguna); // Cek jarak sekali
+      }
+
+      _cekJarak(posisiPengguna); // Cek jarak sekali
+
+      safeContext((context) => LoadingDialog.hide(context));
+    } catch (e) {
+      setState(() {
+        _attendanceLocationStatus = 'Terjadi kesalahan: $e';
+      });
+      safeContext((context) => LoadingDialog.hide(context));
+    } finally {
+      _coordinateCheckTimer?.cancel();
+    }
+  }
+*/
+
+// Button Backup
+/*
+SwitchListTile(
+  title: Text('${!_isStreaming ? 'Aktifkan' : 'Nonaktifkan'} Lokasi Real-time'),
+  value: _isStreaming,
+  onChanged: (bool value) {
+    _toggleStreaming(value);
+  },
+),
+const SizedBox(height: 20),
+Row(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    ElevatedButton(
+      onPressed: _cekLokasiSekali,
+      child: const Text('Cek Lokasi'),
+    ),
+    IconButton(
+        onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TestPage(),
+            )),
+        icon:
+            const Icon(Icons.check_circle_outline)),
+  ],
+),
+FilledButton(
+  onPressed: () {
+    Navigator.pushNamed(
+      context,
+      '/map',
+      arguments: MapPageArguments(
+        storeLocation:
+            LatLng(_storeLatitude, _storeLongitude),
+        storeRadius: _maxDistance,
+      ),
+    );
+  },
+  child: const Text('Lihat Posisi'),
+),
+const SizedBox(
+  height: 20,
+),
+*/

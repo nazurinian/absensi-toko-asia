@@ -1,7 +1,9 @@
 import 'package:absensitoko/ui/screens/absensi_page.dart';
 import 'package:absensitoko/ui/screens/home_page.dart';
+import 'package:absensitoko/ui/screens/information_page.dart';
 import 'package:absensitoko/ui/screens/login_page.dart';
 import 'package:absensitoko/ui/screens/map_page.dart';
+import 'package:absensitoko/ui/screens/profile_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -13,6 +15,10 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const HomePage());
       case '/login':
         return MaterialPageRoute(builder: (_) => const LoginPage());
+      case '/profile':
+        return MaterialPageRoute(builder: (_) => const ProfilePage());
+      case '/information':
+        return MaterialPageRoute(builder: (_) => const InformationPage());
       case '/absensi':
         final String employeeName = settings.arguments as String;
         return MaterialPageRoute(
@@ -23,7 +29,7 @@ class AppRouter {
         final LatLng storeLocation = args.storeLocation;
         final double storeRadius = args.storeRadius;
         return MaterialPageRoute(
-          builder: (_) => MapPage(storeLocation: storeLocation, storeRadius: storeRadius,),
+          builder: (_) => MapPage(storeLocation: storeLocation, storeRadius: storeRadius),
         );
       default:
         // Route tidak ditemukan

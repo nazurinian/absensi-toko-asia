@@ -1,4 +1,6 @@
 class UtilityService {
+  
+
   // Fungsi Future umum
 /*  Future<T> fetchData<T>(String url) async {
     // Misalnya, menggunakan HTTP GET request

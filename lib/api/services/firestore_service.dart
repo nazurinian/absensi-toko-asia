@@ -1,6 +1,5 @@
 import 'package:absensitoko/data/models/version_model.dart';
 import 'package:absensitoko/data/models/attendance_info_model.dart';
-import 'package:absensitoko/data/models/history_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:absensitoko/api/api_result.dart';
 import 'package:absensitoko/data/models/user_model.dart';
@@ -162,9 +161,9 @@ class FirestoreService {
     return null;
   }
 
-/*  Future<void> updateAppVersion(AppVersionModel appVersion) async {
+  Future<void> updateAppVersion(AppVersionModel appVersion) async {
     await _db.collection('information').doc('latest_version').set(appVersion.toMap());
-  }*/
+  }
 
   // (GAK JADI PAKE FIRESTORE, GANTI PAKE RTDB) Fungsi untuk mendapatkan data history
 /*  // Fungsi untuk menginisialisasi data history

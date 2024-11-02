@@ -5,8 +5,10 @@ import 'package:absensitoko/data/providers/data_provider.dart';
 import 'package:absensitoko/data/providers/time_provider.dart';
 import 'package:absensitoko/data/providers/user_provider.dart';
 import 'package:absensitoko/core/themes/fonts/fonts.dart';
+import 'package:absensitoko/locator.dart';
 import 'package:absensitoko/utils/base/base_state.dart';
-import 'package:absensitoko/utils/device_util.dart';
+import 'package:absensitoko/utils/base/location_service.dart';
+import 'package:absensitoko/utils/base/version_checker.dart';
 import 'package:absensitoko/utils/dialogs/dialog_utils.dart';
 import 'package:absensitoko/utils/display_size_util.dart';
 import 'package:absensitoko/utils/popup_util.dart';
@@ -14,12 +16,9 @@ import 'package:absensitoko/core/constants/options_menu.dart';
 import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
 import 'package:absensitoko/utils/helpers/network_helper.dart';
 import 'package:absensitoko/utils/time_picker_util.dart';
-import 'package:absensitoko/ui/screens/profile_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,7 +27,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends BaseState<HomePage> {
+class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   final TextEditingController breaktimeController = TextEditingController();
   final TextEditingController nationalHolidayController =
       TextEditingController();
@@ -38,7 +37,6 @@ class _HomePageState extends BaseState<HomePage> {
   UserModel? _user;
   final String _holiday = 'Libur ';
   String _displayMessage = 'Data belum diperoleh';
-  AppVersionModel? thisAppVersion;
   AppVersionModel? newAppVersion;
 
   // String? _infoRole = '';
@@ -90,7 +88,9 @@ class _HomePageState extends BaseState<HomePage> {
   }
 
   Future<void> _showSessionExpiredDialog() async {
-    final shouldLogout = await DialogUtils.showExpiredDialog(context, title: 'Sesi Berakhir', content: 'Sesi login telah berakhir. Silakan login kembali.');
+    final shouldLogout = await DialogUtils.showExpiredDialog(context,
+        title: 'Sesi Berakhir',
+        content: 'Sesi login telah berakhir. Silakan login kembali.');
     if (shouldLogout ?? false) {
       _handleLogout();
     }
@@ -112,6 +112,10 @@ class _HomePageState extends BaseState<HomePage> {
     UserModel user = UserModel(
       uid: userDataSession,
       logoutTimestamp: currentTime,
+      loginTimestamp: '',
+      loginLat: '',
+      loginLong: '',
+      loginDevice: '',
     );
 
     LoadingDialog.show(context);
@@ -120,8 +124,7 @@ class _HomePageState extends BaseState<HomePage> {
       await _handleLogoutResult(message);
     } catch (e) {
       _showErrorSnackbar(e.toString());
-    } finally {
-      LoadingDialog.hide(context);
+      safeContext((context) => LoadingDialog.hide(context));
     }
   }
 
@@ -140,6 +143,7 @@ class _HomePageState extends BaseState<HomePage> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     userProvider.clearAccountData();
     Provider.of<DataProvider>(context, listen: false).clearData();
+    LoadingDialog.hide(context);
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
@@ -163,7 +167,6 @@ class _HomePageState extends BaseState<HomePage> {
   }
 
   Future<void> updateInfo() async {
-    // Buat objek data dari input TextField
     AttendanceInfoModel updatedData = AttendanceInfoModel(
       breakTime: breaktimeController.text,
       nationalHoliday: nationalHolidayController.text,
@@ -178,64 +181,47 @@ class _HomePageState extends BaseState<HomePage> {
   }
 
   Future<void> _getAppVersion() async {
-    AppVersionModel thisAppVer = await DeviceUtils.getAppInfo();
-
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    await dataProvider.getAppVersion();
-
-    final newAppVer = dataProvider.appVersion;
-    if (newAppVer != null) {
-      print('Versi saat ini : ${thisAppVer.toString()}');
-      print('Versi terbaru : ${newAppVer.toString()}');
-
-      setState(() {
-        thisAppVersion = thisAppVer;
-        newAppVersion = newAppVer;
-      });
-      if((thisAppVersion!.version != newAppVer.version || thisAppVersion!.buildNumber != newAppVer.buildNumber) && newAppVer.mandatory!) {
-        String title = 'Pembaruan Diperlukan';
-        String content = 'Aplikasi Anda saat ini versi: ${thisAppVersion!.version} sudah tidak dapat digunakan, silahkan update ke versi terbaru: ${newAppVer.version} dengan mengklik tombol Perbarui';
-
-        if(mounted){
-          bool result = await DialogUtils.showExpiredDialog(context, title: title, content: content, buttonText: 'Perbarui') ?? false;
-          if (result) {
-            final updateLink = Uri.parse("https://flutter.dev");
-            // final updateLink = Uri.parse(newAppVer.link!);
-            if (!await launchUrl(updateLink)) {
-              ToastUtil.showToast('Gagal membuka browser', ToastStatus.error);
-              // throw Exception('Could not launch $updateLink');
-            }
-          }
-        }
-      }
-    }
+    await VersionChecker.checkForUpdates();
   }
 
 /*  Future<void> _updateAppVersion() async {
-    // AppVersionModel appInfo = await DeviceUtils.getAppInfo();
-    AppVersionModel appInfo = AppVersionModel(version: '3.0.0', buildNumber: 1, mandatory: false, link: 'https://play.google.com/store/apps/details?id=com.absensitoko.absensitoko');
-    Provider.of<DataProvider>(context, listen: false).updateAppVersion(appInfo);
-
-    print(appInfo);
-    setState(() {
-      appVersion = appInfo.version ?? '2.0.0';
-    });
+    AppVersionModel appVersion = AppVersionModel(version: '3.0.0', buildNumber: 1, mandatory: false, link: 'https://play.google.com/store/apps/details?id=com.absensitoko.absensitoko');
+    VersionChecker.setAppVersion(appVersion);
   }*/
+
+  Future<void> _permissionCheck() async {
+    final locationService = locator<LocationService>();
+
+    await locationService.cekIzinLokasi();
+    await locationService.cekLokasiSekali();
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     _getAppVersion();
     _fetchUserData();
   }
 
   @override
   void dispose() {
-    super.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+
     breaktimeController.dispose();
     nationalHolidayController.dispose();
     breaktimeFocus.dispose();
     nationalHolidayFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _getAppVersion();
+    }
+    super.didChangeAppLifecycleState(state);
   }
 
   @override
@@ -321,15 +307,13 @@ class _HomePageState extends BaseState<HomePage> {
                                                   ToastStatus.error);
                                             }
                                           } else if (value == 'profile') {
-                                            bool updateProfile =
-                                                await Navigator.push(
+                                            bool updateProfile = await Navigator.pushNamed(
                                               context,
-                                              MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      const ProfilePage()),
-                                            );
+                                              '/profile',
+                                            ) as bool;
                                             if (updateProfile) {
                                               _fetchUserData();
+                                              print('Memperbarui data user');
                                             }
                                             // Memastikan data diperbarui setelah kembali dari halaman edit
                                             WidgetsBinding.instance
@@ -340,6 +324,8 @@ class _HomePageState extends BaseState<HomePage> {
                                                       listen: false)
                                                   .getUser(_user!.uid);
                                             });
+                                          } else if (value == 'information') {
+                                            Navigator.pushNamed(context, '/information');
                                           }
                                         },
                                         itemBuilder: (context) {
@@ -728,7 +714,7 @@ class _HomePageState extends BaseState<HomePage> {
                                                   left: 8.0,
                                                 ),
                                                 child: Text(
-                                                  'Atur waktu istirahat:',
+                                                  'Atur waktu mulai istirahat:',
                                                   style: FontTheme.bodyMedium(
                                                     context,
                                                     fontSize: 18,
@@ -753,17 +739,15 @@ class _HomePageState extends BaseState<HomePage> {
                                                         TimePicker.customTime(
                                                             context,
                                                             'Waktu Istirahat',
-                                                            onSelecttime:
+                                                            onSelectedTime:
                                                                 (time) {
-                                                          DateTime date =
-                                                              DateFormat.jm().parse(
-                                                                  time.format(
-                                                                      context));
-                                                          breaktimeController
-                                                                  .text =
-                                                              DateFormat(
-                                                                      'HH:mm')
-                                                                  .format(date);
+                                                          if (time.isNotEmpty) {
+                                                            breaktimeController
+                                                                .text = time;
+                                                          } else {
+                                                            breaktimeFocus
+                                                                .unfocus();
+                                                          }
                                                         });
                                                         ToastUtil.showToast(
                                                             'Fitur belum tersedia',
@@ -805,7 +789,7 @@ class _HomePageState extends BaseState<HomePage> {
                                                   left: 8.0,
                                                 ),
                                                 child: Text(
-                                                  'Atur Tangal Libur Nasional:',
+                                                  'Atur Libur Nasional:',
                                                   style: FontTheme.bodyMedium(
                                                     context,
                                                     fontSize: 18,
@@ -881,40 +865,25 @@ class _HomePageState extends BaseState<HomePage> {
                                                     child: const Text(
                                                         'Peroleh Data'),
                                                   ),
-                                                  const SizedBox(
-                                                    height: 10,
-                                                  ),
-                                                  // Get App Version
-                                                  ListTile(
-                                                    title: const Text(
-                                                        'Versi Aplikasi'),
-                                                    trailing: Text(
-                                                      thisAppVersion?.version ?? '',
-                                                      style:
-                                                          FontTheme.bodyMedium(
-                                                              context,
-                                                              fontSize: 14),
-                                                    ),
-                                                  ),
                                                   // Get App Version Button
-                                                  ElevatedButton(
-                                                    onPressed: () {
-                                                      _getAppVersion();
-                                                    },
-                                                    child: const Text(
-                                                        'Cek Versi Aplikasi'),
-                                                  ),
-                                                  const SizedBox(
-                                                    height: 10,
-                                                  ),
-                                                  // Update App Version Button
-                                                  ElevatedButton(
-                                                    onPressed: () {
-                                                      // updateAppVersion();
-                                                    },
-                                                    child: const Text(
-                                                        'Perbarui Versi Aplikasi'),
-                                                  ),
+                                                  // ElevatedButton(
+                                                  //   onPressed: () {
+                                                  //     _getAppVersion();
+                                                  //   },
+                                                  //   child: const Text(
+                                                  //       'Cek Versi Aplikasi'),
+                                                  // ),
+                                                  // const SizedBox(
+                                                  //   height: 10,
+                                                  // ),
+                                                  // // Update App Version Button
+                                                  // ElevatedButton(
+                                                  //   onPressed: () {
+                                                  //     // updateAppVersion();
+                                                  //   },
+                                                  //   child: const Text(
+                                                  //       'Perbarui Versi Aplikasi'),
+                                                  // ),
                                                 ],
                                               ),
                                               const SizedBox(

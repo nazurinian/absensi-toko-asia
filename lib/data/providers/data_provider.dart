@@ -18,19 +18,20 @@ class DataProvider extends ChangeNotifier {
   Data _dataAbsensi = Data();
 
   // Data models
-  AttendanceInfoModel? _attendanceInfoData;
   HistoryData? _selectedDateHistory;
   DailyHistory? _userHistoryData;
   MonthlyHistory? _allUserHistoryData;
   HistoryModel? _allCompleteHistory;
+
+  // Info models
+  AttendanceInfoModel? _attendanceInfoData;
+  AppVersionModel? _appVersion;
 
   bool _isLoading = false;
   String? _status;
   String? _message;
 
   Data? get dataAbsensi => _dataAbsensi;
-
-  AttendanceInfoModel? get attendanceInfoData => _attendanceInfoData;
 
   HistoryData? get selectedDateHistory => _selectedDateHistory;
 
@@ -40,6 +41,10 @@ class DataProvider extends ChangeNotifier {
 
   HistoryModel? get allCompleteHistory => _allCompleteHistory;
 
+  AttendanceInfoModel? get attendanceInfoData => _attendanceInfoData;
+
+  AppVersionModel? get appVersion => _appVersion;
+
   bool get isLoading => _isLoading;
 
   String? get status => _status;
@@ -47,8 +52,6 @@ class DataProvider extends ChangeNotifier {
   String? get message => _message;
 
   // Boolean flags to indicate data availability
-  bool get isAttendanceInfoAvailable => _attendanceInfoData != null;
-
   bool get isSelectedDateHistoryAvailable => _selectedDateHistory != null;
 
   bool get isUserHistoryDataAvailable => _userHistoryData != null;
@@ -56,6 +59,16 @@ class DataProvider extends ChangeNotifier {
   bool get isAllUserHistoryDataAvailable => _allUserHistoryData != null;
 
   bool get isAllCompleteHistoryAvailable => _allCompleteHistory != null;
+
+  bool get isAttendanceInfoAvailable => _attendanceInfoData != null;
+
+  bool get isAppVersionAvailable => _appVersion != null;
+
+  // bool get statusAbsensi =>
+  //     _selectedDateHistory?.tLPagi != null &&
+  //     _selectedDateHistory?.tLSiang != null &&
+  //     _selectedDateHistory!.tLPagi!.isNotEmpty &&
+  //     _selectedDateHistory!.tLSiang!.isNotEmpty;
 
   bool get statusAbsensiPagi =>
       _selectedDateHistory?.tLPagi != null &&
@@ -154,21 +167,17 @@ class DataProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-
-  AppVersionModel? _appVersion;
-
-  AppVersionModel? get appVersion => _appVersion;
-
   Future<void> getAppVersion() async {
     _appVersion = await _fireStoreService.getAppVersion();
     notifyListeners();
   }
 
-/*  Future<void> updateAppVersion(AppVersionModel appVersion) async {
+  // Fungsi set hanya ane yg bisa pake buat testing
+  Future<void> updateAppVersion(AppVersionModel appVersion) async {
     await _fireStoreService.updateAppVersion(appVersion);
-    _appVersion = appVersion;
+    // _appVersion = appVersion;
     notifyListeners();
-  }*/
+  }
 
   // ---------------------------- DATA RTDB ------------------------------------
 
@@ -213,6 +222,7 @@ class DataProvider extends ChangeNotifier {
     }
 
     print(response.message);
+    print('Data history absensi hari ini: $_selectedDateHistory');
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
