@@ -47,21 +47,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// - Antrian 1 :
 /// - Gabungkan keterangan
-/// - sistem point berdasarkan waktu (waktu lagi ya)
 /// - Kalau ada dua keterangan di pisah koma aja, artinya keterangan pagi dan siang ketika absen siang telat misal ada keterangan yg sudah terisi di gabung sama keterangan baru
 /// - Pengeolaan absensi ketika ganti hari, misalnya data di provider udah terisi maka diesok hari akan ke reset (pakai shared preference)
-
 /// - Custom Dialog untuk menampilkan keterangan absen
 /// - menerapkan sistem penulisan keterangan pada kondisi late
 /// - Penerapan history ketika klik tombol absen untuk pencatatan di google sheets dan history
 /// - bisa buat absen sehari sebelum ganti bulan
-
-/// Yang kurang dihalaman ini adalah : -------------- (FOKUS) --------------
-/// @Timer waktu absen pagi dan siang, timer muncul ketika memasuki rentang waktu absen
-/// @Tombol absen pagi dan siang hanya bisa di klik ketika memasuki rentang waktu absen
-/// @Tombol absen pagi dan siang tidak bisa di klik ketika sudah absen
-/// @Rentang waktu terbagi menjadi dua rentang waktu, yaitu waktu on off tombol absen sekitar 3 jam, dan waktu absen tepat waktu 30 menit (20 menit lebih awal dan 10 menit tambahan)
-/// @Kolom absensi T/L, 30 menit awal T, lewat dari itu L (absen pagi atau siang)
 
 /// ---------------------------- (FOKUS) ----------------------------
 /// * FOKUS FIRESTORE DAN SHEETS, GET DATA UNTUK INFORMASI UDAH ABSENNYA APA BELUM
@@ -73,28 +64,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   * Create new sheet for absensi bulan baru
 /// * Tambahkan SessionService untuk nyimpen tanggalnya, perangkat dll
 /// * Dafta kelas yg blom dipakek : CustomDropDownMenu
-/// * Buat logo aplikasi
-/// * Buat splash screen
 
-/// * Contoh timeout itu ada dihalaman login tombol login, kalo misalnya 10 detik gak ada respon auto batal login
 /// * urutan sistem otomatis reset data dan init data hari baru adalah:
-///   - Jika belum diinit maka init data
+///   @ Jika belum diinit maka init data
 ///   - Jika pathnya sudah ada(sudah diinit), maka simpan tanggal hari ini dishared preference
 ///   - ketika data udah ada dan tanggal udah ada berati lanjut ke cek tanggal yg udh disimpan sama tgl saat ini
 ///   - ketika ganti hari cek tanggal hari ini dengan tanggal yang disimpan di shared preference
 ///   - kalau masih sama artinya belum ganti hari, kalau berbeda udh ganti hari maka reset data
 ///   - lalu kembali ke awal inti data dulu baru save tanggal hari baru.
 
-/// > Perbaikan baru :
-/// * Begitupun ketika update waktu break siang, berikan tanda loading juga
+/// Fokus baru :
 /// * Tombol untuk membuat sheet baru
-/// * Pengecek status absen pagi dan siang ini mending lewat provider aja ato langsung seperti yg terakhir sekarang?
-/// * Rapih-rapih halaman home dan attendance
+/// * Sistem Keterangan
+/// * Buat logo aplikasi
+/// * Buat splash screen
 
 class AttendancePage extends StatefulWidget {
   final String employeeName;
+  final String deviceName;
 
-  const AttendancePage({super.key, required this.employeeName});
+  const AttendancePage(
+      {super.key, required this.employeeName, required this.deviceName});
 
   @override
   State<AttendancePage> createState() => _AttendancePageState();
@@ -128,10 +118,6 @@ class _AttendancePageState extends BaseState<AttendancePage>
 
   // Animasi FAB
   bool _fabLoading = false;
-
-  // late AnimationController _fabRotateController;
-  // late AnimationController _fabScrollController;
-  // bool _fabVisible = true; // Status visibilitas FAB
   bool _stopLoading = false;
   late ScrollController _scrollController;
   late AnimationController _opacityController;
@@ -140,14 +126,14 @@ class _AttendancePageState extends BaseState<AttendancePage>
 
   // Data Absensi
   late String _employeeName;
-  late String _currentTime;
+  late CustomTime _currentTime;
   late int _weekday;
   bool _isLoadingGetBreakTime = false;
 
   // Minta izin akses lokasi
   Future<void> _cekIzinLokasi(String check, {bool? switchValue}) async {
     PermissionStatusResult permissionResult =
-    await locationService.cekIzinLokasi();
+        await locationService.cekIzinLokasi();
     print(permissionResult.statusMessage);
 
     setState(() => _permissionGranted = permissionResult.isGranted);
@@ -198,10 +184,8 @@ class _AttendancePageState extends BaseState<AttendancePage>
       _statusWithDots = '';
       _attendancePermission = jarak <= _maxDistance;
       _attendanceLocationStatus = _attendancePermission
-          ? 'Dapat mengisi absen.\nAnda berada dalam radius absensi toko ${jarak
-          .toStringAsFixed(2)} meter.'
-          : 'Tidak dapat mengisi absen.\nAnda terlalu jauh dari Toko,\nJarak ke Toko: ${jarak
-          .toStringAsFixed(2)} meter.';
+          ? 'Dapat mengisi absen.\nAnda berada dalam radius absensi toko ${jarak.toStringAsFixed(2)} meter.'
+          : 'Tidak dapat mengisi absen.\nAnda terlalu jauh dari Toko,\nJarak ke Toko: ${jarak.toStringAsFixed(2)} meter.';
     });
   }
 
@@ -239,7 +223,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
     });
     _coordinateCheckTimer = Timer.periodic(
       const Duration(milliseconds: 500),
-          (timer) {
+      (timer) {
         setState(() {
           _dotCount = (_dotCount % 6) + 1;
           _statusWithDots = '.' * _dotCount;
@@ -288,20 +272,20 @@ class _AttendancePageState extends BaseState<AttendancePage>
     _positionStreamSubscription =
         Geolocator.getPositionStream(locationSettings: locationSettings)
             .listen((Position posisiPengguna) {
-          if (posisiPengguna.isMocked) {
-            setState(() {
-              _attendanceLocationStatus =
+      if (posisiPengguna.isMocked) {
+        setState(() {
+          _attendanceLocationStatus =
               'Lokasi palsu terdeteksi! Tidak dapat mengisi absen.';
-              _attendancePermission = false;
-            });
-          } else {
-            setState(() {
-              _userPositionLatitude = posisiPengguna.latitude;
-              _userPositionLongitude = posisiPengguna.longitude;
-            });
-            _cekJarak(posisiPengguna);
-          }
+          _attendancePermission = false;
         });
+      } else {
+        setState(() {
+          _userPositionLatitude = posisiPengguna.latitude;
+          _userPositionLongitude = posisiPengguna.longitude;
+        });
+        _cekJarak(posisiPengguna);
+      }
+    });
   }
 
   void _stopListeningLocationUpdates() {
@@ -326,8 +310,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
       _cekIzinLokasi('realTimeCheck', switchValue: _isStreaming);
     } else {
       setState(() => _stopLoading = false);
-      safeContext((context) =>
-          LoadingDialog.show(context, onPopInvoked: () {
+      safeContext((context) => LoadingDialog.show(context, onPopInvoked: () {
             LoadingDialog.hide(context);
             setState(() => _stopLoading = true);
           }));
@@ -335,14 +318,12 @@ class _AttendancePageState extends BaseState<AttendancePage>
     }
   }
 
-  Future<void> _attendanceProcess(String waktuAbsensi,
-      Attendance attendance) async {
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
-
+  Future<void> _attendanceProcess(
+      String waktuAbsensi, Attendance attendance) async {
     LoadingDialog.show(context);
     try {
       final message =
-      await dataProvider.updateAttendance(waktuAbsensi, attendance);
+          await _dataProvider.updateAttendance(waktuAbsensi, attendance);
       safeContext((context) => LoadingDialog.hide(context));
 
       print("Status and Message: $message");
@@ -370,6 +351,10 @@ class _AttendancePageState extends BaseState<AttendancePage>
     final result = await _dataProvider.getAttendanceInfo(isRefresh: isRefresh);
     if (result.status == 'success') {
       String breakTime = '12:00';
+      String nationalHoliday =
+          _dataProvider.attendanceInfoData?.nationalHoliday ?? '';
+      bool isHoliday =
+          nationalHoliday.isNotEmpty || _weekday == DateTime.sunday;
 
       if (_weekday == DateTime.friday) {
         breakTime = '$fridayAfternoonStartHour:$fridayAfternoonStartMinute';
@@ -389,6 +374,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
       int breakMinute = int.parse(breakTimeParts[1]);
 
       _timeProvider.updateBreakTime(breakHour, breakMinute);
+      _timeProvider.setHolidayStatus(isHoliday);
       setState(() => _isLoadingGetBreakTime = false);
       ToastUtil.showToast(
           'Berhasil $action waktu break siang', ToastStatus.success);
@@ -398,8 +384,23 @@ class _AttendancePageState extends BaseState<AttendancePage>
     }
   }
 
+  void _updateAttendanceStatus() {
+    final historyData = _dataProvider.selectedDateHistory!;
+    if (historyData.tLPagi!.isNotEmpty) {
+      bool onTime = historyData.tLPagi! == 'T';
+      print('Status Absen Pagi: $onTime');
+      _timeProvider.updateAttendanceCheck(true, isOnTime: onTime);
+    }
+    if (historyData.tLSiang!.isNotEmpty) {
+      bool onTime = historyData.tLSiang! == 'T';
+      print('Status Absen Siang: $onTime');
+      _timeProvider.updateAttendanceCheck(false, isOnTime: onTime);
+    }
+  }
+
   Future<void> _getAttendanceHistory({bool isRefresh = false}) async {
     if (_dataProvider.isSelectedDateHistoryAvailable && !isRefresh) {
+      _updateAttendanceStatus();
       print('Data absensi sudah ada');
       ToastUtil.showToast('Data absensi sudah ada', ToastStatus.success);
       return;
@@ -408,9 +409,11 @@ class _AttendancePageState extends BaseState<AttendancePage>
     String action = isRefresh ? 'Memperbarui' : 'Mendapatkan';
     print('$action data absensi');
 
-    final result = await _dataProvider
-        .getThisDayHistory(_employeeName, _currentTime, isRefresh: isRefresh);
+    final result = await _dataProvider.getThisDayHistory(
+        _employeeName, _currentTime.postTime(),
+        isRefresh: isRefresh);
     if (result.status == 'success') {
+      _updateAttendanceStatus();
       ToastUtil.showToast('Berhasil $action data absensi', ToastStatus.success);
     } else {
       print('Gagal $action data absensi');
@@ -423,18 +426,25 @@ class _AttendancePageState extends BaseState<AttendancePage>
     _employeeName = widget.employeeName;
     _dataProvider = Provider.of<DataProvider>(context, listen: false);
     _timeProvider = Provider.of<TimeProvider>(context, listen: false);
-    _currentTime = _timeProvider.currentTime.postHistory();
-    _weekday = _timeProvider.currentTime.getWeekday();
-    await _dataProvider.initializeHistory(_employeeName, _currentTime);
+    _currentTime = _timeProvider.currentTime;
+    _weekday = _currentTime.getWeekday();
+
+    final initHistoryData = HistoryData(
+      tanggalCreate: _currentTime.postTime(),
+      hari: _currentTime.getDayName(),
+      deviceInfo: widget.deviceName,
+    );
+
+    await _dataProvider.initializeHistory(_employeeName, initHistoryData);
     await _getAttendanceHistory();
   }
 
   @override
   void initState() {
     super.initState();
-    _initData();
-
     _loadLocationState();
+
+    _initData();
     _updateBreakTime();
 
     _initFabAnimation();
@@ -442,8 +452,6 @@ class _AttendancePageState extends BaseState<AttendancePage>
 
   @override
   void dispose() {
-    // _fabRotateController.dispose();
-    // _fabScrollController.dispose();
     _opacityController.dispose();
     _rotationController.dispose();
     _stopListeningLocationUpdates();
@@ -473,10 +481,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                 },
                 child: SizedBox(
                   height: screenHeight(context) - statusBarHeight(context) - 13,
-                  width: MediaQuery
-                      .of(context)
-                      .size
-                      .width,
+                  width: MediaQuery.of(context).size.width,
                   child: Scaffold(
                     appBar: AppBar(
                       title: const Text('Absensi Online'),
@@ -519,11 +524,10 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                   }
 
                                   final infoAttendance =
-                                  dataProvider.attendanceInfoData!;
+                                      dataProvider.attendanceInfoData!;
                                   final breakTimeStart = infoAttendance
-                                      .breakTime!.isNotEmpty
-                                      ? 'Waktu break mulai jam : ${infoAttendance
-                                      .breakTime}'
+                                          .breakTime!.isNotEmpty
+                                      ? 'Waktu break mulai jam : ${infoAttendance.breakTime}'
                                       : 'Waktu break belum diperbarui';
                                   // final pagiAttendanceStatus =
                                   //     dataProvider.statusAbsensiPagi;
@@ -538,15 +542,15 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                     builder: (context, timeProvider, child) {
                                       final dateTime = timeProvider.currentTime;
                                       final morningAttendanceState =
-                                      timeProvider.isPagiButtonActive(
-                                          historyData,
-                                          infoAttendance.nationalHoliday ??
-                                              '');
+                                          timeProvider.isPagiButtonActive(
+                                              historyData,
+                                              infoAttendance.nationalHoliday ??
+                                                  '');
                                       final afternoonAttendanceState =
-                                      timeProvider
-                                          .isSiangButtonActive(historyData);
+                                          timeProvider
+                                              .isSiangButtonActive(historyData);
                                       final isBreakTime =
-                                      isCurrentTimeWithinRange(
+                                          isCurrentTimeWithinRange(
                                         dateTime.getDefaultDateTime(),
                                         '12:00',
                                         '17:30',
@@ -559,26 +563,35 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                             Column(
                                               children: [
                                                 _buildCountdownText(
-                                                    timeProvider),
+                                                  timeProvider,
+                                                ),
                                                 AttendanceCard(
                                                   title: 'Absen Pagi',
                                                   buttonText: 'Absen Pagi',
                                                   buttonActive:
-                                                  morningAttendanceState &&
-                                                      _attendancePermission,
+                                                      morningAttendanceState &&
+                                                          _attendancePermission,
                                                   onButtonPressed: () {
+                                                    ToastUtil.showToast(
+                                                        'Sedang dalam perbaikan',
+                                                        ToastStatus.warning);
                                                     _onAttendanceButtonPressed(
-                                                      context,
-                                                      timeProvider,
-                                                      'pagi',
-                                                      dateTime,
-                                                      widget.employeeName,
+                                                      isPagi: true,
+                                                      attendanceStatus: timeProvider
+                                                          .morningAttendanceStatus,
+                                                      attendancePoint:
+                                                          timeProvider
+                                                              .attendancePoint,
+                                                      dateTime: dateTime,
+                                                      employeeName:
+                                                          _employeeName,
                                                     );
                                                   },
                                                   attendanceStatus:
-                                                  attendanceStatus(
-                                                      dataProvider,
-                                                      attendance: 'pagi'),
+                                                      attendanceStatus(
+                                                    dataProvider,
+                                                    attendance: 'pagi',
+                                                  ),
                                                   message: timeProvider
                                                       .morningAttendanceMessage,
                                                 ),
@@ -586,24 +599,31 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                   title: 'Absen Siang',
                                                   buttonText: 'Absen Siang',
                                                   buttonActive:
-                                                  afternoonAttendanceState &&
-                                                      _attendancePermission,
+                                                      afternoonAttendanceState &&
+                                                          _attendancePermission,
                                                   onButtonPressed: () {
                                                     _onAttendanceButtonPressed(
-                                                      context,
-                                                      timeProvider,
-                                                      'siang',
-                                                      dateTime,
-                                                      widget.employeeName,
+                                                      isPagi: false,
+                                                      attendanceStatus: timeProvider
+                                                          .afternoonAttendanceStatus,
+                                                      attendancePoint:
+                                                          timeProvider
+                                                              .attendancePoint,
+                                                      dateTime: dateTime,
+                                                      employeeName:
+                                                          _employeeName,
+                                                      breakTime: infoAttendance
+                                                          .breakTime,
                                                     );
                                                   },
                                                   attendanceStatus:
-                                                  attendanceStatus(
-                                                      dataProvider,
-                                                      attendance: 'siang'),
+                                                      attendanceStatus(
+                                                          dataProvider,
+                                                          attendance: 'siang'),
                                                   message: timeProvider
                                                       .afternoonAttendanceMessage,
                                                 ),
+                                                const SizedBox(height: 10),
                                                 if (isBreakTime)
                                                   Text(
                                                     breakTimeStart,
@@ -612,24 +632,29 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                       fontSize: 18,
                                                     ),
                                                   ),
+                                                const SizedBox(height: 10),
                                                 ElevatedButton(
-                                                    onPressed: () {
-                                                      print(
-                                                          'Pagi: $morningAttendanceState');
-                                                      print(
-                                                          'Siang: $afternoonAttendanceState');
-                                                      print(
-                                                          'Permission: $_attendancePermission');
-                                                    },
-                                                    child: const Text(
-                                                        'Check Attendance State')),
+                                                  onPressed: () {
+                                                    print(
+                                                        'Pagi: $morningAttendanceState');
+                                                    print(
+                                                        'Siang: $afternoonAttendanceState');
+                                                    print(
+                                                        'Permission: $_attendancePermission');
+                                                    print(
+                                                        'Status point: ${timeProvider.attendancePoint}');
+                                                  },
+                                                  child: const Text(
+                                                      'Check Attendance State'),
+                                                ),
+                                                const SizedBox(height: 10),
                                               ],
                                             ),
                                             if (dataProvider.isLoading)
                                               const Positioned.fill(
                                                 child: Center(
                                                   child:
-                                                  CircularProgressIndicator(),
+                                                      CircularProgressIndicator(),
                                                 ),
                                               ),
                                           ],
@@ -648,11 +673,11 @@ class _AttendancePageState extends BaseState<AttendancePage>
                               ),
                               CustomListTile(
                                 title:
-                                'Aktifkan atau Nonaktifkan Lokasi Real-time',
+                                    'Aktifkan atau Nonaktifkan Lokasi Real-time',
                                 trailing: Switch(
                                   value: _isStreaming,
                                   onChanged:
-                                  _permissionGranted ? _toggleSwitch : null,
+                                      _permissionGranted ? _toggleSwitch : null,
                                 ),
                               ),
                               // Switch untuk mengaktifkan dan menonaktifkan stream
@@ -674,8 +699,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                   iconSize: 40,
                                   onPressed: () async {
                                     setState(
-                                            () =>
-                                        _isLoadingGetBreakTime = true);
+                                        () => _isLoadingGetBreakTime = true);
                                     await _updateBreakTime(isRefresh: true);
                                   },
                                 ),
@@ -686,14 +710,12 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                 trailing: IconButton(
                                   icon: const Icon(Icons.telegram),
                                   iconSize: 40,
-                                  onPressed: () =>
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (
-                                              context) => const TestPage(),
-                                        ),
-                                      ),
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const TestPage(),
+                                    ),
+                                  ),
                                 ),
                               ),
                               CustomListTile(
@@ -702,14 +724,13 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                 trailing: IconButton(
                                   icon: const Icon(Icons.telegram),
                                   iconSize: 40,
-                                  onPressed: () =>
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
                                           const TestDataProviderPage(),
-                                        ),
-                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -736,45 +757,23 @@ class _AttendancePageState extends BaseState<AttendancePage>
                         ),
                       ),
                     ),
-                    /*
-                    floatingActionButton: FloatingActionButton(
-                      onPressed: _fabLoading
-                          ? null
-                          : () async {
-                              bool isConnected =
-                                  await NetworkHelper.hasInternetConnection();
-                              if (!isConnected) {
-                                ToastUtil.showToast(
-                                    'Tidak ada koneksi internet',
-                                    ToastStatus.error);
-                                return;
-                              }
-                              _fabUpdateLocation();
-                            },
-                      // Disable button saat loading
-                      child: AnimatedBuilder(
-                        animation: _fabRotateController,
-                        builder: (context, child) {
-                          return Transform.rotate(
-                            angle: _fabRotateController.value * 2.0 * math.pi,
-                            child: const Icon(Icons.refresh),
-                          );
-                        },
-                      ),
-                    ),*/
                     floatingActionButton: FadeTransition(
                       opacity: _opacityController,
                       child: FloatingActionButton(
-                        onPressed: !_showFab ? null : () async {
-                          bool isConnected =
-                          await NetworkHelper.hasInternetConnection();
-                          if (!isConnected) {
-                            // Tampilkan pesan jika tidak ada koneksi internet
-                            ToastUtil.showToast('Koneksi internet bermasalah', ToastStatus.error);
-                            return;
-                          }
-                          _fabUpdateLocation();
-                        },
+                        onPressed: !_showFab
+                            ? null
+                            : () async {
+                                bool isConnected =
+                                    await NetworkHelper.hasInternetConnection();
+                                if (!isConnected) {
+                                  // Tampilkan pesan jika tidak ada koneksi internet
+                                  ToastUtil.showToast(
+                                      'Koneksi internet bermasalah',
+                                      ToastStatus.error);
+                                  return;
+                                }
+                                _fabUpdateLocation();
+                              },
                         child: AnimatedBuilder(
                           animation: _rotationController,
                           builder: (context, child) {
@@ -810,17 +809,25 @@ class _AttendancePageState extends BaseState<AttendancePage>
     );
   }
 
-  void _onAttendanceButtonPressed(BuildContext context,
-      TimeProvider timeProvider,
-      String attendanceType,
-      CustomTime dateTime,
-      String employeeName,) {
+  Future<void> _onAttendanceButtonPressed({
+    required bool isPagi,
+    required String attendanceStatus, // Status T/L
+    required String attendancePoint, // Point
+    required CustomTime dateTime, // Waktu saat ini
+    required String employeeName,
+    String? breakTime,
+  }) async {
     final attendanceData = Data(
-      tLPagi: timeProvider.attendanceStatus,
-      hadirPagi: dateTime.postTime(),
-      pointPagi: '0',
+      tLPagi: isPagi ? attendanceStatus : null,
+      hadirPagi: isPagi ? dateTime.postTime() : null,
+      pointPagi: isPagi ? attendancePoint : null,
+      tLSiang: !isPagi ? attendanceStatus : null,
+      pulangSiang: !isPagi ? breakTime ?? '' : null,
+      hadirSiang: !isPagi ? dateTime.postTime() : null,
+      pointSiang: !isPagi ? attendancePoint : null,
     );
-    final attendance = Attendance(
+
+    final pushAttendance = Attendance(
       action: 'update',
       tahunBulan: dateTime.getYearMonth(),
       tanggal: dateTime.getIdnDate(),
@@ -828,19 +835,61 @@ class _AttendancePageState extends BaseState<AttendancePage>
       data: attendanceData,
     );
 
-    DialogUtils.showConfirmationDialog(
-      context: context,
-      title: 'Absen $attendanceType',
-      content: const Text('Absen Sekarang?'),
-      onConfirm: () {
-        _attendanceProcess(attendanceType, attendance).then(
-              (_) => timeProvider.onButtonClick(attendanceType),
-        );
-      },
+    final pushDataHistory = HistoryData(
+      tanggalUpdate: dateTime.postTime(),
+      lat: _userPositionLatitude,
+      long: _userPositionLongitude,
+      tLPagi: isPagi ? attendanceStatus : null,
+      hadirPagi: isPagi ? dateTime.getIdnTime() : null,
+      pointPagi: isPagi ? attendancePoint : null,
+      tLSiang: !isPagi ? attendanceStatus : null,
+      pulangSiang: !isPagi ? breakTime : null,
+      hadirSiang: !isPagi ? dateTime.getIdnTime() : null,
+      pointSiang: !isPagi ? attendancePoint : null,
+      keterangan: '', // Belum ada keterangannya
     );
+
+    print(attendanceData);
+    print(pushAttendance);
+    print(pushDataHistory);
+
+    LoadingDialog.show(context);
+    try {
+      final result = await _dataProvider.updateThisDayHistory(
+        employeeName,
+        dateTime.postTime(),
+        pushDataHistory,
+      );
+
+      if (result.status == 'success') {
+        print('Berhasil update history');
+        ToastUtil.showToast(result.message!, ToastStatus.success);
+        _timeProvider.updateAttendanceCheck(isPagi);
+        safeContext((context) => LoadingDialog.hide(context));
+      } else {
+        print('Gagal update history');
+      }
+    } catch (e) {
+      print(e);
+      safeContext((context) => LoadingDialog.hide(context));
+      ToastUtil.showToast('Gagal memproses kehadiran', ToastStatus.error);
+    }
+
+    // DialogUtils.showConfirmationDialog(
+    //   context: context,
+    //   title: 'Absen $attendanceType',
+    //   content: const Text('Absen Sekarang?'),
+    //   onConfirm: () {
+    //     // _attendanceProcess(attendanceType, attendance).then(
+    //     //       (_) => timeProvider.onButtonClick(attendanceType),
+    //     // );
+    //     ToastUtil.showToast('Masih dalam tahap perbaikan', ToastStatus.warning);
+    //   },
+    // );
   }
 
-  Widget attendanceStatus(DataProvider dataProvider, {
+  Widget attendanceStatus(
+    DataProvider dataProvider, {
     String? attendance,
     String? attendanceTime,
     String? breakTime,

@@ -67,7 +67,9 @@ bool isCurrentTimeWithinRange(DateTime now, String startTime, String endTime) {
       int.parse(endTime.split(':')[0]), int.parse(endTime.split(':')[1]));
 
   // Cek apakah waktu sekarang berada di antara start dan end
-  return now.isAfter(start) && now.isBefore(end);
+  // return now.isAfter(start) && now.isBefore(end);
+  return (now.isAfter(start) || now.isAtSameMomentAs(start)) &&
+      (now.isBefore(end) || now.isAtSameMomentAs(end));
 }
 
 

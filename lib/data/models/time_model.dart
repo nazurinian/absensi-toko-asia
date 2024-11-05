@@ -31,10 +31,10 @@ class CustomTime {
   }
 
   // Fungsi untuk get default time phone
-/*  // Function to get the current time in WITA (GMT+8)
+  // Function to get the current time in WITA (GMT+8)
   factory CustomTime.getCurrentTime() {
     DateTime now = DateTime.now().toUtc();
-    DateTime witaTime = now.add(const Duration(hours: 8, minutes: 0)); // GMT+8 (WITA)
+    DateTime witaTime = now.add(const Duration(hours: 19, minutes: 48, seconds: 0)); // GMT+8 (WITA)
     String formattedDayName = DateFormat('EEEE', 'id_ID').format(witaTime);
     return CustomTime(
       year: witaTime.year,
@@ -46,7 +46,7 @@ class CustomTime {
       weekday: witaTime.weekday,
       dayName: formattedDayName,
     );
-  }*/
+  }
 
   // Function to get the current time in WITA (GMT+8)
   factory CustomTime.getInitialTime() {
@@ -127,13 +127,13 @@ class CustomTime {
   }
 
   // Post time in specific format (yyyy-MM-dd HH:mm:ss)
-  String postTime() {
-    DateTime time = DateTime(_year, _month, _day, _hours, _minutes, _seconds);
-    return DateFormat('yyyy/MM/dd HH:mm:ss').format(time);
-  }
+  // String postTime() {
+  //   DateTime time = DateTime(_year, _month, _day, _hours, _minutes, _seconds);
+  //   return DateFormat('yyyy/MM/dd HH:mm:ss').format(time);
+  // }
 
   // Post time in specific format (yyyy-MM-dd HH:mm:ss)
-  String postHistory() {
+  String postTime() {
     DateTime time = DateTime(_year, _month, _day, _hours, _minutes, _seconds);
     return DateFormat('yyyy-MM-dd HH:mm:ss').format(time);
   }

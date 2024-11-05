@@ -1,3 +1,4 @@
+import 'package:absensitoko/data/models/history_model.dart';
 import 'package:absensitoko/data/models/version_model.dart';
 import 'package:absensitoko/data/models/attendance_info_model.dart';
 import 'package:absensitoko/data/models/user_model.dart';
@@ -6,6 +7,7 @@ import 'package:absensitoko/data/providers/time_provider.dart';
 import 'package:absensitoko/data/providers/user_provider.dart';
 import 'package:absensitoko/core/themes/fonts/fonts.dart';
 import 'package:absensitoko/locator.dart';
+import 'package:absensitoko/routes.dart';
 import 'package:absensitoko/ui/widgets/breaktime_field.dart';
 import 'package:absensitoko/ui/widgets/short_attendance_info.dart';
 import 'package:absensitoko/utils/base/base_state.dart';
@@ -43,6 +45,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   final String _holiday = 'Libur ';
   String _displayMessage = 'Data belum diperoleh';
   bool _isLoadingGetInfo = false;
+  String? _deviceName;
 
   // String? _infoRole = '';
   // bool _lockAccess = false;
@@ -61,14 +64,14 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
       UserProvider userProvider, bool isRefresh) async {
     await userProvider.loadUserSession();
     final userDataSession = userProvider.currentUserSession;
-    final deviceName = userProvider.deviceID;
-    print('Nama Perangkat: $deviceName');
+    setState(() => _deviceName = userProvider.deviceID!);
+    print('Nama Perangkat: $_deviceName');
 
     safeContext((context) => LoadingDialog.show(context));
     try {
       final result = await userProvider.getUser(userDataSession!.uid,
           isRefresh: isRefresh);
-      await _handleFetchResult(result, userProvider, deviceName!);
+      await _handleFetchResult(result, userProvider, _deviceName!);
     } catch (e) {
       _showErrorSnackbar(e.toString());
     }
@@ -213,12 +216,17 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
 
   Future<void> _initAndGetAttendanceHistory({bool isRefresh = false}) async {
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    final currentTime = Provider.of<TimeProvider>(context, listen: false)
-        .currentTime
-        .postHistory();
+    final currentTime =
+        Provider.of<TimeProvider>(context, listen: false).currentTime;
+
+    final initHistoryData = HistoryData(
+      tanggalCreate: currentTime.postTime(),
+      hari: currentTime.getDayName(),
+      deviceInfo: _deviceName ?? '',
+    );
 
     if (!isRefresh) {
-      await dataProvider.initializeHistory(_userName, currentTime);
+      await dataProvider.initializeHistory(_userName, initHistoryData);
     }
 
     if (dataProvider.isSelectedDateHistoryAvailable && !isRefresh) {
@@ -230,7 +238,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     String action = isRefresh ? 'Memperbarui' : 'Mendapatkan';
     print('$action data absensi');
 
-    final result = await dataProvider.getThisDayHistory(_userName, currentTime,
+    final result = await dataProvider.getThisDayHistory(
+        _userName, currentTime.postTime(),
         isRefresh: isRefresh);
     if (result.status == 'success') {
       ToastUtil.showToast('Berhasil $action data absensi', ToastStatus.success);
@@ -366,6 +375,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                     ShortAttendanceInfo(
                                       currentTime: dateTime,
                                       userName: _userName,
+                                      deviceName: _deviceName ?? '',
                                     ),
                                     const SizedBox(
                                       height: 20,
@@ -475,8 +485,11 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                         Navigator.pushNamed(
                                                             context,
                                                             '/attendance',
-                                                            arguments:
-                                                                _userName);
+                                                            arguments: AttendancePageArguments(
+                                                                employeeName:
+                                                                    _userName,
+                                                                deviceName:
+                                                                    _deviceName!));
                                                       } else {
                                                         ToastUtil.showToast(
                                                             'Tidak ada koneksi internet',

@@ -105,7 +105,7 @@ class HistoryData {
   final String? pointSiang;
   final String? keterangan;
   final double? lat;
-  final double? lang;
+  final double? long;
   final String? deviceInfo;
 
   HistoryData({
@@ -121,7 +121,7 @@ class HistoryData {
     this.pointSiang,
     this.keterangan,
     this.lat,
-    this.lang,
+    this.long,
     this.deviceInfo,
   });
 
@@ -147,7 +147,7 @@ class HistoryData {
               ? (json['lat'] as int).toDouble()
               : json['lat'] as double)
           : null,
-      lang: json['lang'] != null
+      long: json['lang'] != null
           ? (json['lang'] is int
               ? (json['lang'] as int).toDouble()
               : json['lang'] as double)
@@ -171,7 +171,7 @@ class HistoryData {
       'pointSiang': pointSiang ?? '',
       'keterangan': keterangan ?? '',
       'lat': lat ?? 0.0,
-      'lang': lang ?? 0.0,
+      'lang': long ?? 0.0,
       'deviceInfo': deviceInfo ?? '',
     };
   }

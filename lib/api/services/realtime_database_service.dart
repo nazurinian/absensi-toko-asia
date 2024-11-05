@@ -7,12 +7,12 @@ class RealtimeDatabaseService {
 
   // Fungsi untuk menginisialisasi data history
   Future<ApiResult> initializeHistory(
-    String userName,
-    String date,
+    String userName, HistoryData historyData,
   ) async {
+    String date = historyData.tanggalCreate!;
     String tahunBulan = date.substring(0, 7); // Ambil YYYY-MM
     String tanggal = date.substring(8, 10); // Ambil tanggal DD
-    final initialData = HistoryData(tanggalCreate: date).toMap();
+    final initialData = historyData.toMap();
     final checkRef = _db.child('history/$userName/$tahunBulan/$tanggal');
 
     try {
@@ -75,8 +75,8 @@ class RealtimeDatabaseService {
     HistoryData data,
   ) async {
     String tahunBulan = date.substring(0, 7); // Ambil YYYY-MM
-    String tanggal = date.substring(8); // Ambil tanggal
-    final updateData = data.toMap()..removeWhere((key, value) => value == null);
+    String tanggal = date.substring(8, 10); // Ambil tanggal DD
+    final updateData = data.toMap()..removeWhere((key, value) => value == null || value == '');
     final ref = _db.child('history/$userName/$tahunBulan/$tanggal');
 
     try {

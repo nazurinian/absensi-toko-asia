@@ -7,337 +7,10 @@ import 'dart:async';
 import 'package:absensitoko/data/models/time_model.dart';
 import 'package:ntp/ntp.dart';
 
-/*
-class TimeProvider extends ChangeNotifier {
-  Timer? _timer;
-  CustomTime _currentTime = CustomTime.getCurrentTime();
-
-  String _morningAttendanceMessage = '';
-  String _afternoonAttendanceMessage = '';
-  String _countDownText = '00:00';
-
-  int _breakHour = 11;
-  int _breakMinute = 40;
-
-  bool _checkAbsenPagi = false;
-  bool _checkAbsenSiang = false;
-  bool _tepatWaktuPagi = false;
-  bool _tepatWaktuSiang = false;
-  String _attendanceStatus = '';
-
-  CustomTime get currentTime => _currentTime;
-
-  String get countDownText => _countDownText;
-
-  String get morningAttendanceMessage => _morningAttendanceMessage;
-
-  String get afternoonAttendanceMessage => _afternoonAttendanceMessage;
-
-  String get attendanceStatus => _attendanceStatus;
-
-  TimeProvider() {
-    _startTimer();
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _currentTime = CustomTime.getCurrentTime();
-      _updateAttendanceState();
-      notifyListeners();
-    });
-  }
-
-  void stopUpdatingTime() {
-    _timer?.cancel();
-  }
-
-  // Helper to handle common countdown messages and checks
-  void _setAttendanceMessage(
-    DateTime now,
-    DateTime startTime,
-    DateTime endTime,
-    DateTime offTime,
-    DateTime storeCloseTime,
-    String attendanceOnTime,
-    String attendanceOnLateTime,
-    String onTimeMessage,
-    String lateMessage,
-    String absentMessage,
-    bool isAfternoon,
-  ) {
-    if (isWithinTimeRange(now, storeCloseTime,
-        storeCloseTime.add(const Duration(hours: 11, minutes: 30)))) {
-      if (isAfternoon) {
-        _afternoonAttendanceMessage = '';
-        resetAttendanceCheck('siang');
-      } else {
-        _morningAttendanceMessage = 'Toko Tutup';
-        resetAttendanceCheck('pagi');
-      }
-      _countDownText = _currentTime.getIdnTime();
-    } else if (isWithinTimeRange(
-            now,
-            startTime.subtract(const Duration(hours: 1, minutes: 40)),
-            startTime.subtract(const Duration(minutes: 30))) &&
-        !isAfternoon) {
-      _morningAttendanceMessage = 'Toko Belum Buka';
-      _countDownText = _currentTime.getIdnTime();
-    } else if (isWithinTimeRange(
-          now,
-          offTime.subtract(const Duration(hours: 2)),
-          startTime.subtract(const Duration(minutes: 30)),
-        ) &&
-        isAfternoon) {
-      DateTime breakTime = offTime.subtract(const Duration(hours: 2));
-      DateTime siangStoreOpen = offTime.subtract(const Duration(hours: 1));
-      _afternoonAttendanceMessage =
-          'Waktu ISHOMA, Jam: ${formatTime(breakTime)} - ${formatTime(siangStoreOpen)}\nAnda Dapat memulai absen jam: ${formatTime(startTime)}';
-      _countDownText = _currentTime.getIdnTime();
-    } else if (isWithinTimeRange(
-        now, startTime.subtract(const Duration(minutes: 30)), startTime)) {
-      if (isAfternoon) {
-        _afternoonAttendanceMessage =
-            'Persiapan 30 menit sebelum absen Siang dimulai';
-      } else {
-        _morningAttendanceMessage =
-            'Persiapan 30 menit sebelum absen Pagi dimulai';
-      }
-      _countDownText = _formatDuration(startTime.difference(now));
-    } else if (isWithinTimeRange(now, startTime, storeCloseTime) &&
-        _checkAbsenPagi &&
-        !isAfternoon) {
-      if (isWithinTimeRange(now, startTime, endTime)) {
-        _morningAttendanceMessage = attendanceOnTime;
-        _tepatWaktuPagi = true;
-      } else if (isWithinTimeRange(now, endTime, storeCloseTime) &&
-          !_tepatWaktuPagi) {
-        _morningAttendanceMessage = attendanceOnLateTime;
-      }
-      _attendanceStatus = '';
-      _countDownText = _currentTime.getIdnTime();
-    } else if (isWithinTimeRange(now, startTime, storeCloseTime) &&
-        _checkAbsenSiang &&
-        isAfternoon) {
-      if (isWithinTimeRange(now, startTime, endTime)) {
-        _afternoonAttendanceMessage = attendanceOnTime;
-        _tepatWaktuSiang = true;
-      } else if (isWithinTimeRange(now, endTime, storeCloseTime) &&
-          !_tepatWaktuSiang) {
-        _afternoonAttendanceMessage = attendanceOnLateTime;
-      }
-      _attendanceStatus = '';
-      _countDownText = _currentTime.getIdnTime();
-    } else if (isWithinTimeRange(now, startTime, endTime)) {
-      if (isAfternoon) {
-        _afternoonAttendanceMessage = onTimeMessage;
-      } else {
-        _morningAttendanceMessage = onTimeMessage;
-      }
-      _attendanceStatus = 'T';
-      _countDownText = _formatDuration(endTime.difference(now));
-    } else if (isWithinTimeRange(now, startTime, offTime)) {
-      if (isAfternoon) {
-        _afternoonAttendanceMessage = lateMessage;
-      } else {
-        _morningAttendanceMessage = lateMessage;
-      }
-      _attendanceStatus = 'L';
-      _countDownText = _currentTime.getIdnTime();
-    } else if (isWithinTimeRange(now, offTime, storeCloseTime)) {
-      if (isAfternoon) {
-        _afternoonAttendanceMessage = absentMessage;
-      } else {
-        _morningAttendanceMessage = absentMessage;
-      }
-      _countDownText = _currentTime.getIdnTime();
-    } else {
-      if (isAfternoon) {
-        _afternoonAttendanceMessage = '';
-        resetAttendanceCheck('siang');
-      } else {
-        _morningAttendanceMessage = 'Toko Tutup';
-        resetAttendanceCheck('pagi');
-      }
-      _countDownText = _currentTime.getIdnTime();
-    }
-  }
-
-  void _updateAttendanceState() {
-    DateTime now = DateTime(
-      _currentTime.getYear(),
-      _currentTime.getMonth(),
-      _currentTime.getDay(),
-      _currentTime.getHour(),
-      _currentTime.getMinute(),
-      _currentTime.getSecond(),
-    );
-
-    // Pagi Absence Logic
-    DateTime startPagi = DateTime(now.year, now.month, now.day, 6, 50);
-    DateTime endPagi = startPagi.add(const Duration(minutes: 14));
-    DateTime offPagi = DateTime(now.year, now.month, now.day, 10, 0);
-    DateTime storeCloseTime = DateTime(now.year, now.month, now.day, 17, 30);
-
-    _setAttendanceMessage(
-      now,
-      startPagi,
-      endPagi,
-      offPagi,
-      storeCloseTime,
-      'Berhasil Absen pagi tepat waktu',
-      'Berhasil Absen pagi lewat waktu (Terlambat)',
-      'Waktu tepat waktu absen pagi',
-      'Anda terlambat masuk pagi',
-      'Anda tidak hadir pagi ini',
-      false,
-    );
-
-    // Siang Absence Logic
-    DateTime breakTime =
-        DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
-    DateTime storeOpenSiangTime = breakTime.add(const Duration(hours: 1));
-    DateTime startSiang =
-        storeOpenSiangTime.subtract(const Duration(minutes: 20));
-    DateTime endSiang = startSiang.add(const Duration(minutes: 30));
-    DateTime offSiang = storeOpenSiangTime.add(const Duration(hours: 1));
-
-    _setAttendanceMessage(
-      now,
-      startSiang,
-      endSiang,
-      offSiang,
-      storeCloseTime,
-      'Berhasil Absen siang tepat waktu',
-      'Berhasil Absen siang lewat waktu (Terlambat)',
-      'Waktu tepat waktu absen siang',
-      'Absen terlambat masuk siang',
-      'Anda tidak hadir siang ini',
-      true,
-    );
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    String minutes = twoDigits(duration.inMinutes.remainder(60));
-    String seconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$minutes:$seconds";
-  }
-
-  bool isPagiButtonActive(HistoryData historyData, AttendanceInfoModel info) {
-    DateTime now = DateTime(
-      _currentTime.getYear(),
-      _currentTime.getMonth(),
-      _currentTime.getDay(),
-      _currentTime.getHour(),
-      _currentTime.getMinute(),
-      _currentTime.getSecond(),
-    );
-
-    // Periksa apakah hari ini tanggal merah
-    bool isHoliday = info.nationalHoliday!.isNotEmpty ? true : false;
-
-    // Start dan end time untuk absen pagi (tepat waktu)
-    DateTime startPagi = isHoliday
-        ? DateTime(now.year, now.month, now.day, morningHolidayStartHour, morningHolidayStartMinute)
-        : DateTime(now.year, now.month, now.day, morningStartHour, morningStartMinute);
-    DateTime endPagi = startPagi.add(const Duration(minutes: attendanceTimerInterval));
-
-    // Batas akhir untuk absen telat
-    DateTime lateEndPagi = DateTime(now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
-
-    // Cek apakah user sudah absen pagi
-    bool alreadyCheckedIn = (historyData.tLPagi != null || historyData.tLPagi!.isNotEmpty) ? true : false;
-
-    // Tombol aktif hanya jika belum absen dan waktu dalam jangka yang ditentukan
-    return !alreadyCheckedIn &&
-        (isWithinTimeRange(now, startPagi, lateEndPagi) ||
-            isWithinTimeRange(now, endPagi, lateEndPagi));
-  }
-
-  bool isSiangButtonActive(HistoryData historyData, AttendanceInfoModel info) {
-    DateTime now = DateTime(
-      _currentTime.getYear(),
-      _currentTime.getMonth(),
-      _currentTime.getDay(),
-      _currentTime.getHour(),
-      _currentTime.getMinute(),
-      _currentTime.getSecond(),
-    );
-
-    // Waktu break time yang diatur di AppInfoModel
-    DateTime breakTime = DateTime(now.year, now.month, now.day,
-        _breakHour, _breakMinute);
-
-    // Start dan end time untuk absen siang (tepat waktu)
-    DateTime startSiang = breakTime.add(const Duration(minutes: afternoonPreparationMinutes - 10)); // 10 menit sebelum mulai
-    DateTime endSiang = breakTime.add(const Duration(minutes: afternoonPreparationMinutes + 4)); // 4 menit setelah
-
-    // Batas akhir untuk absen telat
-    DateTime lateEndSiang = breakTime.add(const Duration(minutes: afternoonLateToEndMinutes + afternoonPreparationMinutes)); // 1 jam setelah break
-
-    // Cek apakah user sudah absen siang
-    bool alreadyCheckedIn = (historyData.tLPagi != null || historyData.tLPagi!.isNotEmpty) ? true : false;
-
-    // Tombol aktif hanya jika belum absen dan waktu dalam jangka yang ditentukan
-    return !alreadyCheckedIn &&
-        (isWithinTimeRange(now, startSiang, lateEndSiang) ||
-            isWithinTimeRange(now, endSiang, lateEndSiang));
-  }
-
-  bool isWithinTimeRange(DateTime currentTime, DateTime startTime, DateTime endTime) {
-    return currentTime.isAfter(startTime) && currentTime.isBefore(endTime);
-  }
-
-  void updateBreakTime(int hour, int minute) {
-    _breakHour = hour;
-    _breakMinute = minute;
-    notifyListeners();
-  }
-
-  void resetAttendanceCheck(String type) {
-    if (type == 'pagi') {
-      _checkAbsenPagi = false;
-      _tepatWaktuPagi = false;
-    } else if (type == 'siang') {
-      _checkAbsenSiang = false;
-      _tepatWaktuSiang = false;
-    }
-
-  }
-
-  void onButtonClick(String type) {
-    if (type == 'pagi' && !_checkAbsenPagi) {
-      _checkAbsenPagi = true;
-    } else if (type == 'siang' && !_checkAbsenSiang) {
-      _checkAbsenSiang = true;
-    }
-  }
-}
-*/
-
-// Attendance time configuration
-/*class AttendanceTimeConfig {
-  static const int morningStartHour = 6;
-  static const int morningStartMinute = 50;
-  static const int morningEndHour = 7;
-  static const int morningEndMinute = 4;
-  static const int morningLateEndHour = 10;
-  static const int morningLateEndMinute = 0;
-
-  static const int afternoonPreparationMinutes = 80;
-  static const int afternoonLateToEndMinutes = 60;
-
-  static const int morningHolidayStartHour = 7;
-  static const int morningHolidayStartMinute = 30;
-
-  static const int attendanceTimerInterval = 14;
-  static const int storeClosedHour = 17;
-  static const int storeClosedMinute = 30;
-}*/
-
 // Attendance Time Provider
 class TimeProvider extends ChangeNotifier {
   Timer? _timer;
+
   // CustomTime _currentTime = CustomTime.getCurrentTime();
   late CustomTime _currentTime;
   late DateTime _ntpTime;
@@ -347,30 +20,48 @@ class TimeProvider extends ChangeNotifier {
   int _breakHour = 12;
   int _breakMinute = 0;
 
+  // Holiday
+  bool _isHoliday = false;
+
+  // Attendance Messages
   String _morningAttendanceMessage = '';
   String _afternoonAttendanceMessage = '';
+
+  // Countdown Timer
   String _countDownText = '00:00';
 
-  bool _isMorningCheckedIn = false;
-  bool _isAfternoonCheckedIn = false;
+  // Attendance Status
+  String _morningAttendanceStatus = '';
+  String _afternoonAttendanceStatus = '';
+  bool _isMorningAlreadyCheckedIn = false;
+  bool _isAfternoonAlreadyCheckedIn = false;
   bool _isMorningOnTime = false;
   bool _isAfternoonOnTime = false;
-  String _attendanceStatus = '';
 
   // Getters
   CustomTime get currentTime => _currentTime;
+
   String get countDownText => _countDownText;
+
   String get morningAttendanceMessage => _morningAttendanceMessage;
+
   String get afternoonAttendanceMessage => _afternoonAttendanceMessage;
-  String get attendanceStatus => _attendanceStatus;
+
+  String get morningAttendanceStatus => _morningAttendanceStatus;
+
+  String get afternoonAttendanceStatus => _afternoonAttendanceStatus;
+
+  String get attendancePoint => _calculateAttendancePoint();
 
 /*  TimeProvider() : _currentTime = CustomTime.getCurrentTime() {
     _initializeNtpTime();
   }*/
 
   TimeProvider() {
-    _currentTime = CustomTime.getInitialTime();
-    _initializeNtpTime();
+    _currentTime = CustomTime.getCurrentTime();
+    _startTimer();
+    // _currentTime = CustomTime.getInitialTime();
+    // _initializeNtpTime();
   }
 
   Future<void> _initializeNtpTime() async {
@@ -390,11 +81,11 @@ class TimeProvider extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       // Update waktu setiap detik dengan mengacu pada waktu NTP awal
       // Gunakan offset GMT+8 setiap kali update
-      DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
-      _currentTime = CustomTime.fromDateTime(updatedTime);
+      // DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
+      // _currentTime = CustomTime.fromDateTime(updatedTime);
       // print('Difference: ${DateTime.now().difference(_ntpTime).inHours}');
 
-      // _currentTime = CustomTime.getCurrentTime();
+      _currentTime = CustomTime.getCurrentTime();
       _updateAttendanceState();
       notifyListeners();
     });
@@ -404,82 +95,140 @@ class TimeProvider extends ChangeNotifier {
     _timer?.cancel();
   }
 
-  // Update attendance message and timer
-  void _setAttendanceMessage(
-      {required DateTime now,
-        required DateTime startTime,
-        required DateTime endTime,
-        required DateTime offTime,
-        required DateTime storeCloseTime,
-        required String onTimeMessage,
-        required String lateMessage,
-        required String absentMessage,
-        bool isAfternoon = false}) {
-    // Check if store is closed
-    if (isWithinTimeRange(
-        now,
-        storeCloseTime,
-        storeCloseTime.add(const Duration(hours: 11, minutes: 30)))) {
-      _clearMessages(isAfternoon, storeClosedMessage: 'Toko Tutup');
-    }
-    // Check preparation time before attendance
-    else if (isWithinTimeRange(
-        now,
-        startTime.subtract(const Duration(minutes: 30)),
-        startTime)) {
-      _setPreparationMessage(isAfternoon);
-    }
-    // Check on-time and late attendance
-    else if (isWithinTimeRange(now, startTime, offTime)) {
-      if (isWithinTimeRange(now, startTime, endTime)) {
-        _updateAttendanceMessage(onTimeMessage, isAfternoon);
-        _setAttendanceStatus('T');
-      } else if (isWithinTimeRange(now, endTime, offTime)) {
-        _updateAttendanceMessage(lateMessage, isAfternoon);
-        _setAttendanceStatus('L');
-      }
-    }
-    // If past off time, mark as absent
-    else if (isWithinTimeRange(now, offTime, storeCloseTime)) {
-      _updateAttendanceMessage(absentMessage, isAfternoon);
-      _setAttendanceStatus('A');
+  void updateAttendanceCheck(bool isMorning, {bool isOnTime = false}) {
+    if (isMorning) {
+      _isMorningAlreadyCheckedIn = true;
+      _isMorningOnTime = isOnTime;
     } else {
-      _clearMessages(isAfternoon);
+      _isAfternoonAlreadyCheckedIn = true;
+      _isAfternoonOnTime = isOnTime;
     }
+
     _countDownText = _currentTime.getIdnTime();
+    notifyListeners();
   }
 
-  // Helper functions to manage messages and attendance state
-  void _clearMessages(bool isAfternoon, {String? storeClosedMessage}) {
-    if (isAfternoon) {
-      _afternoonAttendanceMessage = storeClosedMessage ?? '';
-      resetAttendanceCheck('afternoon');
-    } else {
-      _morningAttendanceMessage = storeClosedMessage ?? 'Toko Tutup';
-      resetAttendanceCheck('morning');
+  void _setAttendanceStatus(String status, String title) {
+    if (title == 'pagi') {
+      _isMorningOnTime = status == 'T';
+      _morningAttendanceStatus = status;
+    } else if (title == 'siang') {
+      _isAfternoonOnTime = status == 'T';
+      _afternoonAttendanceStatus = status;
     }
   }
 
-  void _setPreparationMessage(bool isAfternoon) {
-    if (isAfternoon) {
-      _afternoonAttendanceMessage = 'Persiapan absen Siang';
-    } else {
-      _morningAttendanceMessage = 'Persiapan absen Pagi';
-    }
+  void setHolidayStatus(bool status) {
+    _isHoliday = status;
   }
 
-  void _updateAttendanceMessage(String message, bool isAfternoon) {
-    if (isAfternoon) {
-      _afternoonAttendanceMessage = message;
-      _isAfternoonOnTime = true;
-    } else {
-      _morningAttendanceMessage = message;
-      _isMorningOnTime = true;
-    }
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String minutes = twoDigits(duration.inMinutes.remainder(60));
+    String seconds = twoDigits(duration.inSeconds.remainder(60));
+    return "$minutes:$seconds";
   }
 
-  void _setAttendanceStatus(String status) {
-    _attendanceStatus = status;
+  // Update attendance message and timer
+  String _setAttendanceMessage({
+    required String title,
+    required DateTime now,
+    required DateTime startTime,
+    required DateTime endTime,
+    required DateTime lateStartTime,
+    required DateTime lateEndTime,
+    required DateTime overLateStartTime,
+    required DateTime overLateEndTime,
+    required DateTime breakTime,
+    required DateTime storeCloseTime,
+  }) {
+    // Check if store is closed (SAMPE JAM 05:00)
+    // final close = storeCloseTime.add(const Duration(hours: 11, minutes: 30));
+    if (isWithinTimeRangeExclusive(now, storeCloseTime,
+        storeCloseTime.add(const Duration(hours: -13, minutes: 30)))) {
+      // print('1. Store is closed');
+      _countDownText = _currentTime.getIdnTime();
+      return title == 'siang' ? 'Toko sudah tutup' : '';
+    }
+
+    // Check preparation time before attendance (30 minutes before start)
+    else if (isWithinTimeRangeExclusive(
+        now, startTime.subtract(const Duration(minutes: 30)), startTime)) {
+      // print('2. Preparation time');
+      _countDownText = _formatDuration(startTime.difference(now));
+      return 'Persiapan absen $title';
+    }
+
+    // Check on-time attendance (ABSEN TEPAT WAKTU | Sudah absen untuk pagi)
+    else if (_isMorningAlreadyCheckedIn &&
+        _isMorningOnTime &&
+        title == 'pagi') {
+      // print('3a. On-time attendance');
+      _countDownText = _currentTime.getIdnTime();
+      return 'Berhasil absen $title tepat waktu';
+    }
+
+    // Check on-time attendance (ABSEN TEPAT WAKTU | Sudah absen untuk siang)
+    else if (_isAfternoonAlreadyCheckedIn &&
+        _isAfternoonOnTime &&
+        title == 'siang') {
+      // print('3b. On-time attendance');
+      _countDownText = _currentTime.getIdnTime();
+      return 'Berhasil absen $title tepat waktu';
+    }
+
+    // Check on-time attendance (ABSEN TEPAT WAKTU | Belum absen)
+    else if (isWithinTimeRangeInclusive(now, startTime, endTime)) {
+      // print('3c. This time to attendance (On-time)');
+      _countDownText = _formatDuration(endTime.difference(now));
+      _setAttendanceStatus('T', title);
+      return 'Waktu tepat waktu untuk absen $title';
+    }
+
+    // Check late attendance (ABSEN TELAT | Sudah absen untuk pagi)
+    else if (_isMorningAlreadyCheckedIn && title == 'pagi') {
+      // print('4a. Late attendance');
+      _countDownText = _currentTime.getIdnTime();
+      return 'Terlambat, berhasil absen $title';
+    }
+
+    // Check late attendance (ABSEN TELAT | Sudah absen untuk siang)
+    else if (_isAfternoonAlreadyCheckedIn && title == 'siang') {
+      // print('4b. Late attendance');
+      _countDownText = _currentTime.getIdnTime();
+      return 'Terlambat, berhasil absen $title';
+    }
+
+    // Check late attendance (ABSEN TELAT)
+    else if (isWithinTimeRangeInclusive(now, lateStartTime, overLateEndTime)) {
+      // print('4c. This time to attendance (Late)');
+      _countDownText = _currentTime.getIdnTime();
+      _setAttendanceStatus('L', title);
+      return 'Waktu terlambat untuk absen $title';
+    } else if (isWithinTimeRangeInclusive(now, breakTime, startTime) &&
+        title == 'siang') {
+      // print('7. Break time');
+      _countDownText = _currentTime.getIdnTime();
+      return 'Belum saatnya waktu absen $title';
+    }
+
+    // Diluar waktu pagi dan siang jika tidak hadir
+    else if (isWithinTimeRangeInclusive(now, overLateEndTime, storeCloseTime)) {
+      // print('5. (Over late $title)');
+      _countDownText = _currentTime.getIdnTime();
+      _setAttendanceStatus('A', title);
+      return 'Tidak hadir $title hari ini';
+    }
+
+    // Diluar waktu siang
+    else if (now.isBefore(breakTime) && title == 'siang') {
+      // print('8. Diluar waktu siang');
+      return '';
+    } else {
+      // print('9. Default');
+      _countDownText = _currentTime.getIdnTime();
+      return '';
+    }
   }
 
   // Update attendance states for morning and afternoon
@@ -493,44 +242,70 @@ class TimeProvider extends ChangeNotifier {
       _currentTime.getSecond(),
     );
 
-    DateTime storeCloseTime = DateTime(now.year, now.month, now.day,
-        storeClosedHour, storeClosedMinute);
+    // bool isHoliday = nationalHoliday.isNotEmpty || now.weekday == DateTime.sunday;
 
-    // Morning Attendance Time
-    DateTime morningStart = DateTime(now.year, now.month, now.day,
-        morningStartHour, morningStartMinute);
-    DateTime morningEnd = morningStart.add(const Duration(minutes: attendanceTimerInterval));
-    DateTime morningLateEnd = DateTime(now.year, now.month, now.day,
-        morningLateEndHour, morningLateEndMinute);
+    final morningStartTime = _isHoliday
+        ? DateTime(now.year, now.month, now.day, morningHolidayStartHour,
+            morningHolidayStartMinute)
+        : DateTime(
+            now.year, now.month, now.day, morningStartHour, morningStartMinute);
+    final storeCloseTime = DateTime(
+        now.year, now.month, now.day, storeClosedHour, storeClosedMinute);
+    final breakTime =
+        DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
 
-    _setAttendanceMessage(
+    // Waktu pagi:
+    final morningEndTime = DateTime(
+        now.year, now.month, now.day, morningEndHour, morningEndMinute);
+    final morningLateStartTime = morningEndTime.add(const Duration(seconds: 1));
+    final morningLateEndTime = morningEndTime.add(const Duration(minutes: 5));
+    final morningOverLateStartTime =
+        morningLateEndTime.add(const Duration(seconds: 1));
+    final morningOverLateEndTime = DateTime(
+        now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
+
+    // bool morningAlreadyCheckedIn = (historyData.tLPagi != null && historyData.tLPagi!.isNotEmpty) ? true : false;
+
+    _morningAttendanceMessage = _setAttendanceMessage(
+      title: 'pagi',
       now: now,
-      startTime: morningStart,
-      endTime: morningEnd,
-      offTime: morningLateEnd,
+      startTime: morningStartTime,
+      endTime: morningEndTime,
+      lateStartTime: morningLateStartTime,
+      lateEndTime: morningLateEndTime,
+      overLateStartTime: morningOverLateStartTime,
+      overLateEndTime: morningOverLateEndTime,
+      breakTime: breakTime,
       storeCloseTime: storeCloseTime,
-      onTimeMessage: 'Berhasil Absen pagi tepat waktu',
-      lateMessage: 'Terlambat absen pagi',
-      absentMessage: 'Tidak hadir pagi ini',
-      isAfternoon: false,
     );
 
-    // Afternoon Attendance Time
-    DateTime breakTime = DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
-    DateTime afternoonStart = breakTime.add(const Duration(minutes: afternoonPreparationMinutes - 10));
-    DateTime afternoonEnd = breakTime.add(const Duration(minutes: afternoonPreparationMinutes + 4));
-    DateTime afternoonLateEnd = breakTime.add(const Duration(minutes: afternoonLateToEndMinutes + afternoonPreparationMinutes));
+    // Waktu siang:
+    final afternoonStartTime = breakTime
+        .add(const Duration(minutes: afternoonPreparationMinutes - 10));
+    final afternoonEndTime =
+        breakTime.add(const Duration(minutes: afternoonPreparationMinutes + 4));
+    final afternoonLateStartTime =
+        afternoonEndTime.add(const Duration(seconds: 1));
+    final afternoonLateEndTime =
+        afternoonEndTime.add(const Duration(minutes: 5));
+    final afternoonOverLateStartTime =
+        afternoonLateEndTime.add(const Duration(seconds: 1));
+    final afternoonOverLateEndTime = breakTime.add(const Duration(
+        minutes: afternoonLateToEndMinutes + afternoonPreparationMinutes));
 
-    _setAttendanceMessage(
+    // bool afternoonAlreadyCheckedIn = (historyData.tLSiang != null && historyData.tLSiang!.isNotEmpty) ? true : false;
+
+    _afternoonAttendanceMessage = _setAttendanceMessage(
+      title: 'siang',
       now: now,
-      startTime: afternoonStart,
-      endTime: afternoonEnd,
-      offTime: afternoonLateEnd,
+      startTime: afternoonStartTime,
+      endTime: afternoonEndTime,
+      lateStartTime: afternoonLateStartTime,
+      lateEndTime: afternoonLateEndTime,
+      overLateStartTime: afternoonOverLateStartTime,
+      overLateEndTime: afternoonOverLateEndTime,
+      breakTime: breakTime,
       storeCloseTime: storeCloseTime,
-      onTimeMessage: 'Berhasil Absen siang tepat waktu',
-      lateMessage: 'Terlambat absen siang',
-      absentMessage: 'Tidak hadir siang ini',
-      isAfternoon: true,
     );
   }
 
@@ -545,24 +320,42 @@ class TimeProvider extends ChangeNotifier {
     );
 
     // Periksa apakah hari ini tanggal merah (libur nasional atau hari Minggu)
-    bool isHoliday = nationalHoliday.isNotEmpty || now.weekday == DateTime.sunday;
+    bool isHoliday =
+        nationalHoliday.isNotEmpty || now.weekday == DateTime.sunday;
 
     // Start dan end time untuk absen pagi (tepat waktu)
-    DateTime startPagi = isHoliday
-        ? DateTime(now.year, now.month, now.day, morningHolidayStartHour, morningHolidayStartMinute)
-        : DateTime(now.year, now.month, now.day, morningStartHour, morningStartMinute);
-    DateTime endPagi = startPagi.add(const Duration(minutes: attendanceTimerInterval));
+    DateTime morningStartTime = isHoliday
+        ? DateTime(now.year, now.month, now.day, morningHolidayStartHour,
+            morningHolidayStartMinute)
+        : DateTime(
+            now.year, now.month, now.day, morningStartHour, morningStartMinute);
+    DateTime morningEndTime =
+        morningStartTime.add(const Duration(minutes: attendanceTimerInterval));
 
     // Batas akhir untuk absen telat
-    DateTime lateEndPagi = DateTime(now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
+    DateTime morningLateStartTime =
+        morningEndTime.add(const Duration(seconds: 1));
+    DateTime morningLateEndTime = DateTime(
+        now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
+
+/*
+    print('Morning Start: $morningStartTime');
+    print('Morning End: $morningEndTime');
+    print('Morning Late Start: $morningLateStartTime');
+    print('Morning Late End: $morningLateEndTime');
+*/
 
     // Cek apakah user sudah absen pagi
-    bool alreadyCheckedIn = (historyData.tLPagi != null && historyData.tLPagi!.isNotEmpty) ? true : false;
+    bool alreadyCheckedIn =
+        (historyData.tLPagi != null && historyData.tLPagi!.isNotEmpty)
+            ? true
+            : false;
 
     // Tombol aktif hanya jika belum absen dan waktu dalam jangka yang ditentukan
     return !alreadyCheckedIn &&
-        (isWithinTimeRange(now, startPagi, lateEndPagi) ||
-            isWithinTimeRange(now, endPagi, lateEndPagi));
+        (isWithinTimeRangeInclusive(now, morningStartTime, morningEndTime) ||
+            isWithinTimeRangeInclusive(
+                now, morningLateStartTime, morningLateEndTime));
   }
 
   bool isSiangButtonActive(HistoryData historyData) {
@@ -576,31 +369,74 @@ class TimeProvider extends ChangeNotifier {
     );
 
     // Waktu break time yang diatur di AppInfoModel
-    DateTime breakTime = DateTime(now.year, now.month, now.day,
-        _breakHour, _breakMinute);
+    DateTime breakTime =
+        DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
 
     // Start dan end time untuk absen siang (tepat waktu)
-    DateTime startSiang = breakTime.add(const Duration(minutes: afternoonPreparationMinutes - 10)); // 10 menit sebelum mulai
-    DateTime endSiang = breakTime.add(const Duration(minutes: afternoonPreparationMinutes + 4)); // 4 menit setelah
+    DateTime afternoonStartTime = breakTime.add(const Duration(
+        minutes: afternoonPreparationMinutes - 10)); // 10 menit sebelum mulai
+    DateTime afternoonEndTime = breakTime.add(const Duration(
+        minutes: afternoonPreparationMinutes + 4)); // 4 menit setelah
 
     // Batas akhir untuk absen telat
-    DateTime lateEndSiang = breakTime.add(const Duration(minutes: afternoonLateToEndMinutes + afternoonPreparationMinutes)); // 1 jam setelah break
+    DateTime afternoonLateStartTime =
+        afternoonEndTime.add(const Duration(seconds: 1));
+    DateTime afternoonLateEndTime = breakTime.add(const Duration(
+        minutes: afternoonLateToEndMinutes +
+            afternoonPreparationMinutes)); // 1 jam setelah break
+
+/*
+    print('Break Time: $breakTime');
+    print('Afternoon Start: $afternoonStartTime');
+    print('Afternoon End: $afternoonEndTime');
+    print('Afternoon Late Start: $afternoonLateStartTime');
+    print('Afternoon Late End: $afternoonLateEndTime');
+*/
 
     // Cek apakah user sudah absen siang
-    bool alreadyCheckedIn = (historyData.tLSiang != null && historyData.tLSiang!.isNotEmpty) ? true : false;
+    bool alreadyCheckedIn =
+        (historyData.tLSiang != null && historyData.tLSiang!.isNotEmpty)
+            ? true
+            : false;
 
     // Tombol aktif hanya jika belum absen dan waktu dalam jangka yang ditentukan
     return !alreadyCheckedIn &&
-        (isWithinTimeRange(now, startSiang, lateEndSiang) ||
-            isWithinTimeRange(now, endSiang, lateEndSiang));
+        (isWithinTimeRangeInclusive(
+                now, afternoonStartTime, afternoonEndTime) ||
+            isWithinTimeRangeInclusive(
+                now, afternoonLateStartTime, afternoonLateEndTime));
   }
 
-  bool isWithinTimeRange(DateTime currentTime, DateTime startTime, DateTime endTime) {
-    // > || <
-    // return currentTime.isAfter(startTime) && currentTime.isBefore(endTime);
-    // >= || <=
-    return (currentTime.isAfter(startTime) || currentTime == startTime) &&
-        (currentTime.isBefore(endTime) || currentTime == endTime);
+  bool isWithinTimeRangeInclusive(
+      DateTime currentTime, DateTime startTime, DateTime endTime) {
+    if (startTime.isAfter(endTime)) {
+      // Rentang waktu melewati tengah malam
+      return (currentTime.isAfter(startTime) ||
+              currentTime.isAtSameMomentAs(startTime)) ||
+          (currentTime.isBefore(endTime) ||
+              currentTime.isAtSameMomentAs(endTime));
+    } else {
+      // Rentang waktu dalam satu hari
+      return (currentTime.isAfter(startTime) ||
+              currentTime.isAtSameMomentAs(startTime)) &&
+          (currentTime.isBefore(endTime) ||
+              currentTime.isAtSameMomentAs(endTime));
+    }
+  }
+
+  // Fungsi tanpa batas waktu termasuk (> dan <)
+  bool isWithinTimeRangeExclusive(
+      DateTime currentTime, DateTime startTime, DateTime endTime) {
+    if (startTime.isAfter(endTime)) {
+      // Rentang waktu melewati tengah malam
+      return (currentTime.isAfter(startTime) ||
+              currentTime.isAtSameMomentAs(startTime)) ||
+          (currentTime.isBefore(endTime) ||
+              currentTime.isAtSameMomentAs(endTime));
+    } else {
+      // Rentang waktu dalam satu hari
+      return currentTime.isAfter(startTime) && currentTime.isBefore(endTime);
+    }
   }
 
   void updateBreakTime(int hour, int minute) {
@@ -609,21 +445,118 @@ class TimeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void resetAttendanceCheck(String period) {
-    if (period == 'morning') {
-      _isMorningCheckedIn = false;
-      _isMorningOnTime = false;
-    } else if (period == 'afternoon') {
-      _isAfternoonCheckedIn = false;
-      _isAfternoonOnTime = false;
-    }
+  void resetAttendanceCheck() {
+    _isMorningAlreadyCheckedIn = false;
+    _isAfternoonAlreadyCheckedIn = false;
+    _isMorningOnTime = false;
+    _isAfternoonOnTime = false;
+    notifyListeners();
   }
 
-  void onButtonClick(String period) {
-    if (period == 'morning' && !_isMorningCheckedIn) {
-      _isMorningCheckedIn = true;
-    } else if (period == 'afternoon' && !_isAfternoonCheckedIn) {
-      _isAfternoonCheckedIn = true;
+  String _calculateAttendancePoint() {
+    final now = DateTime(
+      _currentTime.getYear(),
+      _currentTime.getMonth(),
+      _currentTime.getDay(),
+      _currentTime.getHour(),
+      _currentTime.getMinute(),
+      _currentTime.getSecond(),
+    );
+
+    // Waktu pagi :
+    // jam 06:50:00 - 07:04:00 untuk poin 0
+    // jam 07:04:01 - 07:09:00 untuk poin 5
+    // jam 07:09:01 - 10:00:00 untuk poin 10
+
+    // Periksa apakah hari ini tanggal merah (libur nasional atau hari Minggu)
+    // bool isHoliday = nationalHoliday.isNotEmpty || now.weekday == DateTime.sunday;
+    final morningStartTime = _isHoliday
+        ? DateTime(now.year, now.month, now.day, morningHolidayStartHour,
+            morningHolidayStartMinute)
+        : DateTime(
+            now.year, now.month, now.day, morningStartHour, morningStartMinute);
+    final storeCloseTime = DateTime(
+        now.year, now.month, now.day, storeClosedHour, storeClosedMinute);
+    final breakTime =
+        DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
+
+/*
+    print('---------------------------------------');
+    print('Now: $now');
+    print('Store Close: $storeCloseTime');
+    print('Break Time: $breakTime');
+    print('---------------------------------------');
+*/
+
+    // Jika absensi dilakukan sebelum waktu pagi atau setelah tutup toko
+    if (now.isBefore(morningStartTime) || now.isAfter(storeCloseTime)) {
+      return '';
     }
+
+    // Waktu pagi:
+    final morningEndTime = DateTime(
+        now.year, now.month, now.day, morningEndHour, morningEndMinute);
+    final morningLateStartTime = morningEndTime.add(const Duration(seconds: 1));
+    final morningLateEndTime = morningEndTime.add(const Duration(minutes: 5));
+    final morningOverLateStartTime =
+        morningLateEndTime.add(const Duration(seconds: 1));
+    final morningOverLateEndTime = DateTime(
+        now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
+
+/*
+    print('Morning Start: $morningStartTime');
+    print('Morning End: $morningEndTime');
+    print('Morning Late Start: $morningLateStartTime');
+    print('Morning Late End: $morningLateEndTime');
+    print('Morning Over Late Start: $morningOverLateStartTime');
+    print('Morning Over Late End: $morningOverLateEndTime');
+    print('---------------------------------------');
+*/
+
+    if (isWithinTimeRangeInclusive(now, morningStartTime, morningEndTime)) {
+      return '0'; // Tepat waktu
+    } else if (isWithinTimeRangeInclusive(
+        now, morningLateStartTime, morningLateEndTime)) {
+      return '5'; // Terlambat sedikit
+    } else if (now.isAfter(morningOverLateStartTime) &&
+        now.isBefore(morningOverLateEndTime)) {
+      return '10'; // Terlambat parah
+    }
+
+    // Waktu siang:
+    final afternoonStartTime = breakTime
+        .add(const Duration(minutes: afternoonPreparationMinutes - 10));
+    final afternoonEndTime =
+        breakTime.add(const Duration(minutes: afternoonPreparationMinutes + 4));
+    final afternoonLateStartTime =
+        afternoonEndTime.add(const Duration(seconds: 1));
+    final afternoonLateEndTime =
+        afternoonEndTime.add(const Duration(minutes: 5));
+    final afternoonOverLateStartTime =
+        afternoonLateEndTime.add(const Duration(seconds: 1));
+    final afternoonOverLateEndTime = breakTime.add(const Duration(
+        minutes: afternoonLateToEndMinutes + afternoonPreparationMinutes));
+
+/*
+    print('Afternoon Start: $afternoonStartTime');
+    print('Afternoon End: $afternoonEndTime');
+    print('Afternoon Late Start: $afternoonLateStartTime');
+    print('Afternoon Late End: $afternoonLateEndTime');
+    print('Afternoon Over Late Start: $afternoonOverLateStartTime');
+    print('Afternoon Over Late End: $afternoonOverLateEndTime');
+    print('---------------------------------------');
+*/
+
+    if (isWithinTimeRangeInclusive(now, afternoonStartTime, afternoonEndTime)) {
+      return '0'; // Tepat waktu
+    } else if (isWithinTimeRangeInclusive(
+        now, afternoonLateStartTime, afternoonLateEndTime)) {
+      return '5'; // Terlambat sedikit
+    } else if (now.isAfter(afternoonOverLateStartTime) &&
+        now.isBefore(afternoonOverLateEndTime)) {
+      return '10'; // Terlambat parah
+    }
+
+    return 'Absent'; // Di luar jam absensi
   }
 }

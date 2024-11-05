@@ -223,12 +223,12 @@ class DataProvider extends ChangeNotifier {
   // ---------------------------- DATA RTDB ------------------------------------
 
   // Fungsi untuk inisialisasi data history
-  Future<ApiResult> initializeHistory(String userName, String date,
+  Future<ApiResult> initializeHistory(String userName, HistoryData historyData,
       {bool isRefresh = false}) async {
     resetLoadDataStatus();
 
     final response = await _realtimeDatabaseService
-        .initializeHistory(userName, date)
+        .initializeHistory(userName, historyData)
         .timeout(_timeoutDuration, onTimeout: () {
       _message = 'Initialize history operation timed out';
       return ApiResult(status: 'error', message: _message ?? '');

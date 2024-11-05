@@ -2,6 +2,7 @@ import 'package:absensitoko/core/constants/constants.dart';
 import 'package:absensitoko/core/themes/fonts/fonts.dart';
 import 'package:absensitoko/data/models/time_model.dart';
 import 'package:absensitoko/data/providers/data_provider.dart';
+import 'package:absensitoko/routes.dart';
 import 'package:absensitoko/utils/helpers/general_helper.dart';
 import 'package:absensitoko/utils/helpers/network_helper.dart';
 import 'package:absensitoko/utils/popup_util.dart';
@@ -11,9 +12,14 @@ import 'package:provider/provider.dart';
 class ShortAttendanceInfo extends StatefulWidget {
   final CustomTime currentTime;
   final String userName;
+  final String deviceName;
 
-  const ShortAttendanceInfo(
-      {super.key, required this.currentTime, required this.userName});
+  const ShortAttendanceInfo({
+    super.key,
+    required this.currentTime,
+    required this.userName,
+    required this.deviceName,
+  });
 
   @override
   State<ShortAttendanceInfo> createState() => _ShortAttendanceInfoState();
@@ -64,19 +70,20 @@ class _ShortAttendanceInfoState extends State<ShortAttendanceInfo>
           _simulateLoadingDelay();
         }
 
-        final String loadingMessage = _isLoading ? 'Memeriksa data absensi' : '(Cek koneksi internet)';
+        final String loadingMessage =
+            _isLoading ? 'Memeriksa data absensi' : '(Cek koneksi internet)';
 
         final bool historyAvailable = historyData != null;
         final String morningHistoryStatus = historyAvailable
             ? (historyData.tLPagi?.isNotEmpty ?? false)
-            ? 'Anda sudah absen pagi'
-            : 'Anda belum absen pagi'
+                ? 'Anda sudah absen pagi'
+                : 'Anda belum absen pagi'
             : loadingMessage;
 
         final String afternoonHistoryStatus = historyAvailable
             ? (historyData.tLSiang?.isNotEmpty ?? false)
-            ? 'Anda sudah absen siang'
-            : 'Anda belum absen siang'
+                ? 'Anda sudah absen siang'
+                : 'Anda belum absen siang'
             : loadingMessage;
 
         final bool isMorningTime = isCurrentTimeWithinRange(
@@ -94,8 +101,8 @@ class _ShortAttendanceInfoState extends State<ShortAttendanceInfo>
         final String? historyStatus = isMorningTime
             ? morningHistoryStatus
             : isAfternoonTime
-            ? afternoonHistoryStatus
-            : null;
+                ? afternoonHistoryStatus
+                : null;
 
         _isVisible = historyStatus != null;
 
@@ -120,10 +127,12 @@ class _ShortAttendanceInfoState extends State<ShortAttendanceInfo>
                     splashColor: Colors.greenAccent,
                     onTap: () async {
                       final isConnected =
-                      await NetworkHelper.hasInternetConnection();
+                          await NetworkHelper.hasInternetConnection();
                       if (isConnected) {
                         Navigator.pushNamed(context, '/attendance',
-                            arguments: widget.userName);
+                            arguments: AttendancePageArguments(
+                                employeeName: widget.userName,
+                                deviceName: widget.deviceName));
                       } else {
                         ToastUtil.showToast(
                             'Tidak ada koneksi internet', ToastStatus.error);

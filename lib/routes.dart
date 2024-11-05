@@ -19,15 +19,18 @@ class AppRouter {
       case '/profile':
         return MaterialPageRoute(builder: (_) => const ProfilePage());
       case '/information':
-        return MaterialPageRoute(builder: (_) => const InformationPage());
+        return MaterialPageRoute(builder: (_) => InformationPage());
       case '/attendance_history':
         final String employeeName = settings.arguments as String;
         return MaterialPageRoute(
             builder: (_) => AttendanceHistoryPage(employeeName: employeeName));
       case '/attendance':
-        final String employeeName = settings.arguments as String;
+        // final String employeeName = settings.arguments as String;
+        final AttendancePageArguments args = settings.arguments as AttendancePageArguments;
+        final String employeeName = args.employeeName;
+        final String deviceName = args.deviceName;
         return MaterialPageRoute(
-            builder: (_) => AttendancePage(employeeName: employeeName));
+            builder: (_) => AttendancePage(employeeName: employeeName, deviceName: deviceName));
       case '/map':
         // Menerima LatLng sebagai arguments
         final args = settings.arguments as MapPageArguments;
@@ -53,4 +56,11 @@ class MapPageArguments {
   final double storeRadius;
 
   MapPageArguments({required this.storeLocation, required this.storeRadius});
+}
+
+class AttendancePageArguments {
+  final String employeeName;
+  final String deviceName;
+
+  AttendancePageArguments({required this.employeeName, required this.deviceName});
 }
