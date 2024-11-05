@@ -5,6 +5,7 @@ import 'package:absensitoko/utils/base/version_checker.dart';
 import 'package:absensitoko/utils/device_util.dart';
 import 'package:absensitoko/core/constants/items_list.dart';
 import 'package:absensitoko/utils/helpers/network_helper.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:absensitoko/data/models/session_model.dart';
 import 'package:absensitoko/data/providers/time_provider.dart';
@@ -18,6 +19,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -34,6 +36,7 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
   final FocusNode _passwordFocusNode = FocusNode();
   final _formKey = GlobalKey<FormState>();
   bool _firstSubmit = true;
+  bool isCancelled = false;
 
   String _attendanceLocationStatus = 'Get Location Permission';
   LatLng? _attendanceLocation;
@@ -49,10 +52,10 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
   }
 
   // Cek apakah pengguna berada dalam radius absensi
-  Future<void> _cekLokasiSekali() async {
+  Future<void> _cekLokasiSekali({VoidCallback? onPopInvoked}) async {
     LocationCheckResult locationCheckResult = await locationService.cekLokasiSekali();
     _attendanceLocationStatus = locationCheckResult.statusMessage;
-    if(locationCheckResult.position == null) {
+    if(locationCheckResult.isMocked && mounted) {
       SnackbarUtil.showSnackbar(context: context, message: 'Gagal login, gps bermasalah!');
       return;
     }
@@ -61,6 +64,7 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
   }
 
   Future<void> _login() async {
+    bool isCancelled = false;
     _cekIzinLokasi();
 
     // Set state untuk first submit dan validasi form
@@ -68,15 +72,29 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
     if (!_validateForm()) return;
 
     _unFocus();
-    LoadingDialog.show(context);
+    LoadingDialog.show(context, onPopInvoked: () {
+      isCancelled = true;
+    });
 
     // Cek lokasi dan ambil nama perangkat
-    await _cekLokasiSekali();
-    await _fetchDeviceName();
+    try {
+      await _cekLokasiSekali();
+      await _fetchDeviceName();
+    } catch (e) {
+      _showError(e.toString());
+    }
 
     // Lakukan proses login
     try {
+      if(isCancelled) {
+        final FirebaseAuth auth = FirebaseAuth.instance;
+        if(auth.currentUser != null) {
+          await auth.signOut();
+        }
+        throw 'Login dibatalkan';
+      }
       final message = await _loginProcess();
+
       _handleLoginResult(message);
     } catch (e) {
       _showError(e.toString());
@@ -202,7 +220,6 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
     }
     super.didChangeAppLifecycleState(state);
   }
-
 
   @override
   Widget build(BuildContext context) {

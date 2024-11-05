@@ -151,14 +151,14 @@ class FirestoreService {
     }
   }
 
-  Future<AppVersionModel?> getAppVersion() async {
+  Future<ApiResult<AppVersionModel>> getAppVersion() async {
     final snapshot = await _db.collection('information').doc('latest_version').get();
     if (snapshot.exists) {
       AppVersionModel data = AppVersionModel.fromMap(snapshot.data() as Map<String, dynamic>);
-      return data;
+      return ApiResult(status: 'success', message: 'Berhasil memperoleh data versi aplikasi', data: data);
       // return AppVersionModel.fromDocument(snapshot);
     }
-    return null;
+    return ApiResult(status: 'error', message: 'Data versi aplikasi belum tersedia');
   }
 
   Future<void> updateAppVersion(AppVersionModel appVersion) async {

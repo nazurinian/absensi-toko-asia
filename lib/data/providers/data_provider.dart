@@ -13,6 +13,8 @@ class DataProvider extends ChangeNotifier {
   final FirestoreService _fireStoreService = FirestoreService();
   final RealtimeDatabaseService _realtimeDatabaseService =
       RealtimeDatabaseService();
+  final Duration _timeoutDuration =
+      const Duration(seconds: 5); // Defaultnya 5 detik + toleransi 5 detik
 
   // Data sheet
   Data _dataAbsensi = Data();
@@ -85,10 +87,15 @@ class DataProvider extends ChangeNotifier {
 
     var previousData = _dataAbsensi;
 
-    final response = await _apiService.updateAttendance(
+    final response = await _apiService
+        .updateAttendance(
       waktuAbsensi: waktuAbsensi,
       attendance: attendance,
-    );
+    )
+        .timeout(_timeoutDuration, onTimeout: () {
+      _message = 'Update absensi operation timed out';
+      return ApiResult(status: 'error', message: _message ?? '');
+    });
 
     _status = response.status;
     _message = response.message;
@@ -119,13 +126,21 @@ class DataProvider extends ChangeNotifier {
 
     var previousData = _attendanceInfoData;
 
-    final response = await _fireStoreService.getAttendanceInfo();
+    final response = await _fireStoreService.getAttendanceInfo().timeout(
+      _timeoutDuration,
+      onTimeout: () {
+        _message = 'Get attendance info operation timed out';
+        return ApiResult(status: 'error', message: _message ?? '');
+      },
+    );
 
     _status = response.status;
     _message = response.message;
 
     if (response.status == 'success') {
       _attendanceInfoData = response.data;
+      print('Berhasil memperoleh informasi absensi');
+      print('Data absensi : $_attendanceInfoData');
     } else {
       if (isRefresh) {
         _message = 'Gagal memperoleh informasi absensi';
@@ -135,7 +150,6 @@ class DataProvider extends ChangeNotifier {
       }
     }
 
-    print(response.message);
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -145,7 +159,13 @@ class DataProvider extends ChangeNotifier {
   Future<ApiResult> updateAttendanceInfo(AttendanceInfoModel data) async {
     resetLoadDataStatus();
 
-    final response = await _fireStoreService.updateAttendanceInfo(data);
+    final response = await _fireStoreService.updateAttendanceInfo(data).timeout(
+      _timeoutDuration,
+      onTimeout: () {
+        _message = 'Update attendance info operation timed out';
+        return ApiResult(status: 'error', message: _message ?? '');
+      },
+    );
 
     _status = response.status;
     _message = response.message;
@@ -167,26 +187,52 @@ class DataProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-  Future<void> getAppVersion() async {
-    _appVersion = await _fireStoreService.getAppVersion();
+  Future<ApiResult> getAppVersion() async {
+    final result = await _fireStoreService.getAppVersion().timeout(
+      _timeoutDuration,
+      onTimeout: () {
+        _message = 'Get app version operation timed out';
+        return ApiResult(status: 'error', message: _message ?? '');
+      },
+    );
+
+    if (result.status == 'success') {
+      _appVersion = result.data;
+    } else {
+      _appVersion = null;
+    }
+
     notifyListeners();
+    return ApiResult(
+        status: 'success',
+        message: 'Berhasil memperoleh versi aplikasi',
+        data: _appVersion);
   }
 
   // Fungsi set hanya ane yg bisa pake buat testing
   Future<void> updateAppVersion(AppVersionModel appVersion) async {
-    await _fireStoreService.updateAppVersion(appVersion);
-    // _appVersion = appVersion;
+    await _fireStoreService.updateAppVersion(appVersion).timeout(
+      _timeoutDuration,
+      onTimeout: () {
+        throw 'Update app version operation timed out';
+      },
+    );
     notifyListeners();
   }
 
   // ---------------------------- DATA RTDB ------------------------------------
 
   // Fungsi untuk inisialisasi data history
-  Future<ApiResult> initializeHistory (String userName, String date, {bool isRefresh = false}) async {
+  Future<ApiResult> initializeHistory(String userName, String date,
+      {bool isRefresh = false}) async {
     resetLoadDataStatus();
 
-    final response =
-        await _realtimeDatabaseService.initializeHistory(userName, date);
+    final response = await _realtimeDatabaseService
+        .initializeHistory(userName, date)
+        .timeout(_timeoutDuration, onTimeout: () {
+      _message = 'Initialize history operation timed out';
+      return ApiResult(status: 'error', message: _message ?? '');
+    });
 
     _status = response.status;
     _message = response.message;
@@ -198,14 +244,19 @@ class DataProvider extends ChangeNotifier {
   }
 
   // Fungsi untuk mendapatkan history user berdasarkan tanggal tertentu
-  Future<ApiResult> getThisDayHistory(String userName, String date, {bool isRefresh = false}) async {
+  Future<ApiResult> getThisDayHistory(String userName, String date,
+      {bool isRefresh = false}) async {
     resetLoadDataStatus();
 
     // Simpan data lama untuk refresh
     var previousData = _selectedDateHistory;
 
-    final response =
-        await _realtimeDatabaseService.getThisDayHistory(userName, date);
+    final response = await _realtimeDatabaseService
+        .getThisDayHistory(userName, date)
+        .timeout(_timeoutDuration, onTimeout: () {
+      _message = 'Get this day history operation timed out';
+      return ApiResult(status: 'error', message: _message ?? '');
+    });
 
     _status = response.status;
     _message = response.message;
@@ -229,11 +280,16 @@ class DataProvider extends ChangeNotifier {
   }
 
   // Fungsi untuk memperbarui data history user
-  Future<ApiResult> updateThisDayHistory(String userName, String date, HistoryData data) async {
+  Future<ApiResult> updateThisDayHistory(
+      String userName, String date, HistoryData data) async {
     resetLoadDataStatus();
 
-    final response = await _realtimeDatabaseService.updateThisDayHistory(
-        userName, date, data);
+    final response = await _realtimeDatabaseService
+        .updateThisDayHistory(userName, date, data)
+        .timeout(_timeoutDuration, onTimeout: () {
+      _message = 'Update this day history operation timed out';
+      return ApiResult(status: 'error', message: _message ?? '');
+    });
 
     _status = response.status;
     _message = response.message;
@@ -251,13 +307,18 @@ class DataProvider extends ChangeNotifier {
   }
 
   // Fungsi untuk mendapatkan semua history dari user tertentu
-  Future<ApiResult> getAllDayHistory(String userName, String date, {bool isRefresh = false}) async {
+  Future<ApiResult> getAllDayHistory(String userName, String date,
+      {bool isRefresh = false}) async {
     resetLoadDataStatus();
 
     var previousData = _userHistoryData;
 
-    final response =
-        await _realtimeDatabaseService.getAllDayHistory(userName, date);
+    final response = await _realtimeDatabaseService
+        .getAllDayHistory(userName, date)
+        .timeout(_timeoutDuration, onTimeout: () {
+      _message = 'Get all day history operation timed out';
+      return ApiResult(status: 'error', message: _message ?? '');
+    });
 
     _status = response.status;
     _message = response.message;
@@ -279,13 +340,18 @@ class DataProvider extends ChangeNotifier {
   }
 
   // Fungsi untuk mendapatkan semua history dari semua user
-  Future<ApiResult> getAllMonthHistory(String userName, {bool isRefresh = false}) async {
+  Future<ApiResult> getAllMonthHistory(String userName,
+      {bool isRefresh = false}) async {
     resetLoadDataStatus();
 
     var previousData = _allUserHistoryData;
 
-    final response =
-        await _realtimeDatabaseService.getAllMonthHistory(userName);
+    final response = await _realtimeDatabaseService
+        .getAllMonthHistory(userName)
+        .timeout(_timeoutDuration, onTimeout: () {
+      _message = 'Get all month history operation timed out';
+      return ApiResult(status: 'error', message: _message ?? '');
+    });
 
     _status = response.status;
     _message = response.message;
@@ -312,7 +378,12 @@ class DataProvider extends ChangeNotifier {
 
     var previousData = _allCompleteHistory;
 
-    final response = await _realtimeDatabaseService.getAllHistoryCompletely();
+    final response = await _realtimeDatabaseService
+        .getAllHistoryCompletely()
+        .timeout(_timeoutDuration, onTimeout: () {
+      _message = 'Get all complete history operation timed out';
+      return ApiResult(status: 'error', message: _message ?? '');
+    });
 
     _status = response.status;
     _message = response.message;
@@ -332,8 +403,6 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
-
-
 
   // ---------------------------- CLEAR | REFRESH ------------------------------------
   // Ini digunakan ketika logout dengan mengosongkan semua data

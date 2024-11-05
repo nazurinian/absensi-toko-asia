@@ -1,7 +1,7 @@
 import 'package:absensitoko/core/themes/fonts/fonts.dart';
 import 'package:absensitoko/data/models/version_model.dart';
 import 'package:absensitoko/data/providers/data_provider.dart';
-import 'package:absensitoko/ui/widgets/CustomListTile.dart';
+import 'package:absensitoko/ui/widgets/custom_list_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
 class LoadingDialog {
-  static void show(BuildContext context) {
+  static void show(
+    BuildContext context, {
+    bool barrierDismissible = false,
+    bool canPop = false,
+    Function()? onPopInvoked,
+  }) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: barrierDismissible,
       builder: (BuildContext context) {
-        return const PopScope(
-          canPop: false,
-          child: Dialog(
+        return PopScope(
+          canPop: canPop,
+          onPopInvokedWithResult: (didPop, result) {
+            if(!didPop) {
+              if (onPopInvoked != null) onPopInvoked();
+            }
+          },
+          child: const Dialog(
             backgroundColor: Colors.transparent,
             child: Center(
               child: CircularProgressIndicator(),

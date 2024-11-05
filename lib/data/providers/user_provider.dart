@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:absensitoko/locator.dart';
 import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 class UserProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
   final FirestoreService _fireStoreService = FirestoreService();
+  final context = locator<GlobalKey<NavigatorState>>().currentContext;
+  final Duration _timeoutDuration =
+      const Duration(seconds: 5); // Defaultnya 5 detik + toleransi 5 detik
 
   SessionModel? _currentUserSession;
   UserModel? _currentUser;
@@ -20,7 +24,7 @@ class UserProvider extends ChangeNotifier {
   String? _deviceId;
   String? _lastDate;
 
-  bool _userDataIsLoaded = false;
+  // bool _userDataIsLoaded = false;
   bool _listUserIsLoaded = false;
   bool _isLoading = false;
   String? _status;
@@ -36,7 +40,8 @@ class UserProvider extends ChangeNotifier {
 
   String? get lastDate => _lastDate;
 
-  bool get userDataIsLoaded => _userDataIsLoaded;
+  // bool get userDataIsLoaded => _userDataIsLoaded;
+  bool get userDataIsLoaded => _currentUser != null;
 
   bool get listUserIsLoaded => _listUserIsLoaded;
 
@@ -58,7 +63,6 @@ class UserProvider extends ChangeNotifier {
     _isLoading = true;
     _status = null;
     _message = null;
-    _userDataIsLoaded = false;
 
     final response = await _authService
         .loginUser(
@@ -70,11 +74,16 @@ class UserProvider extends ChangeNotifier {
       loginLocation,
     )
         .timeout(
-      const Duration(seconds: 15),
+      _timeoutDuration,
       onTimeout: () async {
-        LoadingDialog.hide(context);
+        if (context.mounted) {
+          LoadingDialog.hide(context);
+        }
         final FirebaseAuth auth = FirebaseAuth.instance;
-        await auth.signOut();
+        if (auth.currentUser != null) {
+          await auth.signOut();
+        }
+        _isLoading = false;
         _message = 'Login operation timed out';
         return ApiResult(status: 'error', message: _message ?? '');
       },
@@ -84,9 +93,8 @@ class UserProvider extends ChangeNotifier {
     _message = response.message;
     if (response.status == 'success') {
       _currentUser = response.data;
-      _userDataIsLoaded = true;
     } else {
-      _userDataIsLoaded = false;
+      _currentUser = null;
     }
 
     _isLoading = false;
@@ -94,8 +102,17 @@ class UserProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
-  Future<ApiResult> signOut(UserModel user) async {
-    final response = await _authService.signOut(user);
+  Future<ApiResult> signOut(UserModel user, bool sessionExpired) async {
+    final response = await _authService.signOut(user, sessionExpired).timeout(
+      _timeoutDuration,
+      onTimeout: () async {
+        if (context != null) {
+          LoadingDialog.hide(context!);
+        }
+        _message = 'Sign out operation timed out';
+        return ApiResult(status: 'error', message: _message ?? '');
+      },
+    );
 
     _status = response.status;
     _message = response.message;
@@ -105,21 +122,34 @@ class UserProvider extends ChangeNotifier {
   }
 
   /// FireStore Service Provider
-  Future<ApiResult> getUser(String uid) async {
+  /// Kalau di dataProvider ada sistem refresh
+  Future<ApiResult> getUser(String uid, {bool isRefresh = false}) async {
     _isLoading = true;
     _status = null;
     _message = null;
-    _userDataIsLoaded = false;
 
-    final response = await _fireStoreService.getUser(uid);
+    var previousData = _currentUser;
+
+    final response = await _fireStoreService.getUser(uid).timeout(
+      _timeoutDuration,
+      onTimeout: () async {
+        _isLoading = false;
+        _message = 'Get user data operation timed out';
+        return ApiResult(status: 'error', message: _message ?? '');
+      },
+    );
 
     _status = response.status;
     _message = response.message;
     if (response.status == 'success') {
       _currentUser = response.data;
-      _userDataIsLoaded = true;
     } else {
-      _userDataIsLoaded = false;
+      if (isRefresh) {
+        _message = 'Gagal memperbarui data user';
+        _currentUser = previousData;
+      } else {
+        _currentUser = null;
+      }
     }
 
     _isLoading = false;
@@ -151,7 +181,7 @@ class UserProvider extends ChangeNotifier {
       role: role,
     )
         .timeout(
-      const Duration(seconds: 10),
+      _timeoutDuration,
       onTimeout: () {
         _message = 'Update profile operation timed out';
         return ApiResult(status: 'error', message: _message ?? '');
@@ -250,14 +280,12 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-
   void clearAccountData() {
     _currentUserSession = null;
     _currentUser = null;
     _listAllUser = [];
 
     _isLoading = false;
-    _userDataIsLoaded = false;
     _listUserIsLoaded = false;
     _status = null;
     _message = null;

@@ -557,23 +557,18 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                       ? Theme.of(context).colorScheme.primary
                       : Theme.of(context).colorScheme.primary.withAlpha(400),
                 ),
-                prefix: title == 'Nomor Telepon'
+                prefixIcon: title == 'Nomor Telepon'
                     ? Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        // Jarak antara prefix dan input
-                        child: Text(
-                          _selectedCountryCode!,
-                          style: FontTheme.titleMedium(
-                            context,
-                            color: isEnabled
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withAlpha(400),
-                          ),
-                        ),
-                      )
+                  padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: focusNode.hasFocus ? 6.0 : 7.0),
+                  // Jarak antara prefix dan input
+                  child: Text(
+                    _selectedCountryCode ?? '',
+                    style: FontTheme.titleMedium(
+                        context,
+                        color: Theme.of(context).colorScheme.primary
+                    ),
+                  ),
+                )
                     : null,
                 isDense: true,
                 contentPadding:

@@ -1,3 +1,5 @@
+// Halaman ini tidak digunakan dalam aplikasi Flutter ini.
+/*
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -114,3 +116,4 @@ class _PermissionHandlerWidgetState extends State<PermissionHandlerWidget> {
           );
   }
 }
+*/

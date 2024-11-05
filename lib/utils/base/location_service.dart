@@ -36,19 +36,21 @@ class LocationService {
 
   // Cek apakah pengguna berada dalam radius absensi
   Future<LocationCheckResult> cekLokasiSekali() async {
-    LoadingDialog.show(navigatorKey.currentContext!);
     try {
       Position posisiPengguna = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
         ),
-      );
+      ).timeout(const Duration(seconds: 10), onTimeout: () {
+        throw 'Waktu permintaan lokasi habis';
+      });
 
       // Lokasi menggunakan mock atau fake GPS
       if (posisiPengguna.isMocked) {
+        _safeContext((context) => LoadingDialog.hide(context));
         return LocationCheckResult(
           statusMessage: 'Lokasi palsu terdeteksi!',
-          position: posisiPengguna,
+          // position: posisiPengguna,
           isMocked: true,
         );
       } else {

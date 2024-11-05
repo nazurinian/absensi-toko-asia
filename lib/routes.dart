@@ -1,4 +1,5 @@
-import 'package:absensitoko/ui/screens/absensi_page.dart';
+import 'package:absensitoko/ui/screens/attendance_history_page.dart';
+import 'package:absensitoko/ui/screens/attendance_page.dart';
 import 'package:absensitoko/ui/screens/home_page.dart';
 import 'package:absensitoko/ui/screens/information_page.dart';
 import 'package:absensitoko/ui/screens/login_page.dart';
@@ -19,17 +20,22 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const ProfilePage());
       case '/information':
         return MaterialPageRoute(builder: (_) => const InformationPage());
-      case '/absensi':
+      case '/attendance_history':
         final String employeeName = settings.arguments as String;
         return MaterialPageRoute(
-            builder: (_) => AbsensiPage(employeeName: employeeName));
+            builder: (_) => AttendanceHistoryPage(employeeName: employeeName));
+      case '/attendance':
+        final String employeeName = settings.arguments as String;
+        return MaterialPageRoute(
+            builder: (_) => AttendancePage(employeeName: employeeName));
       case '/map':
         // Menerima LatLng sebagai arguments
         final args = settings.arguments as MapPageArguments;
         final LatLng storeLocation = args.storeLocation;
         final double storeRadius = args.storeRadius;
         return MaterialPageRoute(
-          builder: (_) => MapPage(storeLocation: storeLocation, storeRadius: storeRadius),
+          builder: (_) =>
+              MapPage(storeLocation: storeLocation, storeRadius: storeRadius),
         );
       default:
         // Route tidak ditemukan

@@ -11,8 +11,8 @@ class RealtimeDatabaseService {
     String date,
   ) async {
     String tahunBulan = date.substring(0, 7); // Ambil YYYY-MM
-    String tanggal = date.substring(8); // Ambil tanggal
-    final initialData = HistoryData().toMap();
+    String tanggal = date.substring(8, 10); // Ambil tanggal DD
+    final initialData = HistoryData(tanggalCreate: date).toMap();
     final checkRef = _db.child('history/$userName/$tahunBulan/$tanggal');
 
     try {
@@ -26,7 +26,6 @@ class RealtimeDatabaseService {
         );
       }
 
-      print(initialData.toString());
       return ApiResult(
         status: 'success',
         message: 'Inisialisasi data history berhasil untuk pengguna: $userName',
@@ -43,7 +42,7 @@ class RealtimeDatabaseService {
     String date,
   ) async {
     String tahunBulan = date.substring(0, 7); // Ambil YYYY-MM
-    String tanggal = date.substring(8); // Ambil tanggal
+    String tanggal = date.substring(8, 10); // Ambil tanggal DD
     final ref = _db.child('history/$userName/$tahunBulan/$tanggal');
     final snapshot = await ref.get();
 
@@ -55,7 +54,6 @@ class RealtimeDatabaseService {
 
         final historyData = HistoryData.fromMap(data);
 
-        print(data.toString());
         return ApiResult(
           status: 'success',
           message: 'Data history berhasil diperoleh.',

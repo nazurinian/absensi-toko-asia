@@ -5,6 +5,7 @@ import 'package:absensitoko/utils/helpers/general_helper.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:absensitoko/data/models/time_model.dart';
+import 'package:ntp/ntp.dart';
 
 /*
 class TimeProvider extends ChangeNotifier {
@@ -315,7 +316,7 @@ class TimeProvider extends ChangeNotifier {
 */
 
 // Attendance time configuration
-class AttendanceTimeConfig {
+/*class AttendanceTimeConfig {
   static const int morningStartHour = 6;
   static const int morningStartMinute = 50;
   static const int morningEndHour = 7;
@@ -332,12 +333,15 @@ class AttendanceTimeConfig {
   static const int attendanceTimerInterval = 14;
   static const int storeClosedHour = 17;
   static const int storeClosedMinute = 30;
-}
+}*/
 
 // Attendance Time Provider
 class TimeProvider extends ChangeNotifier {
   Timer? _timer;
-  CustomTime _currentTime = CustomTime.getCurrentTime();
+  // CustomTime _currentTime = CustomTime.getCurrentTime();
+  late CustomTime _currentTime;
+  late DateTime _ntpTime;
+  final Duration _gmt8Offset = const Duration(hours: 8); // Offset GMT+8
 
   // Default Break Time
   int _breakHour = 12;
@@ -353,10 +357,6 @@ class TimeProvider extends ChangeNotifier {
   bool _isAfternoonOnTime = false;
   String _attendanceStatus = '';
 
-  TimeProvider() {
-    _startTimer();
-  }
-
   // Getters
   CustomTime get currentTime => _currentTime;
   String get countDownText => _countDownText;
@@ -364,9 +364,37 @@ class TimeProvider extends ChangeNotifier {
   String get afternoonAttendanceMessage => _afternoonAttendanceMessage;
   String get attendanceStatus => _attendanceStatus;
 
+/*  TimeProvider() : _currentTime = CustomTime.getCurrentTime() {
+    _initializeNtpTime();
+  }*/
+
+  TimeProvider() {
+    _currentTime = CustomTime.getInitialTime();
+    _initializeNtpTime();
+  }
+
+  Future<void> _initializeNtpTime() async {
+    try {
+      _ntpTime = await NTP.now(); // Ambil waktu dari server NTP
+      _ntpTime = _ntpTime.add(_gmt8Offset); // Set GMT+8 (WITA)
+      _startTimer();
+    } catch (e) {
+      print("Failed to get NTP time: $e");
+      // fallback jika tidak ada waktu NTP
+      _ntpTime = DateTime.now().add(_gmt8Offset);
+      _startTimer();
+    }
+  }
+
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _currentTime = CustomTime.getCurrentTime();
+      // Update waktu setiap detik dengan mengacu pada waktu NTP awal
+      // Gunakan offset GMT+8 setiap kali update
+      DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
+      _currentTime = CustomTime.fromDateTime(updatedTime);
+      // print('Difference: ${DateTime.now().difference(_ntpTime).inHours}');
+
+      // _currentTime = CustomTime.getCurrentTime();
       _updateAttendanceState();
       notifyListeners();
     });
@@ -466,14 +494,14 @@ class TimeProvider extends ChangeNotifier {
     );
 
     DateTime storeCloseTime = DateTime(now.year, now.month, now.day,
-        AttendanceTimeConfig.storeClosedHour, AttendanceTimeConfig.storeClosedMinute);
+        storeClosedHour, storeClosedMinute);
 
     // Morning Attendance Time
     DateTime morningStart = DateTime(now.year, now.month, now.day,
-        AttendanceTimeConfig.morningStartHour, AttendanceTimeConfig.morningStartMinute);
-    DateTime morningEnd = morningStart.add(const Duration(minutes: AttendanceTimeConfig.attendanceTimerInterval));
+        morningStartHour, morningStartMinute);
+    DateTime morningEnd = morningStart.add(const Duration(minutes: attendanceTimerInterval));
     DateTime morningLateEnd = DateTime(now.year, now.month, now.day,
-        AttendanceTimeConfig.morningLateEndHour, AttendanceTimeConfig.morningLateEndMinute);
+        morningLateEndHour, morningLateEndMinute);
 
     _setAttendanceMessage(
       now: now,
@@ -489,9 +517,9 @@ class TimeProvider extends ChangeNotifier {
 
     // Afternoon Attendance Time
     DateTime breakTime = DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
-    DateTime afternoonStart = breakTime.add(const Duration(minutes: AttendanceTimeConfig.afternoonPreparationMinutes - 10));
-    DateTime afternoonEnd = breakTime.add(const Duration(minutes: AttendanceTimeConfig.afternoonPreparationMinutes + 4));
-    DateTime afternoonLateEnd = breakTime.add(const Duration(minutes: AttendanceTimeConfig.afternoonLateToEndMinutes + AttendanceTimeConfig.afternoonPreparationMinutes));
+    DateTime afternoonStart = breakTime.add(const Duration(minutes: afternoonPreparationMinutes - 10));
+    DateTime afternoonEnd = breakTime.add(const Duration(minutes: afternoonPreparationMinutes + 4));
+    DateTime afternoonLateEnd = breakTime.add(const Duration(minutes: afternoonLateToEndMinutes + afternoonPreparationMinutes));
 
     _setAttendanceMessage(
       now: now,
