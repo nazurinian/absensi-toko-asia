@@ -78,6 +78,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// * Sistem Keterangan
 /// * Buat logo aplikasi
 /// * Buat splash screen
+/// * Melakukan update sheet dan history bersamaan
+/// * Rapih-rapih halaman absensi
+/// * Popup update datanya belum di uncomment
+/// * Cek _attendanceProcess dan attendanceStatus (SEBLUM TIDUR ANE AKTIFKAN DIALOGNYA SAMA BALIKIN WAKTU NTP)
+/// * Cek kalau gagal ambil wakut dr ntp gimana?
 
 class AttendancePage extends StatefulWidget {
   final String employeeName;
@@ -318,26 +323,6 @@ class _AttendancePageState extends BaseState<AttendancePage>
     }
   }
 
-  Future<void> _attendanceProcess(
-      String waktuAbsensi, Attendance attendance) async {
-    LoadingDialog.show(context);
-    try {
-      final message =
-          await _dataProvider.updateAttendance(waktuAbsensi, attendance);
-      safeContext((context) => LoadingDialog.hide(context));
-
-      print("Status and Message: $message");
-      if (message.status == 'success') {
-        ToastUtil.showToast('Berhasil mencatat kehadiran', ToastStatus.success);
-      } else {
-        ToastUtil.showToast(message.message ?? '', ToastStatus.error);
-      }
-    } catch (e) {
-      safeContext((context) => LoadingDialog.hide(context));
-      ToastUtil.showToast('Gagal memproses kehadiran', ToastStatus.error);
-    }
-  }
-
   Future<void> _updateBreakTime({bool isRefresh = false}) async {
     if (_dataProvider.isAttendanceInfoAvailable && !isRefresh) {
       print('Informasi Absen sudah ada');
@@ -568,13 +553,11 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                 AttendanceCard(
                                                   title: 'Absen Pagi',
                                                   buttonText: 'Absen Pagi',
-                                                  buttonActive:
-                                                      morningAttendanceState &&
-                                                          _attendancePermission,
+                                                  buttonActive: true,
+                                                  // buttonActive:
+                                                  // morningAttendanceState &&
+                                                  //     _attendancePermission,
                                                   onButtonPressed: () {
-                                                    ToastUtil.showToast(
-                                                        'Sedang dalam perbaikan',
-                                                        ToastStatus.warning);
                                                     _onAttendanceButtonPressed(
                                                       isPagi: true,
                                                       attendanceStatus: timeProvider
@@ -809,6 +792,45 @@ class _AttendancePageState extends BaseState<AttendancePage>
     );
   }
 
+  Future<void> _attendanceProcess(
+      String waktuAbsensi, Attendance attendance) async {
+    LoadingDialog.show(context);
+    try {
+      final message =
+      await _dataProvider.updateAttendance(waktuAbsensi, attendance);
+      safeContext((context) => LoadingDialog.hide(context));
+
+      print("Status and Message: $message");
+      if (message.status == 'success') {
+        ToastUtil.showToast('Berhasil mencatat kehadiran', ToastStatus.success);
+      } else {
+        ToastUtil.showToast(message.message ?? '', ToastStatus.error);
+      }
+    } catch (e) {
+      safeContext((context) => LoadingDialog.hide(context));
+      ToastUtil.showToast('Gagal memproses kehadiran', ToastStatus.error);
+    }
+  }
+
+  Future<void> _updateDataHistory(String employeeName, String date, HistoryData pushDataHistory, bool isPagi) async {
+    final result = await _dataProvider.updateThisDayHistory(
+      employeeName,
+      date,
+      pushDataHistory,
+    );
+
+    if (result.status == 'success') {
+      print('Berhasil update history');
+      ToastUtil.showToast(result.message!, ToastStatus.success);
+      _timeProvider.updateAttendanceCheck(isPagi);
+      safeContext((context) => LoadingDialog.hide(context));
+    } else {
+      print('Gagal update history');
+      ToastUtil.showToast(result.message!, ToastStatus.error);
+      safeContext((context) => LoadingDialog.hide(context));
+    }
+  }
+
   Future<void> _onAttendanceButtonPressed({
     required bool isPagi,
     required String attendanceStatus, // Status T/L
@@ -855,37 +877,30 @@ class _AttendancePageState extends BaseState<AttendancePage>
 
     LoadingDialog.show(context);
     try {
-      final result = await _dataProvider.updateThisDayHistory(
-        employeeName,
-        dateTime.postTime(),
-        pushDataHistory,
+      DialogUtils.showConfirmationDialog(
+        context: context,
+        title: 'Absen ${isPagi ? 'Pagi' : 'Siang'}',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Lakukan Absen Sekarang?'),
+            const SizedBox(height: 10),
+            Text('Anda akan melakukan mengisi presensi waktu ${isPagi ? 'Pagi' : 'Siang'} di jam :\n${dateTime.getIdnAllTime()}'),
+          ],
+        ),
+        onConfirm: () async {
+          // _attendanceProcess(attendanceType, attendance); // Ini update sheets
+          await _updateDataHistory(employeeName, dateTime.postTime(), pushDataHistory, isPagi);
+        },
+        onCancel: () {
+          safeContext((context) => LoadingDialog.hide(context));
+        },
       );
-
-      if (result.status == 'success') {
-        print('Berhasil update history');
-        ToastUtil.showToast(result.message!, ToastStatus.success);
-        _timeProvider.updateAttendanceCheck(isPagi);
-        safeContext((context) => LoadingDialog.hide(context));
-      } else {
-        print('Gagal update history');
-      }
     } catch (e) {
       print(e);
       safeContext((context) => LoadingDialog.hide(context));
       ToastUtil.showToast('Gagal memproses kehadiran', ToastStatus.error);
     }
-
-    // DialogUtils.showConfirmationDialog(
-    //   context: context,
-    //   title: 'Absen $attendanceType',
-    //   content: const Text('Absen Sekarang?'),
-    //   onConfirm: () {
-    //     // _attendanceProcess(attendanceType, attendance).then(
-    //     //       (_) => timeProvider.onButtonClick(attendanceType),
-    //     // );
-    //     ToastUtil.showToast('Masih dalam tahap perbaikan', ToastStatus.warning);
-    //   },
-    // );
   }
 
   Widget attendanceStatus(

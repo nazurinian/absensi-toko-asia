@@ -58,10 +58,10 @@ class TimeProvider extends ChangeNotifier {
   }*/
 
   TimeProvider() {
-    _currentTime = CustomTime.getCurrentTime();
-    _startTimer();
-    // _currentTime = CustomTime.getInitialTime();
-    // _initializeNtpTime();
+    // _currentTime = CustomTime.getCurrentTime();
+    // _startTimer();
+    _currentTime = CustomTime.getInitialTime();
+    _initializeNtpTime();
   }
 
   Future<void> _initializeNtpTime() async {
@@ -81,11 +81,11 @@ class TimeProvider extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       // Update waktu setiap detik dengan mengacu pada waktu NTP awal
       // Gunakan offset GMT+8 setiap kali update
-      // DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
-      // _currentTime = CustomTime.fromDateTime(updatedTime);
+      DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
+      _currentTime = CustomTime.fromDateTime(updatedTime);
       // print('Difference: ${DateTime.now().difference(_ntpTime).inHours}');
 
-      _currentTime = CustomTime.getCurrentTime();
+      // _currentTime = CustomTime.getCurrentTime();
       _updateAttendanceState();
       notifyListeners();
     });
