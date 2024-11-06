@@ -14,7 +14,8 @@ const List<String> subCategories = ['Telat', 'Izin', 'Sakit'];
 enum AppImage {
   leaf('assets/images/daun.png'),
   leaf_flipped('assets/images/daun_flipped.png'),
-  stopwatch('assets/images/stopwatch.png'),;
+  stopwatch('assets/images/stopwatch.png'),
+  logo('assets/icons/logo_app.png');
 
   final String path;
 

@@ -46,6 +46,6 @@ app.*.map.json
 /android/app/src/main/AndroidManifest.xml
 /lib/api/services/api_service.dart
 /lib/ui/test/keterangan_test_page.dart
-/lib/udh beres.txt
+/lib/udh_beres.txt
 /lib/ui/test/data_provider_test_page.dart
 /lib/ui/test/data_provider_test_page.dart

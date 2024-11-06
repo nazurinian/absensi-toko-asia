@@ -489,7 +489,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                                 employeeName:
                                                                     _userName,
                                                                 deviceName:
-                                                                    _deviceName!));
+                                                                    _deviceName ?? ''));
                                                       } else {
                                                         ToastUtil.showToast(
                                                             'Tidak ada koneksi internet',

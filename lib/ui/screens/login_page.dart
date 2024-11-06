@@ -239,17 +239,14 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(top: 50.0, bottom: 20),
                   child: Center(
                     child: SizedBox(
-                      width: 120,
-                      height: 120,
-                      // child: Image.asset(AppImage.kamus.path, fit: BoxFit.cover),
-                      child: Icon(
-                        Icons.account_circle,
-                        size: 120,
-                      ),
+                        width: 120,
+                        height: 120,
+                        // child: Image.asset(AppImage.kamus.path, fit: BoxFit.cover),
+                        child: Image.asset(AppImage.logo.path, fit: BoxFit.cover)
                     ),
                   ),
                 ),
@@ -309,7 +306,7 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
                             child: TextButton(
                               style: ButtonStyle(
                                 overlayColor:
-                                    WidgetStateProperty.all(Colors.transparent),
+                                WidgetStateProperty.all(Colors.transparent),
                                 splashFactory: NoSplash
                                     .splashFactory, // Menghilangkan efek splash
                               ),
