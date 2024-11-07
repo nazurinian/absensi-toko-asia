@@ -576,7 +576,6 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                   );
                                 },
                               ),
-
                               const SizedBox(
                                 height: 10,
                               ),
