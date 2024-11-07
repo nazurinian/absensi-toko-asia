@@ -1,4 +1,3 @@
-import 'package:absensitoko/utils/display_size_util.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -23,15 +22,17 @@ class TimePicker {
     ).then(
       (time) {
         if (time != null) {
-          DateTime date =
-          DateFormat.jm().parse(
-              time.format(
-                  context));
-          String timeFormatted =
-              DateFormat(
-                  'HH:mm')
-                  .format(date);
-          onSelectedTime(timeFormatted);
+          if(context.mounted){
+            DateTime date =
+            DateFormat.jm().parse(
+                time.format(
+                    context));
+            String timeFormatted =
+            DateFormat(
+                'HH:mm')
+                .format(date);
+            onSelectedTime(timeFormatted);
+          }
         } else {
           onSelectedTime('');
         }

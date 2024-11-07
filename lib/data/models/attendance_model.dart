@@ -112,9 +112,9 @@ class Data {
 }
 
 // Mengubah JSON menjadi List<Attendance>
-List<Attendance> AttendanceListFromJson(String str) =>
+List<Attendance> attendanceListFromJson(String str) =>
     List<Attendance>.from(json.decode(str).map((x) => Attendance.fromMap(x)));
 
 // Mengubah List<Attendance> menjadi JSON
-String AttendanceListToJson(List<Attendance> data) =>
+String attendanceListToJson(List<Attendance> data) =>
     json.encode(List<dynamic>.from(data.map((x) => x.toMap())));

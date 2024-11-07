@@ -83,7 +83,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _fitMarkersToMap() {
-    if (currentLocation == null || storeLocation == null) return;
+    if (currentLocation == null) return;
 
     // Buat LatLngBounds yang mencakup posisi pengguna dan lokasi tujuan
     LatLngBounds bounds = LatLngBounds(
@@ -112,7 +112,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   void _calculateDistanceAndZoom() {
-    if (currentLocation == null || storeLocation == null) return;
+    if (currentLocation == null) return;
 
     // Hitung jarak
     double distanceInMeters = Geolocator.distanceBetween(

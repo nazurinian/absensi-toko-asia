@@ -102,7 +102,6 @@ class DataProvider extends ChangeNotifier {
 
     if (response.status == 'success') {
       _dataAbsensi = response.data as Data;
-      print('Hasil response update data: ${_dataAbsensi.toString()}');
     } else {
       if (isRefresh) {
         _message = 'Gagal memperbarui data absensi';
@@ -112,7 +111,6 @@ class DataProvider extends ChangeNotifier {
       }
     }
 
-    print(response.message);
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -139,8 +137,6 @@ class DataProvider extends ChangeNotifier {
 
     if (response.status == 'success') {
       _attendanceInfoData = response.data;
-      print('Berhasil memperoleh informasi absensi');
-      print('Data absensi : $_attendanceInfoData');
     } else {
       if (isRefresh) {
         _message = 'Gagal memperoleh informasi absensi';
@@ -178,10 +174,8 @@ class DataProvider extends ChangeNotifier {
             data.nationalHoliday ?? _attendanceInfoData?.nationalHoliday,
       );
     } else {
-      print('Gagal melakukan update informasi absensi');
     }
 
-    print(response.message);
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -237,7 +231,6 @@ class DataProvider extends ChangeNotifier {
     _status = response.status;
     _message = response.message;
 
-    print(response.message);
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -272,8 +265,6 @@ class DataProvider extends ChangeNotifier {
       }
     }
 
-    print(response.message);
-    print('Data history absensi hari ini: $_selectedDateHistory');
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -297,10 +288,8 @@ class DataProvider extends ChangeNotifier {
     if (response.status == 'success') {
       _selectedDateHistory = response.data;
     } else {
-      print('Gagal melakukan pencatatan update pada history');
     }
 
-    print(response.message);
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -333,7 +322,6 @@ class DataProvider extends ChangeNotifier {
       }
     }
 
-    print(response.message);
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -366,7 +354,6 @@ class DataProvider extends ChangeNotifier {
       }
     }
 
-    print(response.message);
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -398,7 +385,6 @@ class DataProvider extends ChangeNotifier {
       }
     }
 
-    print(response.message);
     _isLoading = false;
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
@@ -427,6 +413,7 @@ class DataProvider extends ChangeNotifier {
     _message = '';
     // notifyListeners();
   }
+}
 
 /*
   // Map<String, HistoryData> _userHistoryData = {};
@@ -465,4 +452,3 @@ class DataProvider extends ChangeNotifier {
     notifyListeners();
   }
 */
-}

@@ -1,9 +1,6 @@
-import 'package:dropdown_textfield/dropdown_textfield.dart';
-import 'package:flutter/material.dart';
-
+// '+1': 'United States',  // '+91': 'India',  // '+81': 'Japan',  // '+65': 'Singapore',  // '+60': 'Malaysia',  // '+61': 'Australia',  // '+966': 'Saudi Arabia',
 const Map<String, String> countryCodes = {
   '+62': 'Indonesia',
-  // '+1': 'United States',  // '+91': 'India',  // '+81': 'Japan',  // '+65': 'Singapore',  // '+60': 'Malaysia',  // '+61': 'Australia',  // '+966': 'Saudi Arabia',
 };
 
 const List<String> roleList = ['employee', 'other', 'admin'];
@@ -12,9 +9,14 @@ const List<String> categories = ['Pagi', 'Siang', 'Libur', 'Cuti'];
 const List<String> subCategories = ['Telat', 'Izin', 'Sakit'];
 
 enum AppImage {
-  leaf('assets/images/daun.png'),
-  leaf_flipped('assets/images/daun_flipped.png'),
-  stopwatch('assets/images/stopwatch.png'),;
+  attendanceApp('images/01.png'),
+  atk('images/02.png'),
+  leaf('images/03.png'),
+  leafFlipped('images/04.png'),
+  watch('images/05.png'),
+  logo('images/06.png'),
+  stopwatch('images/07.png'),
+  blankUser('images/08.png');
 
   final String path;
 
@@ -23,11 +25,10 @@ enum AppImage {
 
 /*
 enum TombolType {
-  home('assets/icons/home.png', isAsset: true),
-  history(Icons.bookmark_added_rounded, isAsset: false),
-  log('assets/icons/document.png', isAsset: true),
-  informasi('assets/icons/info.png', isAsset: true),
-  sheet('assets/icons/sheet.png', isAsset: true);
+  home('icons/home.png', isAsset: true),
+  log('icons/document.png', isAsset: true),
+  informasi('icons/info.png', isAsset: true),
+  sheet('icons/sheet.png', isAsset: true);
 
   final dynamic icon;
   final bool isAsset;

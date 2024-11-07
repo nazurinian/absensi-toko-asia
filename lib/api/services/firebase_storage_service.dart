@@ -17,19 +17,14 @@ class FirebaseStorageService {
         // Menangani setiap perubahan state dari upload
         switch (snapshot.state) {
           case TaskState.running:
-            print('Upload is running...');
             break;
           case TaskState.paused:
-            print('Upload is paused.');
             break;
           case TaskState.success:
-            print('Upload completed successfully.');
             break;
           case TaskState.canceled:
-            print('Upload was canceled.');
             break;
           case TaskState.error:
-            print('Upload failed.');
             break;
         }
       });
@@ -39,7 +34,6 @@ class FirebaseStorageService {
 
       // Mendapatkan URL download dari file yang telah diupload
       String downloadURL = await snapshot.ref.getDownloadURL();
-      print('Download URL: $downloadURL');
 
       return ApiResult(
         status: 'success',
@@ -48,7 +42,6 @@ class FirebaseStorageService {
       );
     } catch (e) {
       // Menangani error yang terjadi selama proses upload
-      print('Error uploading image: $e');
       return ApiResult(
         status: 'error',
         message: 'Gagal mengupload gambar: $e',

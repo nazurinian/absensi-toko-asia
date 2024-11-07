@@ -2,18 +2,17 @@ import 'package:absensitoko/data/providers/connection_provider.dart';
 import 'package:absensitoko/utils/popup_util.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class ConnectionChecker extends StatelessWidget {
   final Widget connectedWidget;
-  final Widget? disconnectedWidget;
+  Widget? disconnectedWidget;
 
   ConnectionChecker({
     super.key,
     required this.connectedWidget,
-    this.disconnectedWidget,
+    // this.disconnectedWidget,
   });
 
   bool _hasShownDialog = false;

@@ -192,7 +192,7 @@ class DialogUtils {
                       backgroundColor: ColorsTheme.blueBD,
                     ),
                     onPressed: () {
-                      if (withPop ?? true) {
+                      if (withPop) {
                         Navigator.of(context)
                             .pop(true); // Kembalikan true saat dikonfirmasi
                       }

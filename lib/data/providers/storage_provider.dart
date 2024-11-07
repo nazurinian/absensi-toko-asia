@@ -4,21 +4,6 @@ import 'package:absensitoko/api/services/firebase_storage_service.dart';
 import 'package:flutter/material.dart';
 
 class StorageProvider extends ChangeNotifier {
-/*  final FirebaseStorage _storage = FirebaseStorage.instance;
-
-  Future<String> uploadImage(File file, String path) async {
-    final ref = _storage.ref().child(path);
-    final uploadTask = ref.putFile(file);
-    final snapshot = await uploadTask.whenComplete(() => null);
-    final url = await snapshot.ref.getDownloadURL();
-    return url;
-  }
-
-  Future<void> deleteImage(String path) async {
-    final ref = _storage.ref().child(path);
-    await ref.delete();
-  }*/
-
   final FirebaseStorageService _firebaseStorageService =
       FirebaseStorageService();
 

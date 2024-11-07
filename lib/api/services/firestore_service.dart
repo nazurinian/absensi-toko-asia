@@ -16,7 +16,6 @@ class FirestoreService {
       return ApiResult(
           status: 'success', message: 'Berhasil menyimpan data awal user');
     } catch (e) {
-      print('Error saving user first data: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -30,7 +29,6 @@ class FirestoreService {
       return ApiResult(
           status: 'success', message: 'Berhasil mengupdate data user');
     } catch (e) {
-      print('Error updating user data: $e');
       return ApiResult(
           status: 'error',
           message: 'Gagal mengupdate data user: ${e.toString()}');
@@ -52,7 +50,6 @@ class FirestoreService {
       return ApiResult(
           status: 'success', message: 'User belum terdaftar', data: null);
     } catch (e) {
-      print('Error getting user: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -63,7 +60,6 @@ class FirestoreService {
       QuerySnapshot querySnapshot = await _db.collection('users').get();
 
       if (querySnapshot.size == 0 || querySnapshot.docs.isEmpty) {
-        print('No users found.');
         return ApiResult(status: 'error', message: 'No users found', data: []);
       }
       List<UserModel> users = querySnapshot.docs
@@ -75,7 +71,6 @@ class FirestoreService {
         data: users,
       );
     } catch (e) {
-      print('Error getting list of users: $e');
       return ApiResult(status: 'error', message: e.toString(), data: []);
     }
   }
@@ -101,7 +96,6 @@ class FirestoreService {
       return ApiResult(
           status: 'success', message: 'Berhasil memperbarui profil user');
     } catch (e) {
-      print('Error updating user profile: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -130,7 +124,6 @@ class FirestoreService {
             nationalHoliday: 'Tidak ada libur'),
       );
     } catch (e) {
-      print('Error getting attendance data: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -146,7 +139,6 @@ class FirestoreService {
         message: 'Berhasil memperbarui data attendance',
       );
     } catch (e) {
-      print('Error updating attendance data: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -164,8 +156,9 @@ class FirestoreService {
   Future<void> updateAppVersion(AppVersionModel appVersion) async {
     await _db.collection('information').doc('latest_version').set(appVersion.toMap());
   }
+}
 
-  // (GAK JADI PAKE FIRESTORE, GANTI PAKE RTDB) Fungsi untuk mendapatkan data history
+// (GAK JADI PAKE FIRESTORE, GANTI PAKE RTDB) Fungsi untuk mendapatkan data history
 /*  // Fungsi untuk menginisialisasi data history
   Future<ApiResult<dynamic>> initializeHistory(
     String userName,
@@ -335,4 +328,3 @@ class FirestoreService {
       return {};
     }
   }*/
-}

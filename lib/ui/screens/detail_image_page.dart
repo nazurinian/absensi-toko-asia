@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:absensitoko/core/themes/fonts/fonts.dart';
 
 class DetailProfilePicturePage extends StatelessWidget {
   final String imageUrl;
@@ -14,7 +13,6 @@ class DetailProfilePicturePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Foto Profil'),
         backgroundColor: Colors.black,
-        // titleTextStyle: FontTheme.size22Appbar(color: Colors.white),
         iconTheme: const IconThemeData(
           color: Colors.white, // Ubah warna ikon menjadi putih
         ),

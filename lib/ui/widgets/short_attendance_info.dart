@@ -128,7 +128,7 @@ class _ShortAttendanceInfoState extends State<ShortAttendanceInfo>
                     onTap: () async {
                       final isConnected =
                           await NetworkHelper.hasInternetConnection();
-                      if (isConnected) {
+                      if (isConnected && context.mounted) {
                         Navigator.pushNamed(context, '/attendance',
                             arguments: AttendancePageArguments(
                                 employeeName: widget.userName,
