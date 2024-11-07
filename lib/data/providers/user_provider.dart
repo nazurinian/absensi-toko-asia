@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:absensitoko/api/api_result.dart';
 import 'package:absensitoko/api/services/auth_service.dart';
 import 'package:absensitoko/api/services/firestore_service.dart';
-import 'package:absensitoko/api/session_service.dart';
+import 'package:absensitoko/api/services/session_service.dart';
 import 'package:absensitoko/data/models/session_model.dart';
 import 'package:absensitoko/data/models/user_model.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -292,6 +292,7 @@ class UserProvider extends ChangeNotifier {
 
     notifyListeners();
   }
+}
 
 // Reset Password Function
 /*  Future<ApiResult> resetPassword(String email) async {
@@ -335,4 +336,3 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }*/
-}

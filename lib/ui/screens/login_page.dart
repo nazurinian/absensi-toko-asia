@@ -14,10 +14,7 @@ import 'package:absensitoko/ui/widgets/custom_text_form_field.dart';
 import 'package:absensitoko/utils/popup_util.dart';
 import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
 import 'package:absensitoko/data/providers/user_provider.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
 
@@ -38,7 +35,7 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
   bool _firstSubmit = true;
   bool isCancelled = false;
 
-  String _attendanceLocationStatus = 'Get Location Permission';
+  // String _attendanceLocationStatus = 'Get Location Permission';
   LatLng? _attendanceLocation;
   String _deviceName = '';
 
@@ -48,13 +45,12 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
     if(!permissionResult.isGranted) {
       ToastUtil.showToast(permissionResult.statusMessage, ToastStatus.error);
     }
-    print(permissionResult.statusMessage);
   }
 
   // Cek apakah pengguna berada dalam radius absensi
-  Future<void> _cekLokasiSekali({VoidCallback? onPopInvoked}) async {
+  Future<void> _cekLokasiSekali() async {
     LocationCheckResult locationCheckResult = await locationService.cekLokasiSekali();
-    _attendanceLocationStatus = locationCheckResult.statusMessage;
+    // _attendanceLocationStatus = locationCheckResult.statusMessage;
     if(locationCheckResult.isMocked && mounted) {
       SnackbarUtil.showSnackbar(context: context, message: 'Gagal login, gps bermasalah!');
       return;
@@ -239,17 +235,12 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 50.0, bottom: 20),
+                Padding(
+                  padding: const EdgeInsets.only(top: 50.0, bottom: 20),
                   child: Center(
                     child: SizedBox(
-                      width: 120,
-                      height: 120,
-                      // child: Image.asset(AppImage.kamus.path, fit: BoxFit.cover),
-                      child: Icon(
-                        Icons.account_circle,
-                        size: 120,
-                      ),
+                        height: 120,
+                        child: Image.asset(AppImage.attendanceApp.path, fit: BoxFit.fill)
                     ),
                   ),
                 ),
@@ -309,7 +300,7 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
                             child: TextButton(
                               style: ButtonStyle(
                                 overlayColor:
-                                    WidgetStateProperty.all(Colors.transparent),
+                                WidgetStateProperty.all(Colors.transparent),
                                 splashFactory: NoSplash
                                     .splashFactory, // Menghilangkan efek splash
                               ),
@@ -336,10 +327,12 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
                                   if (isConnected) {
                                     _login();
                                   } else {
-                                    SnackbarUtil.showSnackbar(
-                                      context: context,
-                                      message: 'Tidak ada koneksi internet',
-                                    );
+                                    if(context.mounted) {
+                                      SnackbarUtil.showSnackbar(
+                                        context: context,
+                                        message: 'Tidak ada koneksi internet',
+                                      );
+                                    }
                                   }
                                 },
                                 child: const Text(
@@ -383,7 +376,7 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
                                       height: 50,
                                       width: 50,
                                       child: Image.asset(
-                                        AppImage.leaf_flipped.path,
+                                        AppImage.leafFlipped.path,
                                         fit: BoxFit.cover,
                                       ),
                                     ),
@@ -404,89 +397,4 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
       ),
     );
   }
-
-// Fungsi login sebelum disederhanakan
-/*  Future<void> _login() async {
-    _cekIzinLokasi();
-
-    setState(() {
-      _firstSubmit = false;
-    });
-
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    _unFocus();
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final currentTime = Provider.of<TimeProvider>(context, listen: false)
-        .currentTime
-        .postTime();
-
-    LoadingDialog.show(context);
-    await _cekLokasiSekali();
-
-    if(mounted) {
-      String deviceName = await DeviceUtils.getDeviceName(context);
-      setState(() {
-        _deviceName = deviceName;
-      });
-    }
-
-    print('device: $_deviceName');
-    try {
-      safeContext((context) async {
-        final message = await userProvider.loginUser(
-          context,
-          _emailController.text,
-          _passwordController.text,
-          currentTime,
-          _deviceName,
-          _attendanceLocation!,
-        );
-
-        if (message.status == 'success') {
-          final userData = userProvider.currentUser!;
-
-          if (userProvider.currentUser != null) {
-            final user = SessionModel(
-              uid: userData.uid,
-              email: userData.email,
-              role: userData.role,
-              loginTimestamp: userData.loginTimestamp,
-              loginDevice: _deviceName,
-              isLogin: true,
-            );
-
-            await userProvider.saveSession(user, _deviceName);
-
-            safeContext((context) {
-              LoadingDialog.hide(context);
-              SnackbarUtil.showSnackbar(
-                  context: context, message: message.message ?? '');
-
-              Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-            });
-          } else {
-            safeContext((context) {
-              LoadingDialog.hide(context);
-              SnackbarUtil.showSnackbar(
-                  context: context, message: message.message ?? '');
-            });
-          }
-        } else {
-          safeContext((context) {
-            LoadingDialog.hide(context);
-            SnackbarUtil.showSnackbar(
-                context: context, message: message.message ?? '');
-          });
-        }
-      });
-    } catch (e) {
-      safeContext((context) {
-        LoadingDialog.hide(context);
-        SnackbarUtil.showSnackbar(context: context, message: e.toString());
-      });
-    }
-  }*/
 }

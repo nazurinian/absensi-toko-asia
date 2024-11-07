@@ -1,5 +1,5 @@
+import 'package:absensitoko/core/constants/items_list.dart';
 import 'package:absensitoko/data/models/history_model.dart';
-import 'package:absensitoko/data/models/version_model.dart';
 import 'package:absensitoko/data/models/attendance_info_model.dart';
 import 'package:absensitoko/data/models/user_model.dart';
 import 'package:absensitoko/data/providers/data_provider.dart';
@@ -19,7 +19,6 @@ import 'package:absensitoko/utils/popup_util.dart';
 import 'package:absensitoko/core/constants/options_menu.dart';
 import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
 import 'package:absensitoko/utils/helpers/network_helper.dart';
-import 'package:absensitoko/utils/time_picker_util.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -65,7 +64,6 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     await userProvider.loadUserSession();
     final userDataSession = userProvider.currentUserSession;
     setState(() => _deviceName = userProvider.deviceID!);
-    print('Nama Perangkat: $_deviceName');
 
     safeContext((context) => LoadingDialog.show(context));
     try {
@@ -230,13 +228,11 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     }
 
     if (dataProvider.isSelectedDateHistoryAvailable && !isRefresh) {
-      print('Data absensi sudah ada');
       ToastUtil.showToast('Data absensi sudah ada', ToastStatus.success);
       return;
     }
 
     String action = isRefresh ? 'Memperbarui' : 'Mendapatkan';
-    print('$action data absensi');
 
     final result = await dataProvider.getThisDayHistory(
         _userName, currentTime.postTime(),
@@ -244,9 +240,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     if (result.status == 'success') {
       ToastUtil.showToast('Berhasil $action data absensi', ToastStatus.success);
     } else {
-      print('Gagal $action data absensi');
       ToastUtil.showToast(
-          'Gagal $action data absensi' ?? '', ToastStatus.error);
+          'Gagal $action data absensi', ToastStatus.error);
     }
   }
 
@@ -312,7 +307,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                           Positioned(
                             bottom: 0,
                             child: Image.asset(
-                              'assets/images/atk_bottom.png',
+                              AppImage.atk.path,
                               width: screenWidth(context),
                               fit: BoxFit.cover,
                               alignment: Alignment.bottomCenter,
@@ -410,7 +405,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                             left: 0,
                                             bottom: 0,
                                             child: Image.asset(
-                                              'assets/images/jam.png',
+                                              AppImage.watch.path,
                                               width: 175,
                                             ),
                                           ),
@@ -481,7 +476,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                       bool isConnected =
                                                           await NetworkHelper
                                                               .hasInternetConnection();
-                                                      if (isConnected) {
+                                                      if (isConnected && context.mounted) {
                                                         Navigator.pushNamed(
                                                             context,
                                                             '/attendance',
@@ -489,7 +484,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                                 employeeName:
                                                                     _userName,
                                                                 deviceName:
-                                                                    _deviceName!));
+                                                                    _deviceName ?? ''));
                                                       } else {
                                                         ToastUtil.showToast(
                                                             'Tidak ada koneksi internet',
@@ -527,8 +522,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                           Positioned(
                                             right: 0,
                                             bottom: 0,
-                                            child: Image.asset(
-                                              'assets/images/daun_flipped.png',
+                                            child: Image.asset(,
                                               width: 175,
                                             ),
                                           ),
@@ -957,7 +951,6 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
       ) as bool;
       if (updateProfile) {
         _fetchUserData();
-        print('Memperbarui data user');
       }
       // Memastikan data diperbarui setelah kembali dari halaman edit
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -1014,190 +1007,4 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     _breaktimeFocus.unfocus();
     _nationalHolidayFocus.unfocus();
   }
-
-// Widget Fungsi ShortAttendanceInfo setelah disederhanakan, dan disempurnakan menggunakan kelas widget khusus
-/*Widget _shortAttendanceInfo(CustomTime currentTime) {
-  return Container(
-    height: 60,
-    width: double.infinity,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(20),
-      color: Theme.of(context).colorScheme.tertiaryContainer,
-    ),
-    child: Consumer<DataProvider>(builder: (context, dataProvider, child) {
-      final historyData = dataProvider.selectedDateHistory;
-
-      if (!dataProvider.isSelectedDateHistoryAvailable && dataProvider.isLoading) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
-      final bool historyAvailable = historyData != null;
-      final String morningHistoryStatus = historyAvailable
-          ? (historyData.tLPagi?.isNotEmpty ?? false) ? 'Anda sudah absen pagi' : 'Anda belum absen pagi'
-          : '(Cek koneksi internet)';
-
-      final String afternoonHistoryStatus = historyAvailable
-          ? (historyData.tLSiang?.isNotEmpty ?? false) ? 'Anda sudah absen siang' : 'Anda belum absen siang'
-          : '(Cek koneksi internet)';
-
-      // Cek apakah saat ini berada dalam rentang waktu pagi atau siang
-      final bool isMorningTime = isCurrentTimeWithinRange(
-        currentTime.getDefaultDateTime(),
-        '$morningStartHour:$morningStartMinute',
-        '12:00',
-      );
-
-      final bool isAfternoonTime = isCurrentTimeWithinRange(
-        currentTime.getDefaultDateTime(),
-        '12:00',
-        '$storeClosedHour:$storeClosedMinute',
-      );
-
-      // Tentukan status yang akan ditampilkan berdasarkan rentang waktu
-      final String? historyStatus = isMorningTime
-          ? morningHistoryStatus
-          : isAfternoonTime
-          ? afternoonHistoryStatus
-          : null;
-
-      // Sembunyikan widget jika di luar rentang waktu yang ditentukan
-      if (historyStatus == null) return const SizedBox.shrink();
-
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          splashColor: Colors.greenAccent,
-          onTap: () async {
-            bool isConnected = await NetworkHelper.hasInternetConnection();
-            if (isConnected) {
-              Navigator.pushNamed(context, '/attendance',
-                  arguments: userName);
-            } else {
-              ToastUtil.showToast(
-                  'Tidak ada koneksi internet', ToastStatus.error);
-            }
-            // Provider.of<TimeProvider>(context, listen: false).stopUpdatingTime();
-          },
-          child: Container(
-            padding: const EdgeInsets.all(8.0),
-            height: 60,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_alert_sharp,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  historyStatus,
-                  style: FontTheme.bodyLarge(context,
-                      color: Theme.of(context).indicatorColor, fontSize: 20),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }),
-  );
-}*/
-
-// Fungsi fetchUserData dan Logout sebelum disederhanakan
-/*
-  Future<void> _fetchUserdata() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    UserModel? userData = userProvider.currentUser;
-
-    if (!userProvider.userDataIsLoaded) {
-      await userProvider.loadUserSession();
-      final userDataSession = userProvider.currentUserSession;
-      final _deviceName = userProvider.deviceID;
-      print('Nama Perangkat: $_deviceName');
-
-      try {
-        final result = await userProvider.getUser(userDataSession!.uid);
-
-        if (result.status == 'success') {
-          userData = userProvider.currentUser;
-          if (userData!.loginDevice != _deviceName) {
-            DialogUtils.showSessionExpiredDialog(context).then((value) {
-              if (value!) {
-                _handleLogout();
-              }
-            });
-          } else {
-            setState(() {
-              _user = userData;
-            });
-            ToastUtil.showToast(
-                'Berhasil memperoleh data', ToastStatus.success);
-          }
-        } else {
-          ToastUtil.showToast(result.message ?? '', ToastStatus.error);
-        }
-      } catch (e) {
-        safeContext((context) {
-          SnackbarUtil.showSnackbar(context: context, message: e.toString());
-        });
-      }
-    } else {
-      setState(() {
-        _user = userData;
-      });
-    }
-    // _lockAccess = !roleList.contains(_user?.role?.toLowerCase());
-  }
-
-  void _handleLogout() async {
-    final userDataSession = Provider.of<UserProvider>(context, listen: false)
-        .currentUserSession!
-        .uid;
-    final currentTime = Provider.of<TimeProvider>(context, listen: false)
-        .currentTime
-        .postTime();
-    UserModel user = UserModel(
-      uid: userDataSession,
-      logoutTimestamp: currentTime,
-      loginTimestamp: '',
-      loginLat: '',
-      loginLong: '',
-      loginDevice: '',
-    );
-
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-    LoadingDialog.show(context);
-    try {
-      final message = await userProvider.signOut(user);
-
-      if (message.status == 'success') {
-        Future.delayed(const Duration(seconds: 1), () {
-          LoadingDialog.hide(context);
-          SnackbarUtil.showSnackbar(
-              context: context, message: 'Anda telah logout');
-          userProvider.clearAccountData();
-          Provider.of<DataProvider>(context, listen: false).clearData();
-          print('Data Cleared');
-        }).then((_) {
-          Navigator.pushNamedAndRemoveUntil(
-              context, '/login', (route) => false);
-        });
-        // });
-      } else {
-        safeContext((context) {
-          LoadingDialog.hide(context);
-          SnackbarUtil.showSnackbar(
-              context: context, message: message.message ?? 'Error');
-        });
-      }
-    } catch (e) {
-      safeContext((context) {
-        LoadingDialog.hide(context);
-        SnackbarUtil.showSnackbar(context: context, message: e.toString());
-      });
-    }
-  }
- */
 }

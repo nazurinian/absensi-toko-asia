@@ -10,11 +10,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 class VersionChecker {
   static Future<void> checkForUpdates() async {
-    // final context = locator<GlobalKey<NavigatorState>>().currentContext!;
     final context = navigatorKey.currentContext!;
 
     AppVersionModel thisAppVer = await DeviceUtils.getAppInfo();
-    // final dataProvider = GetIt.instance<DataProvider>(); // Menggunakan DataProvider dari GetIt akan menyebabkan terciptanya instance DataProvider baru sehingga tidak sinkron dengan DataProvider utama
 
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
     String title = 'Pembaruan Diperlukan';
@@ -64,9 +62,6 @@ class VersionChecker {
         }
       }
     }
-
-    print('Versi saat ini : ${thisAppVer.toString()}');
-    print('Versi terbaru : ${newAppVer.toString()}');
   }
 
   static Future<void> setAppVersion(AppVersionModel appVersion) async {
@@ -74,6 +69,5 @@ class VersionChecker {
 
     Provider.of<DataProvider>(context, listen: false).updateAppVersion(appVersion);
 
-    print(appVersion);
   }
 }

@@ -19,6 +19,7 @@ class CustomListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(title),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
       subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: _buildTrailing(context),
       onTap: onTap,

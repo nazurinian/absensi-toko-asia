@@ -2,32 +2,13 @@
 class Assets {
   Assets._();
 
-  static const String googleFontsAclonicaRegular = 'google_fonts/Aclonica-Regular.ttf';
-  static const String googleFontsLatoBlack = 'google_fonts/Lato-Black.ttf';
-  static const String googleFontsLatoBlackItalic = 'google_fonts/Lato-BlackItalic.ttf';
-  static const String googleFontsLatoBold = 'google_fonts/Lato-Bold.ttf';
-  static const String googleFontsLatoBoldItalic = 'google_fonts/Lato-BoldItalic.ttf';
-  static const String googleFontsLatoItalic = 'google_fonts/Lato-Italic.ttf';
-  static const String googleFontsLatoLight = 'google_fonts/Lato-Light.ttf';
-  static const String googleFontsLatoLightItalic = 'google_fonts/Lato-LightItalic.ttf';
-  static const String googleFontsLatoRegular = 'google_fonts/Lato-Regular.ttf';
-  static const String googleFontsLatoThin = 'google_fonts/Lato-Thin.ttf';
-  static const String googleFontsLatoThinItalic = 'google_fonts/Lato-ThinItalic.ttf';
-  static const String googleFontsRobotoBlack = 'google_fonts/Roboto-Black.ttf';
-  static const String googleFontsRobotoBlackItalic = 'google_fonts/Roboto-BlackItalic.ttf';
-  static const String googleFontsRobotoBold = 'google_fonts/Roboto-Bold.ttf';
-  static const String googleFontsRobotoBoldItalic = 'google_fonts/Roboto-BoldItalic.ttf';
-  static const String googleFontsRobotoItalic = 'google_fonts/Roboto-Italic.ttf';
-  static const String googleFontsRobotoLight = 'google_fonts/Roboto-Light.ttf';
-  static const String googleFontsRobotoLightItalic = 'google_fonts/Roboto-LightItalic.ttf';
-  static const String googleFontsRobotoMedium = 'google_fonts/Roboto-Medium.ttf';
-  static const String googleFontsRobotoMediumItalic = 'google_fonts/Roboto-MediumItalic.ttf';
-  static const String googleFontsRobotoRegular = 'google_fonts/Roboto-Regular.ttf';
-  static const String googleFontsRobotoThin = 'google_fonts/Roboto-Thin.ttf';
-  static const String googleFontsRobotoThinItalic = 'google_fonts/Roboto-ThinItalic.ttf';
-  static const String imagesDaun = 'assets/images/daun.png';
-  static const String imagesJam = 'assets/images/jam.png';
-  static const String imagesStopwatch = 'assets/images/stopwatch.png';
-  static const String imagesUser = 'assets/images/user.png';
+  static const String images01 = 'images/01.png';
+  static const String images02 = 'images/02.png';
+  static const String images03 = 'images/03.png';
+  static const String images04 = 'images/04.png';
+  static const String images05 = 'images/05.png';
+  static const String images06 = 'images/06.png';
+  static const String images07 = 'images/07.png';
+  static const String images08 = 'images/08.png';
 
 }

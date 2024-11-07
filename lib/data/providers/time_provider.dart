@@ -1,13 +1,15 @@
 import 'package:absensitoko/core/constants/constants.dart';
-import 'package:absensitoko/data/models/attendance_info_model.dart';
 import 'package:absensitoko/data/models/history_model.dart';
-import 'package:absensitoko/utils/helpers/general_helper.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:absensitoko/data/models/time_model.dart';
 import 'package:ntp/ntp.dart';
 
-// Attendance Time Provider
+// Waktu pagi :
+// jam 06:50:00 - 07:04:00 untuk poin 0
+// jam 07:04:01 - 07:09:00 untuk poin 5
+// jam 07:09:01 - 10:00:00 untuk poin 10
+
 class TimeProvider extends ChangeNotifier {
   Timer? _timer;
 
@@ -53,15 +55,11 @@ class TimeProvider extends ChangeNotifier {
 
   String get attendancePoint => _calculateAttendancePoint();
 
-/*  TimeProvider() : _currentTime = CustomTime.getCurrentTime() {
-    _initializeNtpTime();
-  }*/
-
   TimeProvider() {
-    _currentTime = CustomTime.getCurrentTime();
-    _startTimer();
-    // _currentTime = CustomTime.getInitialTime();
-    // _initializeNtpTime();
+    // _currentTime = CustomTime.getCurrentTime();
+    // _startTimer();
+    _currentTime = CustomTime.getInitialTime();
+    _initializeNtpTime();
   }
 
   Future<void> _initializeNtpTime() async {
@@ -70,7 +68,6 @@ class TimeProvider extends ChangeNotifier {
       _ntpTime = _ntpTime.add(_gmt8Offset); // Set GMT+8 (WITA)
       _startTimer();
     } catch (e) {
-      print("Failed to get NTP time: $e");
       // fallback jika tidak ada waktu NTP
       _ntpTime = DateTime.now().add(_gmt8Offset);
       _startTimer();
@@ -81,11 +78,11 @@ class TimeProvider extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       // Update waktu setiap detik dengan mengacu pada waktu NTP awal
       // Gunakan offset GMT+8 setiap kali update
-      // DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
-      // _currentTime = CustomTime.fromDateTime(updatedTime);
+      DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
+      _currentTime = CustomTime.fromDateTime(updatedTime);
       // print('Difference: ${DateTime.now().difference(_ntpTime).inHours}');
 
-      _currentTime = CustomTime.getCurrentTime();
+      // _currentTime = CustomTime.getCurrentTime();
       _updateAttendanceState();
       notifyListeners();
     });
@@ -242,8 +239,6 @@ class TimeProvider extends ChangeNotifier {
       _currentTime.getSecond(),
     );
 
-    // bool isHoliday = nationalHoliday.isNotEmpty || now.weekday == DateTime.sunday;
-
     final morningStartTime = _isHoliday
         ? DateTime(now.year, now.month, now.day, morningHolidayStartHour,
             morningHolidayStartMinute)
@@ -263,8 +258,6 @@ class TimeProvider extends ChangeNotifier {
         morningLateEndTime.add(const Duration(seconds: 1));
     final morningOverLateEndTime = DateTime(
         now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
-
-    // bool morningAlreadyCheckedIn = (historyData.tLPagi != null && historyData.tLPagi!.isNotEmpty) ? true : false;
 
     _morningAttendanceMessage = _setAttendanceMessage(
       title: 'pagi',
@@ -292,8 +285,6 @@ class TimeProvider extends ChangeNotifier {
         afternoonLateEndTime.add(const Duration(seconds: 1));
     final afternoonOverLateEndTime = breakTime.add(const Duration(
         minutes: afternoonLateToEndMinutes + afternoonPreparationMinutes));
-
-    // bool afternoonAlreadyCheckedIn = (historyData.tLSiang != null && historyData.tLSiang!.isNotEmpty) ? true : false;
 
     _afternoonAttendanceMessage = _setAttendanceMessage(
       title: 'siang',
@@ -338,13 +329,6 @@ class TimeProvider extends ChangeNotifier {
     DateTime morningLateEndTime = DateTime(
         now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
 
-/*
-    print('Morning Start: $morningStartTime');
-    print('Morning End: $morningEndTime');
-    print('Morning Late Start: $morningLateStartTime');
-    print('Morning Late End: $morningLateEndTime');
-*/
-
     // Cek apakah user sudah absen pagi
     bool alreadyCheckedIn =
         (historyData.tLPagi != null && historyData.tLPagi!.isNotEmpty)
@@ -384,14 +368,6 @@ class TimeProvider extends ChangeNotifier {
     DateTime afternoonLateEndTime = breakTime.add(const Duration(
         minutes: afternoonLateToEndMinutes +
             afternoonPreparationMinutes)); // 1 jam setelah break
-
-/*
-    print('Break Time: $breakTime');
-    print('Afternoon Start: $afternoonStartTime');
-    print('Afternoon End: $afternoonEndTime');
-    print('Afternoon Late Start: $afternoonLateStartTime');
-    print('Afternoon Late End: $afternoonLateEndTime');
-*/
 
     // Cek apakah user sudah absen siang
     bool alreadyCheckedIn =
@@ -463,13 +439,6 @@ class TimeProvider extends ChangeNotifier {
       _currentTime.getSecond(),
     );
 
-    // Waktu pagi :
-    // jam 06:50:00 - 07:04:00 untuk poin 0
-    // jam 07:04:01 - 07:09:00 untuk poin 5
-    // jam 07:09:01 - 10:00:00 untuk poin 10
-
-    // Periksa apakah hari ini tanggal merah (libur nasional atau hari Minggu)
-    // bool isHoliday = nationalHoliday.isNotEmpty || now.weekday == DateTime.sunday;
     final morningStartTime = _isHoliday
         ? DateTime(now.year, now.month, now.day, morningHolidayStartHour,
             morningHolidayStartMinute)
@@ -479,14 +448,6 @@ class TimeProvider extends ChangeNotifier {
         now.year, now.month, now.day, storeClosedHour, storeClosedMinute);
     final breakTime =
         DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
-
-/*
-    print('---------------------------------------');
-    print('Now: $now');
-    print('Store Close: $storeCloseTime');
-    print('Break Time: $breakTime');
-    print('---------------------------------------');
-*/
 
     // Jika absensi dilakukan sebelum waktu pagi atau setelah tutup toko
     if (now.isBefore(morningStartTime) || now.isAfter(storeCloseTime)) {
@@ -502,16 +463,6 @@ class TimeProvider extends ChangeNotifier {
         morningLateEndTime.add(const Duration(seconds: 1));
     final morningOverLateEndTime = DateTime(
         now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
-
-/*
-    print('Morning Start: $morningStartTime');
-    print('Morning End: $morningEndTime');
-    print('Morning Late Start: $morningLateStartTime');
-    print('Morning Late End: $morningLateEndTime');
-    print('Morning Over Late Start: $morningOverLateStartTime');
-    print('Morning Over Late End: $morningOverLateEndTime');
-    print('---------------------------------------');
-*/
 
     if (isWithinTimeRangeInclusive(now, morningStartTime, morningEndTime)) {
       return '0'; // Tepat waktu
@@ -536,16 +487,6 @@ class TimeProvider extends ChangeNotifier {
         afternoonLateEndTime.add(const Duration(seconds: 1));
     final afternoonOverLateEndTime = breakTime.add(const Duration(
         minutes: afternoonLateToEndMinutes + afternoonPreparationMinutes));
-
-/*
-    print('Afternoon Start: $afternoonStartTime');
-    print('Afternoon End: $afternoonEndTime');
-    print('Afternoon Late Start: $afternoonLateStartTime');
-    print('Afternoon Late End: $afternoonLateEndTime');
-    print('Afternoon Over Late Start: $afternoonOverLateStartTime');
-    print('Afternoon Over Late End: $afternoonOverLateEndTime');
-    print('---------------------------------------');
-*/
 
     if (isWithinTimeRangeInclusive(now, afternoonStartTime, afternoonEndTime)) {
       return '0'; // Tepat waktu

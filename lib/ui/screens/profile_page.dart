@@ -1,8 +1,6 @@
 import 'dart:io';
-import 'package:absensitoko/generated/assets.dart';
 import 'package:absensitoko/data/providers/connection_provider.dart';
 import 'package:absensitoko/utils/helpers/general_helper.dart';
-import 'package:absensitoko/utils/helpers/network_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,7 +11,6 @@ import 'package:absensitoko/core/themes/fonts/fonts.dart';
 import 'package:absensitoko/utils/base/base_state.dart';
 import 'package:absensitoko/utils/dialogs/dialog_utils.dart';
 import 'package:absensitoko/utils/popup_util.dart';
-import 'package:absensitoko/core/constants/items_list.dart';
 import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
 import 'package:absensitoko/ui/widgets/profile_avatar.dart';
 import 'package:absensitoko/ui/screens/detail_image_page.dart';
@@ -219,7 +216,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                       .uploadProfilePicture(croppedImageFile, uid);
               String? imageUrl = response.data;
               if (response.status == 'success' && imageUrl != null) {
-                print('Berhasil mengupload gambar');
                 ToastUtil.showToast(
                     'Berhasil mengupload gambar', ToastStatus.success);
                 await _updateUserProfileData("Foto Profil", photoURL: imageUrl);
@@ -227,18 +223,15 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                 safeContext(
                   (context) => LoadingDialog.hide(context),
                 );
-                print('Gagal mengupload gambar');
                 ToastUtil.showToast(
                     'Gagal mengupload gambar', ToastStatus.error);
               }
             },
           );
         } else {
-          print('UID tidak ditemukan');
           ToastUtil.showToast('UID tidak ditemukan', ToastStatus.error);
         }
       } else {
-        print('Gambar tidak dicrop');
         ToastUtil.showToast('Gambar tidak dicrop', ToastStatus.error);
       }
     }
@@ -296,7 +289,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
         },
       );
     } else {
-      print('Izin ditolak');
       if (status.isPermanentlyDenied) {
         openAppSettings();
       }
@@ -313,16 +305,12 @@ class _ProfilePageState extends BaseState<ProfilePage> {
         setState(() {
           _registeredAccount = listUserName;
         });
-        print('Daftar list akun: $_registeredAccount');
-        print('Berhasil memperoleh list user');
         ToastUtil.showToast(
             'Berhasil memperoleh list user', ToastStatus.success);
       } else {
-        print('Gagal memperoleh list user');
         ToastUtil.showToast('Gagal memperoleh list user', ToastStatus.error);
       }
     } catch (e) {
-      print('Error: $e');
       ToastUtil.showToast('Error: $e', ToastStatus.error);
     }
   }
@@ -457,51 +445,6 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                           const SizedBox(
                             height: 25,
                           ),
-                          /*Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 25.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(
-                                        height: 40,
-                                        width: 40,
-                                        child: Image.asset(
-                                          AppImage.najwa.path,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                      const SizedBox(
-                                        width: 5,
-                                      ),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 70,
-                                        child: Image.asset(
-                                          AppImage.najwa.path,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                      const SizedBox(
-                                        width: 5,
-                                      ),
-                                      SizedBox(
-                                        height: 40,
-                                        width: 40,
-                                        child: Image.asset(
-                                          AppImage.najwa.path,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),*/
                         ],
                       ),
                     ),

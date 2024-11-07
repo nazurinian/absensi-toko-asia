@@ -1,3 +1,4 @@
+import 'package:absensitoko/core/constants/items_list.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -41,10 +42,10 @@ class ProfileAvatar extends StatelessWidget {
                   placeholder: (context, url) =>
                       const Center(child: CircularProgressIndicator()),
                   errorWidget: (context, url, error) => Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       image: DecorationImage(
-                        image: AssetImage('assets/images/user.png'),
+                        image: AssetImage(AppImage.blankUser.path),
                         fit: BoxFit.cover,
                       ),
                     ),

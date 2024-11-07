@@ -31,7 +31,6 @@ class RealtimeDatabaseService {
         message: 'Inisialisasi data history berhasil untuk pengguna: $userName',
       );
     } catch (e) {
-      print('Error initializing history: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -63,7 +62,6 @@ class RealtimeDatabaseService {
         return ApiResult(status: 'error', message: 'Data tidak ditemukan.');
       }
     } catch (e) {
-      print('Error getting history: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -88,15 +86,12 @@ class RealtimeDatabaseService {
       );
       final newHistoryData = HistoryData.fromMap(newData);
 
-      print('update Data: ${data.toString()}');
-      print('new Data: ${newData.toString()}');
       return ApiResult(
         status: 'success',
         message: 'Data history berhasil diperbarui.',
         data: newHistoryData,
       );
     } catch (e) {
-      print('Error updating history: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -139,7 +134,6 @@ class RealtimeDatabaseService {
         );
       }
     } catch (e) {
-      print('Error getting all history for user: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -170,16 +164,10 @@ class RealtimeDatabaseService {
 
           // Memastikan daySnapshot.value adalah Map<String, dynamic>
           if (daySnapshot.value is Map) {
-            try {
               // Konversi menjadi Map<String, dynamic> untuk HistoryData
               HistoryData historyData = HistoryData.fromMap(
                   Map<String, dynamic>.from(daySnapshot.value as Map));
               dayHistoryMap[dateKey] = historyData; // Isi dayHistoryMap dengan tanggal dan data
-            } catch (e) {
-              print('Data tidak valid untuk tanggal: $dateKey, tipe data: ${daySnapshot.value.runtimeType}, error: $e');
-            }
-          } else {
-            print('Data tidak valid untuk tanggal: $dateKey, tipe data: ${daySnapshot.value.runtimeType}');
           }
         }
 
@@ -197,7 +185,6 @@ class RealtimeDatabaseService {
         data: monthlyHistory,
       );
     } catch (e) {
-      print('Error getting all history: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }
@@ -216,13 +203,11 @@ class RealtimeDatabaseService {
         );
       }
 
-      // Map<String, Map<String, Map<String, HistoryData>>> allCompleteHistory = {};
       Map<String, MonthlyHistory> allUsersHistoryMap = {};
 
       // Loop melalui setiap pengguna
       for (var userSnapshot in snapshot.children) {
         String userName = userSnapshot.key ?? '';
-        // final userCompleteHistoryMap = <String, Map<String, HistoryData>>{};
         final monthlyHistoryMap = <String, DailyHistory>{};
 
         // Loop melalui setiap tahunBulan untuk pengguna ini
@@ -238,11 +223,9 @@ class RealtimeDatabaseService {
             dateMap[date] = historyData; // Masukkan ke map tanggal
           }
 
-          // userCompleteHistoryMap[tahunBulan] = dateMap; // Masukkan ke map tahunBulan
           monthlyHistoryMap[tahunBulan] = DailyHistory(historyData: dateMap);
         }
 
-        // allCompleteHistory[userName] = userCompleteHistoryMap; // Masukkan ke map nama pengguna
         allUsersHistoryMap[userName] = MonthlyHistory(dayHistory: monthlyHistoryMap);
       }
 
@@ -252,7 +235,6 @@ class RealtimeDatabaseService {
         data: HistoryModel(allUsersHistory: allUsersHistoryMap),
       );
     } catch (e) {
-      print('Error getting all complete history: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
   }

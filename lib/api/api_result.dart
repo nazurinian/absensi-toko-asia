@@ -1,4 +1,3 @@
-import 'package:absensitoko/data/models/attendance_model.dart';
 
 class ApiResult<T> {
   final String status;
