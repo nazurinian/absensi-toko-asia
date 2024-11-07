@@ -239,8 +239,8 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
                   padding: const EdgeInsets.only(top: 50.0, bottom: 20),
                   child: Center(
                     child: SizedBox(
-                        height: 120,
-                        child: Image.asset(AppImage.attendanceApp.path, fit: BoxFit.fill)
+                        height: 100,
+                        child: Image.asset(AppImage.attendanceApp.path, fit: BoxFit.contain)
                     ),
                   ),
                 ),

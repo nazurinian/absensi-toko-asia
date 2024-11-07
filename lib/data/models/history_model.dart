@@ -93,20 +93,20 @@ class DailyHistory {
 }
 
 class HistoryData {
-  final String? tanggalCreate;
-  final String? tanggalUpdate;
-  final String? hari;
-  final String? tLPagi;
-  final String? hadirPagi;
-  final String? pointPagi;
-  final String? tLSiang;
-  final String? pulangSiang;
-  final String? hadirSiang;
-  final String? pointSiang;
-  final String? keterangan;
-  final double? lat;
-  final double? long;
-  final String? deviceInfo;
+  String? tanggalCreate;
+  String? tanggalUpdate;
+  String? hari;
+  String? tLPagi;
+  String? hadirPagi;
+  String? pointPagi;
+  String? tLSiang;
+  String? pulangSiang;
+  String? hadirSiang;
+  String? pointSiang;
+  String? keterangan;
+  double? lat;
+  double? long;
+  String? deviceInfo;
 
   HistoryData({
     this.tanggalCreate,

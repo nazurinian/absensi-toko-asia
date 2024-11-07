@@ -1,5 +1,6 @@
 import 'package:absensitoko/core/constants/constants.dart';
 import 'package:absensitoko/data/models/history_model.dart';
+import 'package:absensitoko/utils/helpers/general_helper.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:absensitoko/data/models/time_model.dart';
@@ -56,10 +57,10 @@ class TimeProvider extends ChangeNotifier {
   String get attendancePoint => _calculateAttendancePoint();
 
   TimeProvider() {
-    // _currentTime = CustomTime.getCurrentTime();
-    // _startTimer();
-    _currentTime = CustomTime.getInitialTime();
-    _initializeNtpTime();
+    _currentTime = CustomTime.getCurrentTime();
+    _startTimer();
+    // _currentTime = CustomTime.getInitialTime();
+    // _initializeNtpTime();
   }
 
   Future<void> _initializeNtpTime() async {
@@ -78,11 +79,11 @@ class TimeProvider extends ChangeNotifier {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       // Update waktu setiap detik dengan mengacu pada waktu NTP awal
       // Gunakan offset GMT+8 setiap kali update
-      DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
-      _currentTime = CustomTime.fromDateTime(updatedTime);
+      // DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
+      // _currentTime = CustomTime.fromDateTime(updatedTime);
       // print('Difference: ${DateTime.now().difference(_ntpTime).inHours}');
 
-      // _currentTime = CustomTime.getCurrentTime();
+      _currentTime = CustomTime.getCurrentTime();
       _updateAttendanceState();
       notifyListeners();
     });
@@ -90,6 +91,11 @@ class TimeProvider extends ChangeNotifier {
 
   void stopUpdatingTime() {
     _timer?.cancel();
+  }
+
+  Future<void> refreshNtpTime() async {
+    stopUpdatingTime();
+    await _initializeNtpTime();
   }
 
   void updateAttendanceCheck(bool isMorning, {bool isOnTime = false}) {
@@ -119,13 +125,6 @@ class TimeProvider extends ChangeNotifier {
     _isHoliday = status;
   }
 
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    String minutes = twoDigits(duration.inMinutes.remainder(60));
-    String seconds = twoDigits(duration.inSeconds.remainder(60));
-    return "$minutes:$seconds";
-  }
-
   // Update attendance message and timer
   String _setAttendanceMessage({
     required String title,
@@ -152,7 +151,7 @@ class TimeProvider extends ChangeNotifier {
     else if (isWithinTimeRangeExclusive(
         now, startTime.subtract(const Duration(minutes: 30)), startTime)) {
       // print('2. Preparation time');
-      _countDownText = _formatDuration(startTime.difference(now));
+      _countDownText = formatDuration(startTime.difference(now));
       return 'Persiapan absen $title';
     }
 
@@ -177,7 +176,7 @@ class TimeProvider extends ChangeNotifier {
     // Check on-time attendance (ABSEN TEPAT WAKTU | Belum absen)
     else if (isWithinTimeRangeInclusive(now, startTime, endTime)) {
       // print('3c. This time to attendance (On-time)');
-      _countDownText = _formatDuration(endTime.difference(now));
+      _countDownText = formatDuration(endTime.difference(now));
       _setAttendanceStatus('T', title);
       return 'Waktu tepat waktu untuk absen $title';
     }

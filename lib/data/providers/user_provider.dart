@@ -16,7 +16,7 @@ class UserProvider extends ChangeNotifier {
   final FirestoreService _fireStoreService = FirestoreService();
   final context = locator<GlobalKey<NavigatorState>>().currentContext;
   final Duration _timeoutDuration =
-      const Duration(seconds: 5); // Defaultnya 5 detik + toleransi 5 detik
+      const Duration(seconds: 10); // Defaultnya 5 detik + toleransi 5 detik
 
   SessionModel? _currentUserSession;
   UserModel? _currentUser;

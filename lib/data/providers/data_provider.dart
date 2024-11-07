@@ -14,7 +14,7 @@ class DataProvider extends ChangeNotifier {
   final RealtimeDatabaseService _realtimeDatabaseService =
       RealtimeDatabaseService();
   final Duration _timeoutDuration =
-      const Duration(seconds: 5); // Defaultnya 5 detik + toleransi 5 detik
+      const Duration(seconds: 10); // Defaultnya 5 detik + toleransi 5 detik
 
   // Data sheet
   Data _dataAbsensi = Data();

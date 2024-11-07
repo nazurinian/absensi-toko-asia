@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:absensitoko/core/constants/constants.dart';
 import 'package:absensitoko/data/models/history_model.dart';
+import 'package:absensitoko/data/models/keterangan_model.dart';
 import 'package:absensitoko/locator.dart';
 import 'package:absensitoko/routes.dart';
 import 'package:absensitoko/data/models/attendance_model.dart';
@@ -10,7 +11,9 @@ import 'package:absensitoko/data/models/time_model.dart';
 import 'package:absensitoko/data/providers/data_provider.dart';
 import 'package:absensitoko/data/providers/time_provider.dart';
 import 'package:absensitoko/core/themes/fonts/fonts.dart';
+import 'package:absensitoko/ui/widgets/custom_drop_down_menu.dart';
 import 'package:absensitoko/ui/widgets/custom_list_tile.dart';
+import 'package:absensitoko/ui/widgets/custom_text_form_field.dart';
 import 'package:absensitoko/utils/base/base_state.dart';
 import 'package:absensitoko/utils/base/location_service.dart';
 import 'package:absensitoko/utils/dialogs/dialog_utils.dart';
@@ -28,6 +31,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/constants/items_list.dart';
 
 class AttendancePage extends StatefulWidget {
   final String employeeName;
@@ -79,6 +84,30 @@ class _AttendancePageState extends BaseState<AttendancePage>
   late CustomTime _currentTime;
   late int _weekday;
   bool _isLoadingGetBreakTime = false;
+  String _nationalHoliday = '';
+
+  // Absensi dialog timeout
+  final ValueNotifier<int> remainingSeconds = ValueNotifier<int>(15);
+  Timer? dialogTimer;
+
+  // Absensi dialog for late
+  TextEditingController _detailTelatController = TextEditingController();
+  FocusNode _detailTelatFocus = FocusNode();
+  List<KeteranganAbsen> _keteranganFull = [];
+
+  void startDialogTimer() {
+    remainingSeconds.value = 15;
+    dialogTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (remainingSeconds.value > 1) {
+        remainingSeconds.value--;
+      } else {
+        remainingSeconds.value = 0;
+        timer.cancel();
+        Navigator.of(context).pop(false);
+        LoadingDialog.hide(context);
+      }
+    });
+  }
 
   // Minta izin akses lokasi
   Future<void> _cekIzinLokasi(String check, {bool? switchValue}) async {
@@ -277,10 +306,12 @@ class _AttendancePageState extends BaseState<AttendancePage>
     final result = await _dataProvider.getAttendanceInfo(isRefresh: isRefresh);
     if (result.status == 'success') {
       String breakTime = '12:00';
-      String nationalHoliday =
-          _dataProvider.attendanceInfoData?.nationalHoliday ?? '';
+      setState(() {
+        _nationalHoliday =
+            _dataProvider.attendanceInfoData?.nationalHoliday ?? '';
+      });
       bool isHoliday =
-          nationalHoliday.isNotEmpty || _weekday == DateTime.sunday;
+          _nationalHoliday.isNotEmpty || _weekday == DateTime.sunday;
 
       if (_weekday == DateTime.friday) {
         breakTime = '$fridayAfternoonStartHour:$fridayAfternoonStartMinute';
@@ -292,7 +323,6 @@ class _AttendancePageState extends BaseState<AttendancePage>
             _dataProvider.attendanceInfoData?.breakTime ?? '12:00';
         breakTime = serverBreakTime.isEmpty ? '12:00' : serverBreakTime;
       }
-
 
       List<String> breakTimeParts = breakTime.split(':');
       int breakHour = int.parse(breakTimeParts[0]);
@@ -336,8 +366,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
       _updateAttendanceStatus();
       ToastUtil.showToast('Berhasil $action data absensi', ToastStatus.success);
     } else {
-      ToastUtil.showToast(
-          'Gagal $action data absensi', ToastStatus.error);
+      ToastUtil.showToast('Gagal $action data absensi', ToastStatus.error);
     }
   }
 
@@ -348,10 +377,13 @@ class _AttendancePageState extends BaseState<AttendancePage>
     _currentTime = _timeProvider.currentTime;
     _weekday = _currentTime.getWeekday();
 
+    String keterangan = _nationalHoliday;
+
     final initHistoryData = HistoryData(
       tanggalCreate: _currentTime.postTime(),
       hari: _currentTime.getDayName(),
       deviceInfo: widget.deviceName,
+      keterangan: keterangan.isNotEmpty ? '(Libur) $keterangan' : '',
     );
 
     await _dataProvider.initializeHistory(_employeeName, initHistoryData);
@@ -363,8 +395,8 @@ class _AttendancePageState extends BaseState<AttendancePage>
     super.initState();
     _loadLocationState();
 
-    _initData();
     _updateBreakTime();
+    _initData();
 
     _initFabAnimation();
   }
@@ -375,6 +407,11 @@ class _AttendancePageState extends BaseState<AttendancePage>
     _rotationController.dispose();
     _stopListeningLocationUpdates();
     _coordinateCheckTimer?.cancel();
+
+    dialogTimer?.cancel();
+    remainingSeconds.dispose();
+    _detailTelatController.dispose();
+    _detailTelatFocus.dispose();
     super.dispose();
   }
 
@@ -457,17 +494,19 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                       dataProvider.selectedDateHistory ??
                                           HistoryData();
 
+                                  _keteranganFull = KeteranganAbsen.parseKeterangan(historyData.keterangan ?? '');
+
                                   return Consumer<TimeProvider>(
                                     builder: (context, timeProvider, child) {
                                       final dateTime = timeProvider.currentTime;
                                       timeProvider.isPagiButtonActive(
+                                          historyData,
+                                          infoAttendance.nationalHoliday ?? '');
+                                      final morningAttendanceState =
+                                          timeProvider.isPagiButtonActive(
                                               historyData,
                                               infoAttendance.nationalHoliday ??
                                                   '');
-                                      final morningAttendanceState = timeProvider
-                                          .isPagiButtonActive(historyData,
-                                          infoAttendance.nationalHoliday ??
-                                              '');
                                       final afternoonAttendanceState =
                                           timeProvider
                                               .isSiangButtonActive(historyData);
@@ -479,7 +518,10 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                       );
 
                                       return Card(
-                                        color: Colors.blue,
+                                        // color: Colors.blue,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .secondaryContainer,
                                         child: Stack(
                                           children: [
                                             Column(
@@ -492,8 +534,8 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                   buttonText: 'Absen Pagi',
                                                   // buttonActive: true,
                                                   buttonActive:
-                                                  morningAttendanceState &&
-                                                      _attendancePermission,
+                                                      morningAttendanceState &&
+                                                          _attendancePermission,
                                                   onButtonPressed: () {
                                                     _onAttendanceButtonPressed(
                                                       isPagi: true,
@@ -508,9 +550,9 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                     );
                                                   },
                                                   attendanceStatus:
-                                                      attendanceStatus(
+                                                      attendanceResult(
                                                     dataProvider,
-                                                    attendance: 'pagi',
+                                                    attendanceTime: 'pagi',
                                                   ),
                                                   message: timeProvider
                                                       .morningAttendanceMessage,
@@ -537,9 +579,10 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                     );
                                                   },
                                                   attendanceStatus:
-                                                      attendanceStatus(
+                                                      attendanceResult(
                                                           dataProvider,
-                                                          attendance: 'siang'),
+                                                          attendanceTime:
+                                                              'siang'),
                                                   message: timeProvider
                                                       .afternoonAttendanceMessage,
                                                 ),
@@ -555,6 +598,19 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                 const SizedBox(height: 10),
                                                 ElevatedButton(
                                                   onPressed: () {
+                                                    String info = 'Anda belum absen';
+                                                    if (dataProvider.statusAbsensiPagi) {
+                                                      info = 'Anda sudah absen pagi';
+                                                    } else if (dataProvider.statusAbsensiSiang) {
+                                                      info = 'Anda sudah absen siang';
+                                                    } else if (dataProvider.statusAbsensiPagi && dataProvider.statusAbsensiSiang) {
+                                                      info = 'Anda sudah absen pagi dan siang';
+                                                    }
+                                                    print('Point: ${timeProvider.attendancePoint}');
+
+                                                    print('Morning Attendance Status: ${timeProvider.morningAttendanceStatus}');
+                                                    print('Afternoon Attendance Status: ${timeProvider.afternoonAttendanceStatus}');
+                                                    ToastUtil.showToast(info, ToastStatus.warning);
                                                   },
                                                   child: const Text(
                                                       'Check Attendance State'),
@@ -615,54 +671,74 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                   },
                                 ),
                               ),
-                              CustomListTile(
-                                title: 'Testing Page',
-                                subtitle: '(Tes Sistem Keterangan)',
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.telegram),
-                                  iconSize: 40,
-                                  onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const TestPage(),
-                                    ),
+                              // CustomListTile(
+                              //   title: 'Testing Page',
+                              //   subtitle: '(Tes Sistem Keterangan)',
+                              //   trailing: IconButton(
+                              //     icon: const Icon(Icons.telegram),
+                              //     iconSize: 40,
+                              //     onPressed: () => Navigator.push(
+                              //       context,
+                              //       MaterialPageRoute(
+                              //         builder: (context) => const TestPage(),
+                              //       ),
+                              //     ),
+                              //   ),
+                              // ),
+                              // CustomListTile(
+                              //   title: 'Testing Page 2',
+                              //   subtitle: '(Tes Sistem Data Provider)',
+                              //   trailing: IconButton(
+                              //     icon: const Icon(Icons.telegram),
+                              //     iconSize: 40,
+                              //     onPressed: () {
+                              //       ToastUtil.showToast(
+                              //           'Sistem ini dikunci sementara',
+                              //           ToastStatus.warning);
+                              //         Navigator.push(
+                              //         context,
+                              //         MaterialPageRoute(
+                              //           builder: (context) =>
+                              //               const TestDataProviderPage(),
+                              //         ),
+                              //       );
+                              //     },
+                              //   ),
+                              // ),
+                              if(_keteranganFull.isNotEmpty) ... [
+                                const SizedBox(height: 10),
+                                const Divider(),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'Rekap Keterlambatan: ',
+                                  style: TextStyle(
+                                    fontFamily: 'Mulish',
+                                    fontSize: 16,
                                   ),
                                 ),
-                              ),
-                              CustomListTile(
-                                title: 'Testing Page 2',
-                                subtitle: '(Tes Sistem Data Provider)',
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.telegram),
-                                  iconSize: 40,
-                                  onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const TestDataProviderPage(),
-                                    ),
-                                  ),
+                                // const SizedBox(height: 10),
+                                // const Text(
+                                //   'Izin / Sakit / Terlambat',
+                                //   style: TextStyle(
+                                //     fontFamily: 'Mulish',
+                                //     fontSize: 20,
+                                //   ),
+                                // ),
+                                // const SizedBox(height: 10),
+                                // const Divider(),
+                                ListView(
+                                  shrinkWrap: true,
+                                  children: _keteranganFull.map((keterangan) =>
+                                      CustomListTile(
+                                        title: keterangan.kategoriUtama ?? '',
+                                        subtitle: '${keterangan.subKategori ?? ''} - ${keterangan.detail ?? ''}',
+                                        trailing: Icon(Icons.info),
+                                      ),
+                                  )
+                                      .toList(),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
-                              const Divider(),
-                              const SizedBox(height: 10),
-                              const Text(
-                                'Keterangan: ',
-                                style: TextStyle(
-                                  fontFamily: 'Mulish',
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              const Text(
-                                'Izin / Sakit / Terlambat',
-                                style: TextStyle(
-                                  fontFamily: 'Mulish',
-                                  fontSize: 20,
-                                ),
-                              ),
-                              const SizedBox(height: 30),
+                              ],
+                              const SizedBox(height: 60),
                             ],
                           ),
                         ),
@@ -722,11 +798,13 @@ class _AttendancePageState extends BaseState<AttendancePage>
 
   Future<void> _attendanceProcess(
       String waktuAbsensi, Attendance attendance) async {
-    LoadingDialog.show(context);
+    // LoadingDialog.show(context);
+    print('Waktu Absensi: $waktuAbsensi');
+    print('Attendance: $attendance');
     try {
       final message =
-      await _dataProvider.updateAttendance(waktuAbsensi, attendance);
-      safeContext((context) => LoadingDialog.hide(context));
+          await _dataProvider.updateAttendance(waktuAbsensi, attendance);
+      // safeContext((context) => LoadingDialog.hide(context));
 
       if (message.status == 'success') {
         ToastUtil.showToast('Berhasil mencatat kehadiran', ToastStatus.success);
@@ -739,7 +817,8 @@ class _AttendancePageState extends BaseState<AttendancePage>
     }
   }
 
-  Future<void> _updateDataHistory(String employeeName, String date, HistoryData pushDataHistory, bool isPagi) async {
+  Future<void> _updateDataHistory(String employeeName, String date,
+      HistoryData pushDataHistory, bool isPagi) async {
     final result = await _dataProvider.updateThisDayHistory(
       employeeName,
       date,
@@ -756,6 +835,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
     }
   }
 
+/*
   Future<void> _onAttendanceButtonPressed({
     required bool isPagi,
     required String attendanceStatus, // Status T/L
@@ -772,6 +852,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
       pulangSiang: !isPagi ? breakTime ?? '' : null,
       hadirSiang: !isPagi ? dateTime.postTime() : null,
       pointSiang: !isPagi ? attendancePoint : null,
+      keterangan: '',
     );
 
     final pushAttendance = Attendance(
@@ -793,28 +874,109 @@ class _AttendancePageState extends BaseState<AttendancePage>
       pulangSiang: !isPagi ? breakTime : null,
       hadirSiang: !isPagi ? dateTime.getIdnTime() : null,
       pointSiang: !isPagi ? attendancePoint : null,
-      keterangan: '', // Belum ada keterangannya
+      keterangan: '',
     );
 
+    print('T/L: $attendanceStatus');
 
-    LoadingDialog.show(context);
+    LoadingDialog.show(context, onPopInvoked: () {
+      LoadingDialog.hide(context);
+    });
+
+    String attendanceType = isPagi ? 'pagi' : 'siang';
+    String dialogMessage = isPagi
+        ? 'Anda Tepat Waktu $attendanceType ini'
+        : 'Anda Terlambat $attendanceType ini';
+
+    _detailTelatController.clear();
+    String keteranganTelat = '';
+    String detailTelat = '';
+
+    startDialogTimer();
     try {
-      DialogUtils.showConfirmationDialog(
+      DialogUtils.showAttendanceDialog(
         context: context,
         title: 'Absen ${isPagi ? 'Pagi' : 'Siang'}',
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Lakukan Absen Sekarang?'),
-            const SizedBox(height: 10),
-            Text('Anda akan melakukan mengisi presensi waktu ${isPagi ? 'Pagi' : 'Siang'} di jam :\n${dateTime.getIdnAllTime()}'),
-          ],
+        withPop: false,
+        remainingSecondsNotifier: remainingSeconds,
+        content: ValueListenableBuilder(
+          valueListenable: remainingSeconds,
+          builder: (context, value, child) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Text(
+                  dialogMessage,
+                  style: TextStyle(
+                    fontFamily: 'Mulish',
+                    color: isPagi ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  'Anda akan melakukan pengisian presensi kehadiran $attendanceType di jam :\n${dateTime.getIdnAllTime()}',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  formatDuration(Duration(seconds: value)),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'Digital7',
+                    fontSize: 26,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              // if (!isPagi) const SizedBox(height: 10),
+              CustomDropdownMenu(
+                controller: _detailTelatController,
+                focusNode: _detailTelatFocus,
+                title: 'Keterangan',
+                hintText: 'Pilih alasan telat',
+                textStyle: const TextStyle(
+                  fontFamily: 'Mulish',
+                  fontSize: 16,
+                ),
+                onSelected: (value) {
+                  keteranganTelat = value!;
+                },
+                dropdownMenuEntries: subCategories.map((value) {
+                  return DropdownMenuEntry<String>(
+                    label: value,
+                    value: value,
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
         ),
         onConfirm: () async {
+          detailTelat = _detailTelatController.text;
+          if (keteranganTelat.isEmpty || detailTelat.isEmpty) {
+            ToastUtil.showToast(
+                'Wajib ${keteranganTelat.isEmpty ? 'pilih sebab' : "mengisi detail"} terlambat', ToastStatus.error);
+            return;
+          }
+          keteranganTelat = '(${isPagi ? 'Pagi' : 'Siang'}) $keteranganTelat $detailTelat';
+          ToastUtil.showToast('Anda memilih: $keteranganTelat', ToastStatus.success);
+          dialogTimer?.cancel();
+          Navigator.of(context).pop(true);
+          safeContext((context) => LoadingDialog.hide(context));
           // _attendanceProcess(attendanceType, attendance); // Ini update sheets
-          await _updateDataHistory(employeeName, dateTime.postTime(), pushDataHistory, isPagi);
+          // await _updateDataHistory(
+          //     employeeName, dateTime.postTime(), pushDataHistory, isPagi);
         },
         onCancel: () {
+          dialogTimer?.cancel();
+          Navigator.of(context).pop(false);
           safeContext((context) => LoadingDialog.hide(context));
         },
       );
@@ -823,50 +985,256 @@ class _AttendancePageState extends BaseState<AttendancePage>
       ToastUtil.showToast('Gagal memproses kehadiran', ToastStatus.error);
     }
   }
-
-  Widget attendanceStatus(
-    DataProvider dataProvider, {
-    String? attendance,
-    String? attendanceTime,
+*/
+  Future<void> _onAttendanceButtonPressed({
+    required bool isPagi,
+    required String attendanceStatus,
+    required String attendancePoint,
+    required CustomTime dateTime,
+    required String employeeName,
     String? breakTime,
-    String? status,
-    String? point,
-    String? lat,
-    String? long,
+  }) async {
+    String attendanceType = isPagi ? 'Pagi' : 'Siang';
+    String dialogMessage = attendanceStatus == 'T'
+        ? 'Anda Tepat Waktu $attendanceType ini'
+        : 'Anda Terlambat $attendanceType ini';
+
+    Data attendanceData = _createAttendanceData(
+      isPagi: isPagi,
+      attendanceStatus: attendanceStatus,
+      attendancePoint: attendancePoint,
+      dateTime: dateTime,
+      breakTime: breakTime,
+    );
+
+    Attendance pushAttendance = Attendance(
+      action: 'update',
+      tahunBulan: dateTime.getYearMonth(),
+      tanggal: dateTime.getIdnDate(),
+      namaKaryawan: employeeName.toUpperCase(),
+      data: attendanceData,
+    );
+
+    HistoryData pushDataHistory = _createHistoryData(
+      isPagi: isPagi,
+      attendanceStatus: attendanceStatus,
+      attendancePoint: attendancePoint,
+      dateTime: dateTime,
+      breakTime: breakTime,
+    );
+
+    LoadingDialog.show(context,
+        onPopInvoked: () => LoadingDialog.hide(context));
+    startDialogTimer();
+
+    try {
+      await _showAttendanceDialog(
+        context: context,
+        attendanceType: attendanceType,
+        attendanceStatus: attendanceStatus,
+        dialogMessage: dialogMessage,
+        dateTime: dateTime,
+        onConfirm: (String keterangan) async {
+          String ket = '';
+          if(keterangan.isNotEmpty) {
+            ket = '$keterangan, ${_dataProvider.selectedDateHistory?.keterangan ?? ''}';
+          }
+          attendanceData.keterangan = ket;
+          pushDataHistory.keterangan = ket;
+
+          dialogTimer?.cancel();
+          Navigator.of(context).pop(false);
+          // safeContext((context) => LoadingDialog.hide(context));
+
+          await _attendanceProcess(attendanceType, pushAttendance);
+          await _updateDataHistory(
+              employeeName, dateTime.postTime(), pushDataHistory, isPagi);
+        },
+      );
+    } catch (e) {
+      safeContext((context) => LoadingDialog.hide(context));
+      ToastUtil.showToast('Gagal memproses kehadiran', ToastStatus.error);
+    }
+  }
+
+  Data _createAttendanceData({
+    required bool isPagi,
+    required String attendanceStatus,
+    required String attendancePoint,
+    required CustomTime dateTime,
+    String? breakTime,
   }) {
-    final attendanceData = dataProvider.dataAbsensi!;
-    if (attendance == 'pagi') {
+    return Data(
+      tLPagi: isPagi ? attendanceStatus : null,
+      hadirPagi: isPagi ? dateTime.postTime() : null,
+      pointPagi: isPagi ? attendancePoint : null,
+      tLSiang: !isPagi ? attendanceStatus : null,
+      pulangSiang: !isPagi ? breakTime ?? '' : null,
+      hadirSiang: !isPagi ? dateTime.postTime() : null,
+      pointSiang: !isPagi ? attendancePoint : null,
+      keterangan: '',
+    );
+  }
+
+  HistoryData _createHistoryData({
+    required bool isPagi,
+    required String attendanceStatus,
+    required String attendancePoint,
+    required CustomTime dateTime,
+    String? breakTime,
+  }) {
+    return HistoryData(
+      tanggalUpdate: dateTime.postTime(),
+      lat: _userPositionLatitude,
+      long: _userPositionLongitude,
+      tLPagi: isPagi ? attendanceStatus : null,
+      hadirPagi: isPagi ? dateTime.getIdnTime() : null,
+      pointPagi: isPagi ? attendancePoint : null,
+      tLSiang: !isPagi ? attendanceStatus : null,
+      pulangSiang: !isPagi ? breakTime : null,
+      hadirSiang: !isPagi ? dateTime.getIdnTime() : null,
+      pointSiang: !isPagi ? attendancePoint : null,
+      keterangan: '',
+    );
+  }
+
+  Future<void> _showAttendanceDialog({
+    required BuildContext context,
+    required String attendanceType,
+    required String attendanceStatus,
+    required String dialogMessage,
+    required CustomTime dateTime,
+    required Function(String) onConfirm,
+  }) async {
+    _detailTelatController.clear();
+    final bool onTimeAttendance = attendanceStatus == 'T';
+    String keteranganTelat = '';
+    String detailTelat = '';
+
+    DialogUtils.showAttendanceDialog(
+      context: context,
+      title: 'Absen $attendanceType',
+      withPop: false,
+      remainingSecondsNotifier: remainingSeconds,
+      content: GestureDetector(
+        onTap: () => _detailTelatFocus.unfocus(),
+        child: ValueListenableBuilder(
+          valueListenable: remainingSeconds,
+          builder: (context, value, child) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Text(
+                  dialogMessage,
+                  style: TextStyle(
+                    fontFamily: 'Mulish',
+                    color: onTimeAttendance ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  'Anda akan melakukan pengisian presensi kehadiran $attendanceType di jam :\n${dateTime.getIdnAllTime()}',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  formatDuration(Duration(seconds: value)),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'Digital7',
+                    fontSize: 26,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (!onTimeAttendance)
+                CustomDropdownMenu(
+                  controller: _detailTelatController,
+                  focusNode: _detailTelatFocus,
+                  title: 'Keterangan',
+                  hintText: 'Pilih alasan telat',
+                  textStyle:
+                      const TextStyle(fontFamily: 'Mulish', fontSize: 16),
+                  onSelected: (value) => keteranganTelat = value ?? '',
+                  dropdownMenuEntries: subCategories.map((value) {
+                    return DropdownMenuEntry<String>(
+                        label: value, value: value);
+                  }).toList(),
+                ),
+            ],
+          ),
+        ),
+      ),
+      onConfirm: () async {
+        String keterangan = '';
+        detailTelat = _detailTelatController.text;
+        if (!onTimeAttendance &&
+            (keteranganTelat.isEmpty || detailTelat.isEmpty)) {
+          ToastUtil.showToast(
+            'Wajib ${keteranganTelat.isEmpty ? 'pilih sebab' : "mengisi detail"} terlambat',
+            ToastStatus.error,
+          );
+          return;
+        }
+
+        if (!onTimeAttendance) {
+          keterangan = '($attendanceType) $keteranganTelat $detailTelat';
+          ToastUtil.showToast('Anda memilih: $keterangan', ToastStatus.success);
+        }
+
+        onConfirm(keterangan);
+      },
+      onCancel: () {
+        dialogTimer?.cancel();
+        Navigator.of(context).pop(false);
+        safeContext((context) => LoadingDialog.hide(context));
+      },
+    );
+  }
+
+  Widget attendanceResult(DataProvider dataProvider, {String? attendanceTime}) {
+    final attendanceData = dataProvider.selectedDateHistory!;
+    String attendanceOnTime = '';
+    String statusAttendance = '';
+    String statusPoint = '';
+    String breakTime = '';
+
+    if (attendanceTime == 'pagi') {
       if (attendanceData.hadirPagi == null ||
           attendanceData.hadirPagi!.isEmpty) {
         return const SizedBox();
       } else {
-        attendanceTime =
-            CustomTime.fromServerTime(attendanceData.hadirPagi!).getIdnTime();
-        status = attendanceData.tLPagi == 'T' ? 'Tepat Waktu' : 'Lewat Waktu';
-        point = attendanceData.pointPagi ?? '-';
-        // lat = attendanceData.latPagi! ?? '-';
-        // long = attendanceData.longPagi! ?? '-';
-        lat = _userPositionLatitude.toString();
-        long = _userPositionLongitude.toString();
+        statusAttendance = attendanceData.tLPagi == 'T'
+            ? 'Tepat Waktu'
+            : attendanceData.tLSiang == 'L'
+                ? 'Lewat Waktu'
+                : "Belum Absen";
+        statusPoint = attendanceData.pointPagi ?? '-';
+        attendanceOnTime = attendanceData.hadirPagi ?? '-';
       }
     }
 
-    if (attendance == 'siang') {
+    if (attendanceTime == 'siang') {
       if (attendanceData.hadirSiang == null ||
           attendanceData.hadirSiang!.isEmpty) {
         return const SizedBox();
       } else {
-        breakTime =
-            CustomTime.fromServerTime(attendanceData.pulangSiang!).getIdnTime();
-        attendanceTime =
-            CustomTime.fromServerTime(attendanceData.hadirSiang!).getIdnTime();
-
-        status = attendanceData.tLSiang == 'T' ? 'Tepat Waktu' : 'Lewat Waktu';
-        point = attendanceData.pointSiang ?? '-';
-        // lat = attendanceData.latSiang! ?? '-';
-        // long = attendanceData.longSiang! ?? '-';
-        lat = _userPositionLatitude.toString();
-        long = _userPositionLongitude.toString();
+        breakTime = attendanceData.pulangSiang ?? '';
+        statusAttendance = attendanceData.tLSiang == 'T'
+            ? 'Tepat Waktu'
+            : attendanceData.tLSiang == 'L'
+                ? 'Lewat Waktu'
+                : "Belum Absen";
+        statusPoint = attendanceData.pointSiang ?? '-';
+        attendanceOnTime = attendanceData.hadirSiang ?? '-';
       }
     }
 
@@ -875,31 +1243,32 @@ class _AttendancePageState extends BaseState<AttendancePage>
         const SizedBox(
           height: 10,
         ),
-        Text('Waktu istirahat: ${attendanceTime ?? '-'}'),
+        const Divider(
+          thickness: 2,
+        ),
         const SizedBox(
           height: 10,
         ),
-        if (attendance == 'siang') ...[
+        if (attendanceTime == 'siang') ...[
           Text('Waktu masuk: ${breakTime ?? '-'}'),
           const SizedBox(
             height: 10,
           ),
         ],
-        Text('Status: ${status ?? '-'}'),
+        Text('Status: ${statusAttendance}'),
         const SizedBox(
           height: 10,
         ),
-        Text('Point: ${point ?? '-'}'),
+        Text('Point: ${statusPoint}'),
         const SizedBox(
           height: 10,
         ),
-        Text('Lat: | Long: ${lat ?? '-'} | ${long ?? '-'}'),
+        Text('Jam hadir: ${attendanceOnTime}'),
         const SizedBox(
           height: 10,
         ),
-        Text('Keterangan: ${attendanceData.keterangan ?? '-'}'),
-        const SizedBox(
-          height: 10,
+        const Divider(
+          thickness: 2,
         ),
       ],
     );

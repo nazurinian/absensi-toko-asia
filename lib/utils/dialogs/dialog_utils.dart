@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
 import 'package:flutter/material.dart';
 import 'package:absensitoko/core/themes/colors/colors.dart';
 import 'package:absensitoko/core/themes/fonts/fonts.dart';
@@ -203,6 +204,87 @@ class DialogUtils {
                         confirm ?? 'Ya',
                         style:
                             FontTheme.bodyMedium(context, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static Future<bool?> showAttendanceDialog({
+    required BuildContext context,
+    required String title,
+    required ValueNotifier<int> remainingSecondsNotifier,
+    String? confirm,
+    String? cancel,
+    bool withPop = true,
+    bool barrierDismissible = false,
+    required Widget content,
+    VoidCallback? onConfirm,
+    VoidCallback? onCancel,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      builder: (BuildContext context) {
+        final width = screenWidth(context);
+        return AlertDialog(
+          title: Text(
+            title,
+            textAlign: TextAlign.center,
+          ),
+          content: content,
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                SizedBox(
+                  width: width * 0.30,
+                  child: FilledButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorsTheme.grayBD,
+                    ),
+                    onPressed: () {
+                      if (onCancel != null) onCancel();
+                      if (withPop) {
+                        Navigator.of(context)
+                            .pop(false); // Kembalikan false saat dibatalkan
+                      }
+                    },
+                    child: Center(
+                      child: Text(
+                        cancel ?? 'Tidak',
+                        style:
+                        FontTheme.bodyMedium(context, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: width * 0.30,
+                  child: FilledButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorsTheme.blueBD,
+                    ),
+                    onPressed: () {
+                      if (withPop) {
+                        Navigator.of(context)
+                            .pop(true); // Kembalikan true saat dikonfirmasi
+                      }
+                      if (onConfirm != null) onConfirm();
+                    },
+                    child: Center(
+                      child: Text(
+                        confirm ?? 'Ya',
+                        style:
+                        FontTheme.bodyMedium(context, color: Colors.white),
                       ),
                     ),
                   ),

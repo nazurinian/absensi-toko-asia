@@ -4,6 +4,7 @@ const Map<String, String> countryCodes = {
 };
 
 const List<String> roleList = ['employee', 'other', 'admin'];
+const List<String> employeeList = ['Syarifuddin', 'Abdurrahman', 'Sadiq', 'Ilham'];
 
 const List<String> categories = ['Pagi', 'Siang', 'Libur', 'Cuti'];
 const List<String> subCategories = ['Telat', 'Izin', 'Sakit'];

@@ -48,11 +48,11 @@ class KeteranganAbsen {
 
       if (kategori.toLowerCase() == "pagi" || kategori.toLowerCase() == "siang") {
         // Cek apakah ada subkategori dalam detail
-        if (detail.contains("telat")) {
+        if (detail.toLowerCase().contains("telat")) {
           subKategori = "Telat";
-        } else if (detail.contains("izin")) {
+        } else if (detail.toLowerCase().contains("izin")) {
           subKategori = "Izin";
-        } else if (detail.contains("sakit")) {
+        } else if (detail.toLowerCase().contains("sakit")) {
           subKategori = "Sakit";
         }
       }

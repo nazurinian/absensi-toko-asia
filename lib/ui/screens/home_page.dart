@@ -1,6 +1,7 @@
 import 'package:absensitoko/core/constants/items_list.dart';
 import 'package:absensitoko/data/models/history_model.dart';
 import 'package:absensitoko/data/models/attendance_info_model.dart';
+import 'package:absensitoko/data/models/keterangan_model.dart';
 import 'package:absensitoko/data/models/user_model.dart';
 import 'package:absensitoko/data/providers/data_provider.dart';
 import 'package:absensitoko/data/providers/time_provider.dart';
@@ -9,6 +10,7 @@ import 'package:absensitoko/core/themes/fonts/fonts.dart';
 import 'package:absensitoko/locator.dart';
 import 'package:absensitoko/routes.dart';
 import 'package:absensitoko/ui/widgets/breaktime_field.dart';
+import 'package:absensitoko/ui/widgets/custom_list_tile.dart';
 import 'package:absensitoko/ui/widgets/short_attendance_info.dart';
 import 'package:absensitoko/utils/base/base_state.dart';
 import 'package:absensitoko/utils/base/location_service.dart';
@@ -45,6 +47,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   String _displayMessage = 'Data belum diperoleh';
   bool _isLoadingGetInfo = false;
   String? _deviceName;
+
+  AttendanceInfoModel? _attendanceInfo;
 
   // String? _infoRole = '';
   // bool _lockAccess = false;
@@ -160,17 +164,31 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
-  Future<void> getInfo() async {
+  Future<void> _getInfo({bool isRefresh = false}) async {
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    final response = await dataProvider.getAttendanceInfo();
+    final weekday = Provider.of<TimeProvider>(context, listen: false)
+        .currentTime
+        .getWeekday();
+    final response = await dataProvider.getAttendanceInfo(isRefresh: isRefresh);
 
     if (response.status == 'success') {
-      final data = dataProvider.attendanceInfoData;
+      final data = dataProvider.attendanceInfoData!;
+      String nationalHoliday = data.nationalHoliday ?? '';
+      String? breakTime = data.breakTime!.isNotEmpty || data.breakTime == null
+          ? data.breakTime
+          : '00:00';
+      String thisDay = nationalHoliday.isNotEmpty
+          ? nationalHoliday
+          : weekday == DateTime.sunday
+              ? 'Hari Ahad'
+              : '(Hari Kerja)';
+
       setState(() {
         _displayMessage =
-            'Data berhasil diperoleh:\nBreaktime > ${data?.breakTime ?? ''}\nNational Holiday > ${data?.nationalHoliday ?? ''}';
-        _breaktimeController.text = data?.breakTime ?? '';
-        _nationalHolidayController.text = data?.nationalHoliday ?? '';
+            'Data berhasil diperoleh:\nWaktu ISHOMA > $breakTime\nLibur Nasional > $thisDay';
+        _attendanceInfo = data;
+        _breaktimeController.text = data.breakTime ?? '';
+        _nationalHolidayController.text = data.nationalHoliday ?? '';
         _isLoadingGetInfo = false;
       });
     } else {
@@ -217,10 +235,13 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     final currentTime =
         Provider.of<TimeProvider>(context, listen: false).currentTime;
 
+    String keterangan = _attendanceInfo?.nationalHoliday ?? '';
+
     final initHistoryData = HistoryData(
       tanggalCreate: currentTime.postTime(),
       hari: currentTime.getDayName(),
       deviceInfo: _deviceName ?? '',
+      keterangan: keterangan.isNotEmpty ? '(Libur) $keterangan' : '',
     );
 
     if (!isRefresh) {
@@ -240,8 +261,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     if (result.status == 'success') {
       ToastUtil.showToast('Berhasil $action data absensi', ToastStatus.success);
     } else {
-      ToastUtil.showToast(
-          'Gagal $action data absensi', ToastStatus.error);
+      ToastUtil.showToast('Gagal $action data absensi', ToastStatus.error);
     }
   }
 
@@ -252,6 +272,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
 
     _getAppVersion();
     _permissionCheck();
+    _getInfo();
     _fetchUserData().then((_) async => await _initAndGetAttendanceHistory());
   }
 
@@ -300,6 +321,10 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                       await Future.delayed(const Duration(seconds: 3));
                       await _fetchUserData(isRefresh: true);
                       await _initAndGetAttendanceHistory(isRefresh: true);
+                      if (context.mounted) {
+                        await Provider.of<TimeProvider>(context, listen: false)
+                            .refreshNtpTime();
+                      }
                     },
                     child: SingleChildScrollView(
                       child: Stack(
@@ -459,7 +484,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                           arguments: _userName);
                                                     },
                                                     child: const Text(
-                                                        'Cek Absensi'),
+                                                      'Cek Absensi',
+                                                    ),
                                                   ),
                                                 ),
                                                 const SizedBox(
@@ -476,7 +502,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                       bool isConnected =
                                                           await NetworkHelper
                                                               .hasInternetConnection();
-                                                      if (isConnected && context.mounted) {
+                                                      if (isConnected &&
+                                                          context.mounted) {
                                                         Navigator.pushNamed(
                                                             context,
                                                             '/attendance',
@@ -484,7 +511,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                                 employeeName:
                                                                     _userName,
                                                                 deviceName:
-                                                                    _deviceName ?? ''));
+                                                                    _deviceName ??
+                                                                        ''));
                                                       } else {
                                                         ToastUtil.showToast(
                                                             'Tidak ada koneksi internet',
@@ -609,7 +637,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  'Informasi Absen ⏲️',
+                                                  'Informasi Absen 🕜️',
                                                   style: FontTheme.bodyMedium(
                                                     context,
                                                     fontSize: 28,
@@ -618,6 +646,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                         .primary,
                                                   ),
                                                 ),
+                                                const SizedBox(height: 10),
                                                 Padding(
                                                   padding:
                                                       const EdgeInsets.only(
@@ -719,58 +748,23 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                                         .center,
                                                               ),
                                                       ),
-                                                    // Get Info Button
+                                                    const SizedBox(
+                                                      height: 10,
+                                                    ),
                                                     Center(
                                                       child: ElevatedButton(
-                                                        onPressed: () {
+                                                        onPressed: () async {
                                                           setState(() =>
                                                               _isLoadingGetInfo =
                                                                   true);
-                                                          getInfo();
+                                                          await _getInfo(
+                                                              isRefresh: true);
                                                         },
                                                         child: const Text(
                                                           'Peroleh Data',
                                                         ),
                                                       ),
                                                     ),
-                                                    const SizedBox(
-                                                      height: 10,
-                                                    ),
-                                                    const Divider(
-                                                      thickness: 5,
-                                                    ),
-                                                    const SizedBox(
-                                                      height: 10,
-                                                    ),
-                                                    SizedBox(
-                                                        width: double.infinity,
-                                                        child: ElevatedButton(
-                                                            onPressed: () =>
-                                                                ToastUtil.showToast(
-                                                                    'Masih dalam pengembangan',
-                                                                    ToastStatus
-                                                                        .warning),
-                                                            child: const Text(
-                                                                'Buat Sheet Baru'))),
-                                                    // Get App Version Button
-                                                    /*ElevatedButton(
-                                                      onPressed: () {
-                                                        _getAppVersion();
-                                                      },
-                                                      child: const Text(
-                                                          'Cek Versi Aplikasi'),
-                                                    ),
-                                                    const SizedBox(
-                                                      height: 10,
-                                                    ),
-                                                    // Update App Version Button
-                                                    ElevatedButton(
-                                                      onPressed: () {
-                                                        // updateAppVersion();
-                                                      },
-                                                      child: const Text(
-                                                          'Perbarui Versi Aplikasi'),
-                                                    ),*/
                                                   ],
                                                 ),
                                                 const SizedBox(
@@ -820,7 +814,55 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              'Data Akun 🪪',
+                                              'Buat Sheet untuk Bulan Baru: 📚️',
+                                              style: FontTheme.bodyMedium(
+                                                context,
+                                                fontSize: 28,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              ),
+                                            ),
+                                            const SizedBox(
+                                              height: 20,
+                                            ),
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton(
+                                                onPressed: () =>
+                                                    ToastUtil.showToast(
+                                                        'Masih dalam pengembangan',
+                                                        ToastStatus.warning),
+                                                child: const Text(
+                                                    'Buat Sheet Baru'),
+                                              ),
+                                            ),
+                                            const SizedBox(
+                                              height: 10,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 20,
+                                    ),
+                                    Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(20),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .secondaryContainer,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Data Akun 🧾',
                                               style: FontTheme.bodyMedium(
                                                 context,
                                                 fontSize: 28,
@@ -850,8 +892,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                             ),
                                             Column(
                                               children: [
-                                                ListTile(
-                                                  title: const Text('Nama'),
+                                                CustomListTile(
+                                                  title: 'Nama',
                                                   trailing: Text(
                                                     _userName,
                                                     style: FontTheme.bodyMedium(
@@ -859,8 +901,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                         fontSize: 14),
                                                   ),
                                                 ),
-                                                ListTile(
-                                                  title: const Text('Email'),
+                                                CustomListTile(
+                                                  title: 'Email',
                                                   trailing: Text(
                                                     _user != null
                                                         ? _user!.email!
@@ -870,29 +912,27 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                         fontSize: 14),
                                                   ),
                                                 ),
-                                                ListTile(
-                                                  title: const Text('Bagian'),
+                                                CustomListTile(
+                                                  title: 'Bagian',
                                                   trailing: Text(
                                                     _user != null
-                                                        ? _user!.department!
-                                                            .toUpperCase()
+                                                        ? _user!.department!.toUpperCase()
                                                         : '',
                                                     style: FontTheme.bodyMedium(
                                                         context,
                                                         fontSize: 14),
                                                   ),
                                                 ),
-                                                ListTile(
-                                                  title: const Text(
-                                                      'Login Terakhir'),
+                                                CustomListTile(
+                                                  title: 'Login Terakhir',
                                                   trailing: Text(
                                                     _user != null
                                                         ? _user!.loginTimestamp!
-                                                                .isNotEmpty
-                                                            ? _user!
-                                                                .loginTimestamp!
-                                                            : _user!
-                                                                .firstTimeLogin!
+                                                        .isNotEmpty
+                                                        ? _user!
+                                                        .loginTimestamp!
+                                                        : _user!
+                                                        .firstTimeLogin!
                                                         : '',
                                                     style: FontTheme.bodyMedium(
                                                         context,
