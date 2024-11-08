@@ -11,6 +11,7 @@ import 'package:absensitoko/data/models/time_model.dart';
 import 'package:absensitoko/data/providers/data_provider.dart';
 import 'package:absensitoko/data/providers/time_provider.dart';
 import 'package:absensitoko/core/themes/fonts/fonts.dart';
+import 'package:absensitoko/ui/widgets/attendance_card.dart';
 import 'package:absensitoko/ui/widgets/custom_drop_down_menu.dart';
 import 'package:absensitoko/ui/widgets/custom_list_tile.dart';
 import 'package:absensitoko/ui/widgets/custom_text_form_field.dart';
@@ -373,10 +374,13 @@ class _AttendancePageState extends BaseState<AttendancePage>
     }
   }
 
-  Future<void> _initData() async {
-    _employeeName = widget.employeeName;
+  void _initProvider() {
     _dataProvider = Provider.of<DataProvider>(context, listen: false);
     _timeProvider = Provider.of<TimeProvider>(context, listen: false);
+  }
+
+  Future<void> _initData() async {
+    _employeeName = widget.employeeName;
     _currentTime = _timeProvider.currentTime;
     _weekday = _currentTime.getWeekday();
 
@@ -398,6 +402,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
     super.initState();
     _loadLocationState();
 
+    _initProvider();
     _updateBreakTime();
     _initData();
 
@@ -440,7 +445,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                 },
                 child: SizedBox(
                   height: screenHeight(context) - statusBarHeight(context) - 13,
-                  width: MediaQuery.of(context).size.width,
+                  width: screenWidth(context),
                   child: Scaffold(
                     appBar: AppBar(
                       title: const Text('Absensi Online'),
@@ -497,7 +502,22 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                       dataProvider.selectedDateHistory ??
                                           HistoryData();
 
-                                  _keteranganFull = KeteranganAbsen.parseKeterangan(historyData.keterangan ?? '');
+                                  Color pagiColor =
+                                      dataProvider.statusAbsensiPagi
+                                          ? historyData.tLPagi == 'T'
+                                              ? Colors.greenAccent
+                                              : Colors.redAccent
+                                          : Colors.blueAccent;
+                                  Color siangColor =
+                                      dataProvider.statusAbsensiSiang
+                                          ? historyData.tLSiang == 'T'
+                                              ? Colors.greenAccent
+                                              : Colors.redAccent
+                                          : Colors.blueAccent;
+
+                                  _keteranganFull =
+                                      KeteranganAbsen.parseKeterangan(
+                                          historyData.keterangan ?? '');
 
                                   return Consumer<TimeProvider>(
                                     builder: (context, timeProvider, child) {
@@ -534,6 +554,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                 ),
                                                 AttendanceCard(
                                                   title: 'Absen Pagi',
+                                                  colorState: pagiColor,
                                                   buttonText: 'Absen Pagi',
                                                   // buttonActive: true,
                                                   buttonActive:
@@ -562,6 +583,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                 ),
                                                 AttendanceCard(
                                                   title: 'Absen Siang',
+                                                  colorState: siangColor,
                                                   buttonText: 'Absen Siang',
                                                   buttonActive:
                                                       afternoonAttendanceState &&
@@ -601,19 +623,32 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                 const SizedBox(height: 10),
                                                 ElevatedButton(
                                                   onPressed: () {
-                                                    String info = 'Anda belum absen';
-                                                    if (dataProvider.statusAbsensiPagi) {
-                                                      info = 'Anda sudah absen pagi';
-                                                    } else if (dataProvider.statusAbsensiSiang) {
-                                                      info = 'Anda sudah absen siang';
-                                                    } else if (dataProvider.statusAbsensiPagi && dataProvider.statusAbsensiSiang) {
-                                                      info = 'Anda sudah absen pagi dan siang';
+                                                    String info =
+                                                        'Anda belum absen';
+                                                    if (dataProvider
+                                                        .statusAbsensiPagi) {
+                                                      info =
+                                                          'Anda sudah absen pagi';
+                                                    } else if (dataProvider
+                                                        .statusAbsensiSiang) {
+                                                      info =
+                                                          'Anda sudah absen siang';
+                                                    } else if (dataProvider
+                                                            .statusAbsensiPagi &&
+                                                        dataProvider
+                                                            .statusAbsensiSiang) {
+                                                      info =
+                                                          'Anda sudah absen pagi dan siang';
                                                     }
-                                                    print('Point: ${timeProvider.attendancePoint}');
+                                                    print(
+                                                        'Point: ${timeProvider.attendancePoint}');
 
-                                                    print('Morning Attendance Status: ${timeProvider.morningAttendanceStatus}');
-                                                    print('Afternoon Attendance Status: ${timeProvider.afternoonAttendanceStatus}');
-                                                    ToastUtil.showToast(info, ToastStatus.warning);
+                                                    print(
+                                                        'Morning Attendance Status: ${timeProvider.morningAttendanceStatus}');
+                                                    print(
+                                                        'Afternoon Attendance Status: ${timeProvider.afternoonAttendanceStatus}');
+                                                    ToastUtil.showToast(info,
+                                                        ToastStatus.warning);
                                                   },
                                                   child: const Text(
                                                       'Check Attendance State'),
@@ -708,7 +743,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                               //     },
                               //   ),
                               // ),
-                              if(_keteranganFull.isNotEmpty) ... [
+                              if (_keteranganFull.isNotEmpty) ...[
                                 const SizedBox(height: 10),
                                 const Divider(),
                                 const SizedBox(height: 10),
@@ -731,13 +766,15 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                 // const Divider(),
                                 ListView(
                                   shrinkWrap: true,
-                                  children: _keteranganFull.map((keterangan) =>
-                                      CustomListTile(
-                                        title: keterangan.kategoriUtama ?? '',
-                                        subtitle: '${keterangan.subKategori ?? ''} - ${keterangan.detail ?? ''}',
-                                        trailing: Icon(Icons.info),
-                                      ),
-                                  )
+                                  children: _keteranganFull
+                                      .map(
+                                        (keterangan) => CustomListTile(
+                                          title: keterangan.kategoriUtama ?? '',
+                                          subtitle: keterangan.detail ?? '',
+                                          // subtitle: '${keterangan.subKategori ?? ''} - ${keterangan.detail ?? ''}',
+                                          trailing: Icon(Icons.info),
+                                        ),
+                                      )
                                       .toList(),
                                 ),
                               ],
@@ -1039,8 +1076,9 @@ class _AttendancePageState extends BaseState<AttendancePage>
         dateTime: dateTime,
         onConfirm: (String keterangan) async {
           String ket = '';
-          if(keterangan.isNotEmpty) {
-            ket = '$keterangan, ${_dataProvider.selectedDateHistory?.keterangan ?? ''}';
+          if (keterangan.isNotEmpty) {
+            ket =
+                '$keterangan, ${_dataProvider.selectedDateHistory?.keterangan ?? ''}';
           }
           attendanceData.keterangan = ket;
           pushDataHistory.keterangan = ket;
@@ -1313,74 +1351,6 @@ class _AttendancePageState extends BaseState<AttendancePage>
     _rotationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
-    );
-  }
-}
-
-class AttendanceCard extends StatelessWidget {
-  final String title;
-  final String buttonText;
-  final bool buttonActive;
-  final VoidCallback onButtonPressed;
-  final Widget attendanceStatus;
-  final String message;
-
-  const AttendanceCard({
-    super.key,
-    required this.title,
-    required this.buttonText,
-    required this.buttonActive,
-    required this.onButtonPressed,
-    required this.attendanceStatus,
-    required this.message,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Card(
-        color: Colors.green,
-        elevation: 5,
-        shadowColor: Colors.white,
-        surfaceTintColor: Colors.greenAccent,
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: FontTheme.bodyMedium(
-                  context,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: buttonActive ? onButtonPressed : null,
-                child: Text(buttonText),
-              ),
-              attendanceStatus,
-              if (message.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Text(
-                    message,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Mulish',
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

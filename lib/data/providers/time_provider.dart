@@ -17,7 +17,7 @@ class TimeProvider extends ChangeNotifier {
   // CustomTime _currentTime = CustomTime.getCurrentTime();
   late CustomTime _currentTime;
   late DateTime _ntpTime;
-  final Duration _gmt8Offset = const Duration(hours: 8); // Offset GMT+8
+  final Duration _gmt8Offset = const Duration(hours: -7); // Different Default NTP GMT to GMT+8
 
   // Default Break Time
   int _breakHour = 12;
@@ -57,30 +57,34 @@ class TimeProvider extends ChangeNotifier {
   String get attendancePoint => _calculateAttendancePoint();
 
   TimeProvider() {
+    // Inisialisasi waktu lokal device
     // _currentTime = CustomTime.getCurrentTime();
     // _startTimer();
-    _currentTime = CustomTime.getInitialTime();
+
+    // Inisialisasi waktu NTP
+    _currentTime = CustomTime.getCurrentTime();
     _initializeNtpTime();
   }
 
   Future<void> _initializeNtpTime() async {
     try {
       _ntpTime = await NTP.now(); // Ambil waktu dari server NTP
-      _ntpTime = _ntpTime.add(_gmt8Offset); // Set GMT+8 (WITA)
+      _ntpTime = _ntpTime.add(_gmt8Offset); // Inisialisasi dengan menyesuaikan waktu awal dengan menyamakan perbedaan waktu ntp dengan GMT+8 yaitu -7 jam
       _startTimer();
     } catch (e) {
       // fallback jika tidak ada waktu NTP
-      _ntpTime = DateTime.now().add(_gmt8Offset);
+      print('Waktu server bermasalah, Error: $e');
+      _ntpTime = DateTime.now();
       _startTimer();
     }
   }
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      // Update waktu setiap detik dengan mengacu pada waktu NTP awal
-      // Gunakan offset GMT+8 setiap kali update
-      DateTime updatedTime = _ntpTime.add(Duration(hours: -7, seconds: timer.tick));
+      // Update waktu setiap detik dengan mengacu pada waktu NTP awal dan Menggunakan offset GMT+8 setiap kali update
+      DateTime updatedTime = _ntpTime.add(Duration(hours: 8, seconds: timer.tick));
       _currentTime = CustomTime.fromDateTime(updatedTime);
+      // Untuk mengetahui perbedaan waktu antara waktu NTP dan waktu lokal (GMT+8) dalam jam
       // print('Difference: ${DateTime.now().difference(_ntpTime).inHours}');
 
       // _currentTime = CustomTime.getCurrentTime();

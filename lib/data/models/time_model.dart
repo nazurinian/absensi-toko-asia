@@ -30,12 +30,19 @@ class CustomTime {
     _dayName = dayName;
   }
 
-  // Fungsi untuk get default time phone
-  // Function to get the current time in WITA (GMT+8)
-  factory CustomTime.getCurrentTime() {
+  // Get initial time, ini sama aja kayak get currentTime, kalo mau ntp selaras dengan waktu awal
+  // maka sesuaikan juga waktu insialisasi awalnya digetCurrentTime
+/*  // Function to get the current time in WITA (GMT+8)
+  factory CustomTime.getInitialTime() {
     DateTime now = DateTime.now().toUtc();
-    DateTime witaTime = now.add(const Duration(hours: 14, minutes: 90, seconds: 0)); // GMT+8 (WITA)
+    DateTime witaTime = now.add(const Duration(hours: 8, minutes: 0)); // GMT+8 (WITA)
+
+    // Custom Weekend Day, Change "Minggu" to "Ahad"
     String formattedDayName = DateFormat('EEEE', 'id_ID').format(witaTime);
+    if (formattedDayName == "Minggu") {
+      formattedDayName = "Ahad";
+    }
+
     return CustomTime(
       year: witaTime.year,
       month: witaTime.month,
@@ -46,13 +53,20 @@ class CustomTime {
       weekday: witaTime.weekday,
       dayName: formattedDayName,
     );
-  }
+  }*/
 
+  // Fungsi untuk get default time phone
   // Function to get the current time in WITA (GMT+8)
-  factory CustomTime.getInitialTime() {
+  factory CustomTime.getCurrentTime() {
     DateTime now = DateTime.now().toUtc();
     DateTime witaTime = now.add(const Duration(hours: 8, minutes: 0)); // GMT+8 (WITA)
+
+    // Custom Weekend Day, Change "Minggu" to "Ahad"
     String formattedDayName = DateFormat('EEEE', 'id_ID').format(witaTime);
+    if (formattedDayName == "Minggu") {
+      formattedDayName = "Ahad";
+    }
+
     return CustomTime(
       year: witaTime.year,
       month: witaTime.month,
@@ -69,7 +83,13 @@ class CustomTime {
   factory CustomTime.fromServerTime(String serverTime) {
     DateTime utcTime = DateTime.parse(serverTime).toUtc();
     DateTime witaTime = utcTime.add(const Duration(hours: 8, minutes: 0)); // GMT+8 (WITA)
+
+    // Custom Weekend Day, Change "Minggu" to "Ahad"
     String formattedDayName = DateFormat('EEEE', 'id_ID').format(witaTime);
+    if (formattedDayName == "Minggu") {
+      formattedDayName = "Ahad";
+    }
+
     return CustomTime(
       year: witaTime.year,
       month: witaTime.month,
@@ -85,6 +105,12 @@ class CustomTime {
   // Parse NTP server time (UTC) and convert it to local WITA time
   factory CustomTime.fromDateTime(DateTime dateTime) {
     String formattedDayName = DateFormat('EEEE', 'id_ID').format(dateTime);
+
+    // Custom Weekend Day, Change "Minggu" to "Ahad"
+    if (formattedDayName == "Minggu") {
+      formattedDayName = "Ahad";
+    }
+
     return CustomTime(
       year: dateTime.year,
       month: dateTime.month,

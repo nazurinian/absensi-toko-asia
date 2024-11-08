@@ -16,7 +16,14 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+#  versi utama (major version), versi minor (minor version), dan patch version (patch version)
+#  1 (major) berarti versi utama pertama.
+#  0 (minor) berarti versi minor pertama.
+#  0 (patch) berarti tidak ada perbaikan patch atau pembaruan bug.
+# Build Number (+1):
+# 1.0.0+1: Ini bisa berarti versi pertama dari aplikasi, dengan nomor build 1 yang menunjukkan build pertama dari versi tersebut.
+# Jika ada build berikutnya, misalnya 1.0.0+2, ini menunjukkan bahwa ada build kedua dengan versi yang sama, hanya saja perbedaan terletak pada build number-nya.
+version: 1.1.5+2
 
 environment:
   sdk: ^3.5.0
