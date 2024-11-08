@@ -198,14 +198,33 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> updateInfo() async {
-    AttendanceInfoModel updatedData = AttendanceInfoModel(
-      breakTime: _breaktimeController.text,
-      nationalHoliday: _nationalHolidayController.text,
-    );
+  Future<void> updateInfo(
+      {String fieldUpdate = '',
+      bool isResetBreakTime = false,
+      bool isResetHoliday = false}) async {
+    AttendanceInfoModel updatedData;
+
+    if (isResetBreakTime || isResetHoliday) {
+      updatedData = AttendanceInfoModel(
+        breakTime: isResetBreakTime ? '' : null,
+        nationalHoliday: isResetHoliday ? '' : null,
+      );
+    } else {
+      updatedData = AttendanceInfoModel(
+        breakTime: fieldUpdate == 'break' ? _breaktimeController.text : null,
+        nationalHoliday:
+            fieldUpdate == 'holiday' ? _nationalHolidayController.text : null,
+      );
+    }
 
     final response = await Provider.of<DataProvider>(context, listen: false)
         .updateAttendanceInfo(updatedData);
+
+    if (response.status == 'success') {
+      await _getInfo(isRefresh: true);
+    }
+
+    if (isResetBreakTime || isResetHoliday) return;
 
     setState(() {
       _displayMessage = response.message!;
@@ -679,7 +698,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                       'Waktu istirahat tidak boleh kosong',
                                                   readonly: true,
                                                   onCancel: unFocusAllField,
-                                                  onConfirm: () => updateInfo(),
+                                                  onConfirm: () => updateInfo(
+                                                      fieldUpdate: 'break'),
                                                 ),
                                                 const SizedBox(
                                                   height: 10,
@@ -721,7 +741,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                               .hasFocus
                                                           ? 'Hari Libur '
                                                           : null,
-                                                  onConfirm: () => updateInfo(),
+                                                  onConfirm: () => updateInfo(
+                                                      fieldUpdate: 'holiday'),
                                                 ),
                                                 const SizedBox(
                                                   height: 10,
@@ -783,13 +804,29 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                             right: 16,
                                             top: 16,
                                             child: IconButton(
-                                              onPressed: () {
+                                              onPressed: () async {
                                                 _breaktimeController.clear();
                                                 _nationalHolidayController
                                                     .clear();
                                                 setState(
                                                     () => _displayMessage = '');
                                                 unFocusAllField();
+                                                if (_attendanceInfo!.breakTime!
+                                                        .isNotEmpty ||
+                                                    _attendanceInfo!
+                                                        .nationalHoliday!
+                                                        .isNotEmpty) {
+                                                  print('yanto');
+                                                  await updateInfo(
+                                                      isResetBreakTime:
+                                                          _attendanceInfo!
+                                                              .breakTime!
+                                                              .isNotEmpty,
+                                                      isResetHoliday:
+                                                          _attendanceInfo!
+                                                              .nationalHoliday!
+                                                              .isNotEmpty);
+                                                }
                                               },
                                               icon: const Icon(Icons.clear),
                                             ),
@@ -916,7 +953,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                   title: 'Bagian',
                                                   trailing: Text(
                                                     _user != null
-                                                        ? _user!.department!.toUpperCase()
+                                                        ? _user!.department!
+                                                            .toUpperCase()
                                                         : '',
                                                     style: FontTheme.bodyMedium(
                                                         context,
@@ -928,11 +966,11 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                   trailing: Text(
                                                     _user != null
                                                         ? _user!.loginTimestamp!
-                                                        .isNotEmpty
-                                                        ? _user!
-                                                        .loginTimestamp!
-                                                        : _user!
-                                                        .firstTimeLogin!
+                                                                .isNotEmpty
+                                                            ? _user!
+                                                                .loginTimestamp!
+                                                            : _user!
+                                                                .firstTimeLogin!
                                                         : '',
                                                     style: FontTheme.bodyMedium(
                                                         context,

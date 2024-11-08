@@ -34,6 +34,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants/items_list.dart';
 
+/// Keterangannya itu gak auto refresh di widget paling bawah d halaman ini
+/// Create sheets
+
 class AttendancePage extends StatefulWidget {
   final String employeeName;
   final String deviceName;

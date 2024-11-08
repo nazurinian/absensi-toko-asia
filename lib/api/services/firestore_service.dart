@@ -130,10 +130,11 @@ class FirestoreService {
 
   // Fungsi untuk memperbarui data attendance
   Future<ApiResult> updateAttendanceInfo(AttendanceInfoModel data) async {
+    final dataToSave = data.toMap()..removeWhere((key, value) => value == null);
     try {
-      final Map<String, dynamic> updateData = data.toMap();
+      // final Map<String, dynamic> updateData = data.toMap();
 
-      await _db.collection('attendance').doc('information').update(updateData);
+      await _db.collection('attendance').doc('information').update(dataToSave);
       return ApiResult(
         status: 'success',
         message: 'Berhasil memperbarui data attendance',

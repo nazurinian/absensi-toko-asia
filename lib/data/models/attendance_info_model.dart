@@ -17,8 +17,10 @@ class AttendanceInfoModel {
   // Fungsi untuk mengubah dari AttendanceModel ke Map, tanpa menggunakan .isNotEmpty
   Map<String, dynamic> toMap() {
     return {
-      if (breakTime != null && breakTime!.isNotEmpty) 'break_time': breakTime,
-      if (nationalHoliday != null && nationalHoliday!.isNotEmpty) 'national_holiday': nationalHoliday,
+      // if (breakTime != null && breakTime!.isNotEmpty) 'break_time': breakTime,
+      // if (nationalHoliday != null && nationalHoliday!.isNotEmpty) 'national_holiday': nationalHoliday,
+      'break_time': breakTime,
+      'national_holiday': nationalHoliday,
     };
   }
 
