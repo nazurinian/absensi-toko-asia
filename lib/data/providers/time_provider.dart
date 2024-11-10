@@ -1,6 +1,7 @@
 import 'package:absensitoko/core/constants/constants.dart';
 import 'package:absensitoko/data/models/history_model.dart';
 import 'package:absensitoko/utils/helpers/general_helper.dart';
+import 'package:absensitoko/utils/popup_util.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:absensitoko/data/models/time_model.dart';
@@ -11,13 +12,14 @@ import 'package:ntp/ntp.dart';
 // jam 07:04:01 - 07:09:00 untuk poin 5
 // jam 07:09:01 - 10:00:00 untuk poin 10
 
-class TimeProvider extends ChangeNotifier {
+class TimeProvider extends ChangeNotifier with WidgetsBindingObserver {
   Timer? _timer;
 
   // CustomTime _currentTime = CustomTime.getCurrentTime();
   late CustomTime _currentTime;
   late DateTime _ntpTime;
-  final Duration _gmt8Offset = const Duration(hours: -7); // Different Default NTP GMT to GMT+8
+  final Duration _gmt8Offset =
+      const Duration(hours: -7); // Different Default NTP GMT to GMT+8
 
   // Default Break Time
   int _breakHour = 12;
@@ -57,6 +59,7 @@ class TimeProvider extends ChangeNotifier {
   String get attendancePoint => _calculateAttendancePoint();
 
   TimeProvider() {
+    WidgetsBinding.instance.addObserver(this);
     // Inisialisasi waktu lokal device
     // _currentTime = CustomTime.getCurrentTime();
     // _startTimer();
@@ -69,7 +72,8 @@ class TimeProvider extends ChangeNotifier {
   Future<void> _initializeNtpTime() async {
     try {
       _ntpTime = await NTP.now(); // Ambil waktu dari server NTP
-      _ntpTime = _ntpTime.add(_gmt8Offset); // Inisialisasi dengan menyesuaikan waktu awal dengan menyamakan perbedaan waktu ntp dengan GMT+8 yaitu -7 jam
+      _ntpTime = _ntpTime.add(
+          _gmt8Offset); // Inisialisasi dengan menyesuaikan waktu awal dengan menyamakan perbedaan waktu ntp dengan GMT+8 yaitu -7 jam
       _startTimer();
     } catch (e) {
       // fallback jika tidak ada waktu NTP
@@ -82,7 +86,8 @@ class TimeProvider extends ChangeNotifier {
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       // Update waktu setiap detik dengan mengacu pada waktu NTP awal dan Menggunakan offset GMT+8 setiap kali update
-      DateTime updatedTime = _ntpTime.add(Duration(hours: 8, seconds: timer.tick));
+      DateTime updatedTime =
+          _ntpTime.add(Duration(hours: 8, seconds: timer.tick));
       _currentTime = CustomTime.fromDateTime(updatedTime);
       // Untuk mengetahui perbedaan waktu antara waktu NTP dan waktu lokal (GMT+8) dalam jam
       // print('Difference: ${DateTime.now().difference(_ntpTime).inHours}');
@@ -95,6 +100,25 @@ class TimeProvider extends ChangeNotifier {
 
   void stopUpdatingTime() {
     _timer?.cancel();
+  }
+
+  // Menangani perubahan lifecycle aplikasi
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // ToastUtil.showToast('resume', ToastStatus.warning);
+      refreshNtpTime();
+    } else if (state == AppLifecycleState.paused) {
+      // ToastUtil.showToast('pause', ToastStatus.warning);
+      stopUpdatingTime();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    stopUpdatingTime();
+    super.dispose();
   }
 
   Future<void> refreshNtpTime() async {
@@ -251,16 +275,20 @@ class TimeProvider extends ChangeNotifier {
         now.year, now.month, now.day, storeClosedHour, storeClosedMinute);
     final breakTime =
         DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
+    print('breakTime: $breakTime');
 
     // Waktu pagi:
-    final morningEndTime = DateTime(
-        now.year, now.month, now.day, morningEndHour, morningEndMinute);
+    final morningEndTime =
+        morningStartTime.add(const Duration(minutes: attendanceTimerInterval));
     final morningLateStartTime = morningEndTime.add(const Duration(seconds: 1));
     final morningLateEndTime = morningEndTime.add(const Duration(minutes: 5));
     final morningOverLateStartTime =
         morningLateEndTime.add(const Duration(seconds: 1));
     final morningOverLateEndTime = DateTime(
         now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
+
+    print(morningStartTime);
+    print(morningEndTime);
 
     _morningAttendanceMessage = _setAttendanceMessage(
       title: 'pagi',
@@ -421,7 +449,7 @@ class TimeProvider extends ChangeNotifier {
   void updateBreakTime(int hour, int minute) {
     _breakHour = hour;
     _breakMinute = minute;
-    notifyListeners();
+    // notifyListeners();
   }
 
   void resetAttendanceCheck() {
@@ -458,8 +486,8 @@ class TimeProvider extends ChangeNotifier {
     }
 
     // Waktu pagi:
-    final morningEndTime = DateTime(
-        now.year, now.month, now.day, morningEndHour, morningEndMinute);
+    final morningEndTime =
+        morningStartTime.add(const Duration(minutes: attendanceTimerInterval));
     final morningLateStartTime = morningEndTime.add(const Duration(seconds: 1));
     final morningLateEndTime = morningEndTime.add(const Duration(minutes: 5));
     final morningOverLateStartTime =

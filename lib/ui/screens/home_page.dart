@@ -1,3 +1,4 @@
+import 'package:absensitoko/core/constants/constants.dart';
 import 'package:absensitoko/core/constants/items_list.dart';
 import 'package:absensitoko/data/models/history_model.dart';
 import 'package:absensitoko/data/models/attendance_info_model.dart';
@@ -17,6 +18,7 @@ import 'package:absensitoko/utils/base/location_service.dart';
 import 'package:absensitoko/utils/base/version_checker.dart';
 import 'package:absensitoko/utils/dialogs/dialog_utils.dart';
 import 'package:absensitoko/utils/display_size_util.dart';
+import 'package:absensitoko/utils/helpers/general_helper.dart';
 import 'package:absensitoko/utils/popup_util.dart';
 import 'package:absensitoko/core/constants/options_menu.dart';
 import 'package:absensitoko/utils/dialogs/loading_dialog_util.dart';
@@ -33,6 +35,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
+  late TimeProvider _timeProvider;
+  late DataProvider _dataProvider;
+  late UserProvider _userProvider;
+
   final TextEditingController _breaktimeController = TextEditingController();
   final TextEditingController _nationalHolidayController =
       TextEditingController();
@@ -46,21 +52,23 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   final String _holiday = 'Libur ';
   String _displayMessage = 'Data belum diperoleh';
   bool _isLoadingGetInfo = false;
+  bool _isLogout = false;
   String? _deviceName;
 
   AttendanceInfoModel? _attendanceInfo;
+  bool _enableUpdateHoliday = true;
+  bool _enableUpdateBreakTime = true;
 
   // String? _infoRole = '';
   // bool _lockAccess = false;
 
   Future<void> _fetchUserData({bool isRefresh = false}) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    if (userProvider.userDataIsLoaded && !isRefresh) {
-      _updateUser(userProvider.currentUser);
+    if (_userProvider.userDataIsLoaded && !isRefresh) {
+      _updateUser(_userProvider.currentUser);
       return;
     }
 
-    await _loadAndVerifyUserSession(userProvider, isRefresh);
+    await _loadAndVerifyUserSession(_userProvider, isRefresh);
   }
 
   Future<void> _loadAndVerifyUserSession(
@@ -90,9 +98,12 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     final userData = userProvider.currentUser;
     if (userData!.loginDevice != deviceName) {
       await _showSessionExpiredDialog();
+      setState(() => _isLogout = true);
+    } else {
+      _updateUser(userData);
+      ToastUtil.showToast(
+          'Berhasil memperoleh data profil', ToastStatus.success);
     }
-    _updateUser(userData);
-    ToastUtil.showToast('Berhasil memperoleh data profil', ToastStatus.success);
 
     if (mounted) LoadingDialog.hide(context);
   }
@@ -119,11 +130,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   }
 
   void _handleLogout({bool sessionExpired = false}) async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final userDataSession = userProvider.currentUserSession!.uid;
-    final currentTime = Provider.of<TimeProvider>(context, listen: false)
-        .currentTime
-        .postTime();
+    final userDataSession = _userProvider.currentUserSession!.uid;
+    final currentTime = _timeProvider.currentTime.postTime();
 
     UserModel user = UserModel(
       uid: userDataSession,
@@ -136,7 +144,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
 
     LoadingDialog.show(context);
     try {
-      final message = await userProvider.signOut(user, sessionExpired);
+      final message = await _userProvider.signOut(user, sessionExpired);
       await _handleLogoutResult(message);
     } catch (e) {
       _showErrorSnackbar(e.toString());
@@ -157,35 +165,68 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   }
 
   void _clearDataAndNavigate() {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    userProvider.clearAccountData();
-    Provider.of<DataProvider>(context, listen: false).clearData();
+    _userProvider.clearAccountData();
+    _dataProvider.clearData();
     LoadingDialog.hide(context);
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
   Future<void> _getInfo({bool isRefresh = false}) async {
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    final weekday = Provider.of<TimeProvider>(context, listen: false)
-        .currentTime
-        .getWeekday();
-    final response = await dataProvider.getAttendanceInfo(isRefresh: isRefresh);
+    final weekday = _timeProvider.currentTime.getWeekday();
+    final response =
+        await _dataProvider.getAttendanceInfo(isRefresh: isRefresh);
 
     if (response.status == 'success') {
-      final data = dataProvider.attendanceInfoData!;
-      String nationalHoliday = data.nationalHoliday ?? '';
-      String? breakTime = data.breakTime!.isNotEmpty || data.breakTime == null
-          ? data.breakTime
-          : '00:00';
-      String thisDay = nationalHoliday.isNotEmpty
+      final data = _dataProvider.attendanceInfoData!;
+
+/*
+      String breakTime = data.breakTime!;
+      String nationalHoliday = data.nationalHoliday!;
+
+      bool isNormalDays = data.breakTime!.isNotEmpty && data.breakTime != null;
+      bool isHoliday =
+          data.nationalHoliday!.isNotEmpty && data.nationalHoliday != null;
+
+      print('normalDays: $isNormalDays');
+      print('isHoliday: $isHoliday');
+
+      if (isNormalDays) {
+        String breakEndTime = formatStringToDateTime(
+            _timeProvider.currentTime, breakTime,
+            addTime: afternoonPreparationMinutes);
+
+        breakTime = '$breakTime - $breakEndTime';
+      }
+
+      breakTime = isNormalDays
+          ? breakTime
+          : weekday == DateTime.sunday
+              ? '13:00 - 16.00'
+              : weekday == DateTime.friday
+                  ? '11.15 - 14:00'
+                  : 'Belum diatur';
+      nationalHoliday = isHoliday
           ? nationalHoliday
           : weekday == DateTime.sunday
-              ? 'Hari Ahad'
-              : '(Hari Kerja)';
+              ? '(Hari Ahad)'
+              : '(Hari Normal)';
+*/
+
+      final String breakTime = calculateBreakTime(_timeProvider.currentTime, data.breakTime, weekday);
+      final String nationalHoliday = setHolidayStatus(data.nationalHoliday, weekday);
+      bool isHoliday = data.nationalHoliday!.isNotEmpty || weekday == DateTime.sunday;
+      bool specificBreakTime = data.breakTime!.isNotEmpty || weekday == DateTime.friday || weekday == DateTime.sunday;
+
+      if(isHoliday) {
+        setState(() => _enableUpdateHoliday = false);
+      }
+      if(specificBreakTime) {
+        setState(() => _enableUpdateBreakTime = false);
+      }
 
       setState(() {
         _displayMessage =
-            'Data berhasil diperoleh:\nWaktu ISHOMA > $breakTime\nLibur Nasional > $thisDay';
+            'Data berhasil diperoleh:\nWaktu ISHOMA > $breakTime\nLibur Nasional > $nationalHoliday';
         _attendanceInfo = data;
         _breaktimeController.text = data.breakTime ?? '';
         _nationalHolidayController.text = data.nationalHoliday ?? '';
@@ -217,8 +258,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
       );
     }
 
-    final response = await Provider.of<DataProvider>(context, listen: false)
-        .updateAttendanceInfo(updatedData);
+    final response = await _dataProvider.updateAttendanceInfo(updatedData);
 
     if (response.status == 'success') {
       await _getInfo(isRefresh: true);
@@ -229,6 +269,12 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     setState(() {
       _displayMessage = response.message!;
     });
+  }
+
+  void _initData() {
+    _timeProvider = Provider.of<TimeProvider>(context, listen: false);
+    _dataProvider = Provider.of<DataProvider>(context, listen: false);
+    _userProvider = Provider.of<UserProvider>(context, listen: false);
   }
 
   Future<void> _getAppVersion() async {
@@ -250,9 +296,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _initAndGetAttendanceHistory({bool isRefresh = false}) async {
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    final currentTime =
-        Provider.of<TimeProvider>(context, listen: false).currentTime;
+    final currentTime = _timeProvider.currentTime;
 
     String keterangan = _attendanceInfo?.nationalHoliday ?? '';
 
@@ -264,17 +308,17 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     );
 
     if (!isRefresh) {
-      await dataProvider.initializeHistory(_userName, initHistoryData);
+      await _dataProvider.initializeHistory(_userName, initHistoryData);
     }
 
-    if (dataProvider.isSelectedDateHistoryAvailable && !isRefresh) {
+    if (_dataProvider.isSelectedDateHistoryAvailable && !isRefresh) {
       ToastUtil.showToast('Data absensi sudah ada', ToastStatus.success);
       return;
     }
 
     String action = isRefresh ? 'Memperbarui' : 'Mendapatkan';
 
-    final result = await dataProvider.getThisDayHistory(
+    final result = await _dataProvider.getThisDayHistory(
         _userName, currentTime.postTime(),
         isRefresh: isRefresh);
     if (result.status == 'success') {
@@ -289,10 +333,15 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
+    _initData();
     _getAppVersion();
     _permissionCheck();
     _getInfo();
-    _fetchUserData().then((_) async => await _initAndGetAttendanceHistory());
+    _fetchUserData().then((_) async {
+      if (!_isLogout) {
+        await _initAndGetAttendanceHistory();
+      }
+    });
   }
 
   @override
@@ -311,6 +360,11 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _getAppVersion();
+      _fetchUserData(isRefresh: true);
+
+      //   _timeProvider.refreshNtpTime();
+      // } else if (state == AppLifecycleState.paused) {
+      //   _timeProvider.stopUpdatingTime();
     }
     super.didChangeAppLifecycleState(state);
   }
@@ -697,6 +751,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                   errorMessage:
                                                       'Waktu istirahat tidak boleh kosong',
                                                   readonly: true,
+                                                  enabled: _enableUpdateBreakTime,
                                                   onCancel: unFocusAllField,
                                                   onConfirm: () => updateInfo(
                                                       fieldUpdate: 'break'),
@@ -741,6 +796,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                               .hasFocus
                                                           ? 'Hari Libur '
                                                           : null,
+                                                  enabled: _enableUpdateHoliday,
                                                   onConfirm: () => updateInfo(
                                                       fieldUpdate: 'holiday'),
                                                 ),
@@ -816,7 +872,6 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                     _attendanceInfo!
                                                         .nationalHoliday!
                                                         .isNotEmpty) {
-                                                  print('yanto');
                                                   await updateInfo(
                                                       isResetBreakTime:
                                                           _attendanceInfo!
@@ -1032,8 +1087,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
       }
       // Memastikan data diperbarui setelah kembali dari halaman edit
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await Provider.of<UserProvider>(context, listen: false)
-            .getUser(_user!.uid);
+        await _userProvider.getUser(_user!.uid);
       });
     } else if (value == 'information') {
       Navigator.pushNamed(context, '/information');

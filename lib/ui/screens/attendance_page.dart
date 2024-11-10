@@ -37,6 +37,7 @@ import '../../core/constants/items_list.dart';
 
 /// Keterangannya itu gak auto refresh di widget paling bawah d halaman ini
 /// Create sheets
+/// Waktu siang hari ahad sm jumat harus dibenerin late nya biar statusnya tidak error
 
 class AttendancePage extends StatefulWidget {
   final String employeeName;
@@ -89,6 +90,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
   late int _weekday;
   bool _isLoadingGetBreakTime = false;
   String _nationalHoliday = '';
+  String _breakTimeInterval = '';
 
   // Absensi dialog timeout
   final ValueNotifier<int> remainingSeconds = ValueNotifier<int>(15);
@@ -299,44 +301,69 @@ class _AttendancePageState extends BaseState<AttendancePage>
     }
   }
 
+  void _setBreakTime(String action) {
+    final attendanceInfo = _dataProvider.attendanceInfoData;
+    final serverBreakTime = attendanceInfo?.breakTime ?? '12:00';
+
+    String breakInterval =
+    calculateBreakTime(_currentTime, serverBreakTime, _weekday);
+    setState(() {
+      _nationalHoliday = attendanceInfo?.nationalHoliday ?? '';
+      _breakTimeInterval = breakInterval;
+    });
+
+    bool isHoliday = _nationalHoliday.isNotEmpty || _weekday == DateTime.sunday;
+
+    final breakTime = getBreakTime(_weekday, attendanceInfo?.breakTime);
+    int breakHour = breakTime['hour']!;
+    int breakMinute = breakTime['minute']!;
+
+/*
+    String breakTime = '12:00';
+
+    final attendanceInfo = _dataProvider.attendanceInfoData;
+
+    setState(() {
+      _nationalHoliday =
+          attendanceInfo?.nationalHoliday ?? '';
+    });
+    bool isHoliday =
+        _nationalHoliday.isNotEmpty || _weekday == DateTime.sunday;
+
+    if (_weekday == DateTime.friday) {
+      breakTime = '$fridayAfternoonStartHour:$fridayAfternoonStartMinute';
+    } else if (_weekday == DateTime.sunday) {
+      breakTime = '$sundayAfternoonStartHour:$sundayAfternoonStartMinute';
+    } else {
+      // Default Break Time Sama kek di timeProvider
+      final serverBreakTime =
+          attendanceInfo?.breakTime ?? '12:00';
+      breakTime = serverBreakTime.isEmpty ? '12:00' : serverBreakTime;
+    }
+
+    List<String> breakTimeParts = breakTime.split(':');
+    int breakHour = int.parse(breakTimeParts[0]);
+    int breakMinute = int.parse(breakTimeParts[1]);
+*/
+
+    _timeProvider.updateBreakTime(breakHour, breakMinute);
+    _timeProvider.setHolidayStatus(isHoliday);
+    setState(() => _isLoadingGetBreakTime = false);
+    ToastUtil.showToast(
+        'Berhasil $action waktu break siang', ToastStatus.success);
+  }
+
   Future<void> _updateBreakTime({bool isRefresh = false}) async {
+    String action = isRefresh ? 'Memperbarui' : 'Mendapatkan';
+
     if (_dataProvider.isAttendanceInfoAvailable && !isRefresh) {
-      ToastUtil.showToast('Informasi Absen sudah ada', ToastStatus.success);
+      _setBreakTime(action);
       return;
     }
 
-    String action = isRefresh ? 'Memperbarui' : 'Mendapatkan';
-
     final result = await _dataProvider.getAttendanceInfo(isRefresh: isRefresh);
     if (result.status == 'success') {
-      String breakTime = '12:00';
-      setState(() {
-        _nationalHoliday =
-            _dataProvider.attendanceInfoData?.nationalHoliday ?? '';
-      });
-      bool isHoliday =
-          _nationalHoliday.isNotEmpty || _weekday == DateTime.sunday;
-
-      if (_weekday == DateTime.friday) {
-        breakTime = '$fridayAfternoonStartHour:$fridayAfternoonStartMinute';
-      } else if (_weekday == DateTime.sunday) {
-        breakTime = '$sundayAfternoonStartHour:$sundayAfternoonStartMinute';
-      } else {
-        // Default Break Time Sama kek di timeProvider
-        final serverBreakTime =
-            _dataProvider.attendanceInfoData?.breakTime ?? '12:00';
-        breakTime = serverBreakTime.isEmpty ? '12:00' : serverBreakTime;
-      }
-
-      List<String> breakTimeParts = breakTime.split(':');
-      int breakHour = int.parse(breakTimeParts[0]);
-      int breakMinute = int.parse(breakTimeParts[1]);
-
-      _timeProvider.updateBreakTime(breakHour, breakMinute);
-      _timeProvider.setHolidayStatus(isHoliday);
-      setState(() => _isLoadingGetBreakTime = false);
-      ToastUtil.showToast(
-          'Berhasil $action waktu break siang', ToastStatus.success);
+      _setBreakTime(action);
     } else {
       ToastUtil.showToast('Gagal $action waktu break siang', ToastStatus.error);
     }
@@ -375,15 +402,14 @@ class _AttendancePageState extends BaseState<AttendancePage>
   }
 
   void _initProvider() {
+    _employeeName = widget.employeeName;
     _dataProvider = Provider.of<DataProvider>(context, listen: false);
     _timeProvider = Provider.of<TimeProvider>(context, listen: false);
+    _currentTime = _timeProvider.currentTime;
+    _weekday = _currentTime.getWeekday();
   }
 
   Future<void> _initData() async {
-    _employeeName = widget.employeeName;
-    _currentTime = _timeProvider.currentTime;
-    _weekday = _currentTime.getWeekday();
-
     String keterangan = _nationalHoliday;
 
     final initHistoryData = HistoryData(
@@ -491,7 +517,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                       dataProvider.attendanceInfoData!;
                                   final breakTimeStart = infoAttendance
                                           .breakTime!.isNotEmpty
-                                      ? 'Waktu break mulai jam : ${infoAttendance.breakTime}'
+                                      ? 'Waktu break mulai jam : $_breakTimeInterval'
                                       : 'Waktu break belum diperbarui';
                                   // final pagiAttendanceStatus =
                                   //     dataProvider.statusAbsensiPagi;

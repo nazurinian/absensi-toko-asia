@@ -10,6 +10,7 @@ class BreaktimeField extends StatelessWidget {
   final String? hintText;
   final String? errorMessage;
   final bool readonly;
+  final bool enabled;
   final void Function()? onTap;
   final void Function()? onConfirm;
   final void Function(String)? onChanged;
@@ -25,6 +26,7 @@ class BreaktimeField extends StatelessWidget {
     this.hintText,
     this.errorMessage,
     this.readonly = false,
+    this.enabled = true,
     this.onTap,
     this.onConfirm,
     this.onChanged,
@@ -43,6 +45,7 @@ class BreaktimeField extends StatelessWidget {
               controller: controller,
               keyboardType: TextInputType.none,
               readOnly: readonly,
+              enabled: enabled,
               onTap: labelText == 'breaktime'
                   ? () {
                       TimePicker.customTime(context, 'Waktu Istirahat',
@@ -85,14 +88,14 @@ class BreaktimeField extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           ElevatedButton(
-            onPressed: () {
+            onPressed: enabled ? () {
               if (formKey?.currentState?.validate() ?? false) {
                 if(onConfirm != null) {
                   focusNode.unfocus();
                   onConfirm!();
                 }
               }
-            },
+            } : null,
             child: const Text('Simpan'),
           ),
         ],

@@ -1,3 +1,5 @@
+import 'package:absensitoko/core/constants/constants.dart';
+import 'package:absensitoko/data/models/time_model.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/items_list.dart';
@@ -79,7 +81,85 @@ String formatDuration(Duration duration) {
   return "$minutes:$seconds";
 }
 
+String calculateBreakTime(CustomTime currentTime, String? breakTime, int weekday) {
+  if (breakTime?.isNotEmpty ?? false) {
+    String breakEndTime = formatStringToDateTime(
+      currentTime,
+      breakTime!,
+      addTime: afternoonPreparationMinutes,
+    );
+    return '$breakTime - $breakEndTime';
+  }
+
+  return weekday == DateTime.sunday
+      ? '13:00 - 16.00'
+      : weekday == DateTime.friday
+      ? '11.15 - 14:00'
+      : 'Belum diatur';
+}
+
+String setHolidayStatus(String? nationalHoliday, int weekday) {
+  if (nationalHoliday?.isNotEmpty ?? false) {
+    return nationalHoliday!;
+  }
+
+  return weekday == DateTime.sunday ? '(Hari Ahad)' : '(Hari Normal)';
+}
+
+String formatStringToDateTime(CustomTime now, String date, {int? addTime}) {
+  List<String> breakTimeParts = date.split(':');
+  int breakHour = int.parse(breakTimeParts[0]);
+  int breakMinute = int.parse(breakTimeParts[1]);
+
+  DateTime dateTime = DateTime(
+    now.getYear(),
+    now.getMonth(),
+    now.getDay(),
+    breakHour,
+    breakMinute,
+  );
+
+  if (addTime != null) {
+    dateTime = dateTime.add(Duration(minutes: addTime));
+  }
+  return "${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
+}
+
+Map<String, int> getBreakTime(int weekday, String? serverBreakTime) {
+  int breakHour;
+  int breakMinute;
+
+  if (weekday == DateTime.friday) {
+    breakHour = fridayAfternoonStartHour;
+    breakMinute = fridayAfternoonStartMinute;
+  } else if (weekday == DateTime.sunday) {
+    breakHour = sundayAfternoonStartHour;
+    breakMinute = sundayAfternoonStartMinute;
+  } else {
+    final defaultBreakTime = serverBreakTime?.isNotEmpty ?? false ? serverBreakTime! : '12:00';
+    List<String> breakTimeParts = defaultBreakTime.split(':');
+    breakHour = int.parse(breakTimeParts[0]);
+    breakMinute = int.parse(breakTimeParts[1]);
+  }
+
+  return {'hour': breakHour, 'minute': breakMinute};
+}
+
 /*
+String formatStringToDateTime (CustomTime now, String date, {int? addTime}) {
+  List<String> breakTimeParts = date.split(':');
+  int breakHour = int.parse(breakTimeParts[0]);
+  int breakMinute = int.parse(breakTimeParts[1]);
+  DateTime dateTime = DateTime(now.getYear(), now.getMonth(), now.getDay(),
+    breakHour,
+    breakMinute,
+  );
+  if(addTime != null) {
+    dateTime = dateTime.add(Duration(minutes: addTime));
+  }
+  return "$dateTime.minutes:$dateTime.seconds";
+}
+
 String getListSheet(String dateString) {
   // Parsing string 'yyyyMM' ke dalam DateTime
   int year = int.parse(dateString.substring(0, 4));

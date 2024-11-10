@@ -23,7 +23,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # Build Number (+1):
 # 1.0.0+1: Ini bisa berarti versi pertama dari aplikasi, dengan nomor build 1 yang menunjukkan build pertama dari versi tersebut.
 # Jika ada build berikutnya, misalnya 1.0.0+2, ini menunjukkan bahwa ada build kedua dengan versi yang sama, hanya saja perbedaan terletak pada build number-nya.
-version: 1.1.5+2
+version: 1.1.6+3
 
 environment:
   sdk: ^3.5.0

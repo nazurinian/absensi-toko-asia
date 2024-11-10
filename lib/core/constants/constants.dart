@@ -1,8 +1,8 @@
 
 const int morningStartHour = 6;
 const int morningStartMinute = 50; // 10 menit sebelum 07:00
-const int morningEndHour = 7;
-const int morningEndMinute = 4; // Maksimal absen tepat waktu
+// const int morningEndHour = 7;
+// const int morningEndMinute = 4; // Maksimal absen tepat waktu
 const int morningLateEndHour = 10; // Batas untuk absen terlambat
 const int morningLateEndMinute = 0;
 
