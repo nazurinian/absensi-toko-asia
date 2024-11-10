@@ -666,13 +666,12 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                       info =
                                                           'Anda sudah absen pagi dan siang';
                                                     }
-                                                    print(
-                                                        'Point: ${timeProvider.attendancePoint}');
-
-                                                    print(
-                                                        'Morning Attendance Status: ${timeProvider.morningAttendanceStatus}');
-                                                    print(
-                                                        'Afternoon Attendance Status: ${timeProvider.afternoonAttendanceStatus}');
+                                                    // print(
+                                                    //     'Point: ${timeProvider.attendancePoint}');
+                                                    // print(
+                                                    //     'Morning Attendance Status: ${timeProvider.morningAttendanceStatus}');
+                                                    // print(
+                                                    //     'Afternoon Attendance Status: ${timeProvider.afternoonAttendanceStatus}');
                                                     ToastUtil.showToast(info,
                                                         ToastStatus.warning);
                                                   },
@@ -865,8 +864,8 @@ class _AttendancePageState extends BaseState<AttendancePage>
   Future<void> _attendanceProcess(
       String waktuAbsensi, Attendance attendance) async {
     // LoadingDialog.show(context);
-    print('Waktu Absensi: $waktuAbsensi');
-    print('Attendance: $attendance');
+    // print('Waktu Absensi: $waktuAbsensi');
+    // print('Attendance: $attendance');
     try {
       final message =
           await _dataProvider.updateAttendance(waktuAbsensi, attendance);

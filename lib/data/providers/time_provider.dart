@@ -77,7 +77,7 @@ class TimeProvider extends ChangeNotifier with WidgetsBindingObserver {
       _startTimer();
     } catch (e) {
       // fallback jika tidak ada waktu NTP
-      print('Waktu server bermasalah, Error: $e');
+      // print('Waktu server bermasalah, Error: $e');
       _ntpTime = DateTime.now();
       _startTimer();
     }
@@ -275,7 +275,7 @@ class TimeProvider extends ChangeNotifier with WidgetsBindingObserver {
         now.year, now.month, now.day, storeClosedHour, storeClosedMinute);
     final breakTime =
         DateTime(now.year, now.month, now.day, _breakHour, _breakMinute);
-    print('breakTime: $breakTime');
+    // print('breakTime: $breakTime');
 
     // Waktu pagi:
     final morningEndTime =
@@ -287,8 +287,8 @@ class TimeProvider extends ChangeNotifier with WidgetsBindingObserver {
     final morningOverLateEndTime = DateTime(
         now.year, now.month, now.day, morningLateEndHour, morningLateEndMinute);
 
-    print(morningStartTime);
-    print(morningEndTime);
+    // print(morningStartTime);
+    // print(morningEndTime);
 
     _morningAttendanceMessage = _setAttendanceMessage(
       title: 'pagi',
