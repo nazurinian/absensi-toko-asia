@@ -59,7 +59,9 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   bool _enableUpdateHoliday = true;
   bool _enableUpdateBreakTime = true;
 
-  // String? _infoRole = '';
+  Map<String, bool> _temporaryAdmin = {};
+  String? _infoRole = '';
+
   // bool _lockAccess = false;
 
   Future<void> _fetchUserData({bool isRefresh = false}) async {
@@ -112,6 +114,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     setState(() {
       _user = userData;
       _userName = _user?.displayName?.toUpperCase() ?? '';
+      _infoRole = _user?.role;
     });
   }
 
@@ -212,15 +215,20 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
               : '(Hari Normal)';
 */
 
-      final String breakTime = calculateBreakTime(_timeProvider.currentTime, data.breakTime, weekday);
-      final String nationalHoliday = setHolidayStatus(data.nationalHoliday, weekday);
-      bool isHoliday = data.nationalHoliday!.isNotEmpty || weekday == DateTime.sunday;
-      bool specificBreakTime = data.breakTime!.isNotEmpty || weekday == DateTime.friday || weekday == DateTime.sunday;
+      final String breakTime = calculateBreakTime(
+          _timeProvider.currentTime, data.breakTime, weekday);
+      final String nationalHoliday =
+          setHolidayStatus(data.nationalHoliday, weekday);
+      bool isHoliday =
+          data.nationalHoliday!.isNotEmpty || weekday == DateTime.sunday;
+      bool specificBreakTime = data.breakTime!.isNotEmpty ||
+          weekday == DateTime.friday ||
+          weekday == DateTime.sunday;
 
-      if(isHoliday) {
+      if (isHoliday) {
         setState(() => _enableUpdateHoliday = false);
       }
-      if(specificBreakTime) {
+      if (specificBreakTime) {
         setState(() => _enableUpdateBreakTime = false);
       }
 
@@ -275,6 +283,14 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     _timeProvider = Provider.of<TimeProvider>(context, listen: false);
     _dataProvider = Provider.of<DataProvider>(context, listen: false);
     _userProvider = Provider.of<UserProvider>(context, listen: false);
+  }
+
+  Future<void> _getTemporaryAdmin() async {
+    final result = await _dataProvider.getTemporaryAdmins();
+    if (result.status == 'success') {
+      final temporaryAdmin = _dataProvider.temporaryAdmins;
+      _temporaryAdmin = temporaryAdmin;
+    }
   }
 
   Future<void> _getAppVersion() async {
@@ -340,6 +356,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     _fetchUserData().then((_) async {
       if (!_isLogout) {
         await _initAndGetAttendanceHistory();
+        await _getTemporaryAdmin();
       }
     });
   }
@@ -394,223 +411,250 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                       await Future.delayed(const Duration(seconds: 3));
                       await _fetchUserData(isRefresh: true);
                       await _initAndGetAttendanceHistory(isRefresh: true);
+                      await _getTemporaryAdmin();
                       if (context.mounted) {
                         await Provider.of<TimeProvider>(context, listen: false)
                             .refreshNtpTime();
                       }
                     },
                     child: SingleChildScrollView(
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            bottom: 0,
-                            child: Image.asset(
-                              AppImage.atk.path,
-                              width: screenWidth(context),
-                              fit: BoxFit.cover,
-                              alignment: Alignment.bottomCenter,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: _infoRole == 'other'
+                          ? _buildOtherRolePage()
+                          : Stack(
                               children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 16.0),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                Positioned(
+                                  bottom: 0,
+                                  child: Image.asset(
+                                    AppImage.atk.path,
+                                    width: screenWidth(context),
+                                    fit: BoxFit.cover,
+                                    alignment: Alignment.bottomCenter,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.start,
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        '${dateTime.getIdnDayName()}, ',
-                                        style: FontTheme.titleMedium(
-                                          context,
-                                          fontSize: 36,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 16.0),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${dateTime.getIdnDayName()}, ',
+                                              style: FontTheme.titleMedium(
+                                                context,
+                                                fontSize: 36,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              child: PopupMenuButton(
+                                                offset: const Offset(0, 50),
+                                                onSelected: (value) async {
+                                                  return _popupMenuAction(
+                                                      context, value);
+                                                },
+                                                itemBuilder: _popupMenuItem,
+                                                iconSize: 28,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      SizedBox(
-                                        child: PopupMenuButton(
-                                          offset: const Offset(0, 50),
-                                          onSelected: (value) async =>
-                                              _popupMenuAction(context, value),
-                                          itemBuilder: _popupMenuItem,
-                                          iconSize: 28,
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(left: 4.0),
+                                        child: Text(
+                                          dateTime.getIdnDate(),
+                                          style: FontTheme.titleMedium(
+                                            context,
+                                            fontSize: 19,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 4.0),
-                                  child: Text(
-                                    dateTime.getIdnDate(),
-                                    style: FontTheme.titleMedium(
-                                      context,
-                                      fontSize: 19,
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    // _shortAttendanceInfo(dateTime),
-                                    ShortAttendanceInfo(
-                                      currentTime: dateTime,
-                                      userName: _userName,
-                                      deviceName: _deviceName ?? '',
-                                    ),
-                                    const SizedBox(
-                                      height: 20,
-                                    ),
-                                    Container(
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        dateTime.getIdnTime(),
-                                        style: FontTheme.titleMedium(
-                                          context,
-                                          fontSize: 36,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 20,
-                                    ),
-                                    Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .secondaryContainer,
-                                      ),
-                                      child: Stack(
+                                      const SizedBox(height: 20),
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
                                         children: [
-                                          Positioned(
-                                            left: 0,
-                                            bottom: 0,
-                                            child: Image.asset(
-                                              AppImage.watch.path,
-                                              width: 175,
+                                          // _shortAttendanceInfo(dateTime),
+                                          ShortAttendanceInfo(
+                                            currentTime: dateTime,
+                                            userName: _userName,
+                                            deviceName: _deviceName ?? '',
+                                          ),
+                                          const SizedBox(
+                                            height: 20,
+                                          ),
+                                          Container(
+                                            alignment: Alignment.center,
+                                            child: Text(
+                                              dateTime.getIdnTime(),
+                                              style: FontTheme.titleMedium(
+                                                context,
+                                                fontSize: 36,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              ),
                                             ),
                                           ),
-                                          Padding(
-                                            padding: const EdgeInsets.all(16),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                          const SizedBox(
+                                            height: 20,
+                                          ),
+                                          Container(
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .secondaryContainer,
+                                            ),
+                                            child: Stack(
                                               children: [
-                                                Text(
-                                                  'Selamat Datang 👋',
-                                                  style: FontTheme.bodyMedium(
-                                                    context,
-                                                    fontSize: 28,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .primary,
+                                                Positioned(
+                                                  left: 0,
+                                                  bottom: 0,
+                                                  child: Image.asset(
+                                                    AppImage.watch.path,
+                                                    width: 175,
                                                   ),
                                                 ),
                                                 Padding(
                                                   padding:
-                                                      const EdgeInsets.only(
-                                                          left: 8.0),
-                                                  child: Text(
-                                                    _userName,
-                                                    style: FontTheme.bodyMedium(
-                                                      context,
-                                                      fontSize: 36,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .primary,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                  height: 10,
-                                                ),
-                                                Container(
-                                                  alignment:
-                                                      Alignment.centerRight,
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 8.0),
-                                                  child: ElevatedButton(
-                                                    onPressed: () {
-                                                      Navigator.pushNamed(
+                                                      const EdgeInsets.all(16),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        'Selamat Datang 👋',
+                                                        style: FontTheme
+                                                            .bodyMedium(
                                                           context,
-                                                          '/attendance_history',
-                                                          arguments: _userName);
-                                                    },
-                                                    child: const Text(
-                                                      'Cek Absensi',
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                  height: 10,
-                                                ),
-                                                Container(
-                                                  alignment:
-                                                      Alignment.centerRight,
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 8.0),
-                                                  child: FilledButton(
-                                                    onPressed: () async {
-                                                      bool isConnected =
-                                                          await NetworkHelper
-                                                              .hasInternetConnection();
-                                                      if (isConnected &&
-                                                          context.mounted) {
-                                                        Navigator.pushNamed(
+                                                          fontSize: 28,
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .primary,
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                                left: 8.0),
+                                                        child: Text(
+                                                          _userName,
+                                                          style: FontTheme
+                                                              .bodyMedium(
                                                             context,
-                                                            '/attendance',
-                                                            arguments: AttendancePageArguments(
-                                                                employeeName:
-                                                                    _userName,
-                                                                deviceName:
-                                                                    _deviceName ??
-                                                                        ''));
-                                                      } else {
-                                                        ToastUtil.showToast(
-                                                            'Tidak ada koneksi internet',
-                                                            ToastStatus.error);
-                                                      }
-                                                    },
-                                                    child: const Text(
-                                                        'Pergi Absen'),
+                                                            fontSize: 36,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .colorScheme
+                                                                .primary,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 10,
+                                                      ),
+                                                      Container(
+                                                        alignment: Alignment
+                                                            .centerRight,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal:
+                                                                    8.0),
+                                                        child: ElevatedButton(
+                                                          onPressed: () {
+                                                            Navigator.pushNamed(
+                                                                context,
+                                                                '/attendance_history',
+                                                                arguments:
+                                                                    _userName);
+                                                          },
+                                                          child: const Text(
+                                                            'Cek Absensi',
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 10,
+                                                      ),
+                                                      Container(
+                                                        alignment: Alignment
+                                                            .centerRight,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal:
+                                                                    8.0),
+                                                        child: FilledButton(
+                                                          onPressed: () async {
+                                                            bool isConnected =
+                                                                await NetworkHelper
+                                                                    .hasInternetConnection();
+                                                            if (isConnected &&
+                                                                context
+                                                                    .mounted) {
+                                                              Navigator.pushNamed(
+                                                                  context,
+                                                                  '/attendance',
+                                                                  arguments: AttendancePageArguments(
+                                                                      employeeName:
+                                                                          _userName,
+                                                                      deviceName:
+                                                                          _deviceName ??
+                                                                              ''));
+                                                            } else {
+                                                              ToastUtil.showToast(
+                                                                  'Tidak ada koneksi internet',
+                                                                  ToastStatus
+                                                                      .error);
+                                                            }
+                                                          },
+                                                          child: const Text(
+                                                              'Pergi Absen'),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 10,
+                                                      ),
+                                                    ],
                                                   ),
-                                                ),
-                                                const SizedBox(
-                                                  height: 10,
                                                 ),
                                               ],
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 20,
-                                    ),
+                                          const SizedBox(
+                                            height: 20,
+                                          ),
 
-                                    /// Dashboard Next Update
-                                    /*Container(
+                                          /// Dashboard Next Update
+                                          /*Container(
                                       width: double.infinity,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(20),
@@ -692,365 +736,421 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                     const SizedBox(
                                       height: 20,
                                     ),*/
-                                    Stack(
-                                      children: [
-                                        Container(
-                                          width: double.infinity,
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .secondaryContainer,
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(16),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
+                                          if (_temporaryAdmin[_userName
+                                                      .toLowerCase()] ==
+                                                  true ||
+                                              _infoRole == 'admin' ||
+                                              _infoRole == 'superadmin') ...[
+                                            Stack(
                                               children: [
-                                                Text(
-                                                  'Informasi Absen 🕜️',
-                                                  style: FontTheme.bodyMedium(
-                                                    context,
-                                                    fontSize: 28,
+                                                Container(
+                                                  width: double.infinity,
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20),
                                                     color: Theme.of(context)
                                                         .colorScheme
-                                                        .primary,
+                                                        .secondaryContainer,
                                                   ),
-                                                ),
-                                                const SizedBox(height: 10),
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                    left: 8.0,
-                                                  ),
-                                                  child: Text(
-                                                    'Atur waktu mulai istirahat:',
-                                                    style: FontTheme.bodyMedium(
-                                                      context,
-                                                      fontSize: 18,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .primary,
-                                                    ),
-                                                  ),
-                                                ),
-                                                BreaktimeField(
-                                                  focusNode: _breaktimeFocus,
-                                                  controller:
-                                                      _breaktimeController,
-                                                  formKey: _breaktimeFormKey,
-                                                  labelText: 'breaktime',
-                                                  hintText:
-                                                      !_breaktimeFocus.hasFocus
-                                                          ? 'Waktu Istirahat'
-                                                          : null,
-                                                  errorMessage:
-                                                      'Waktu istirahat tidak boleh kosong',
-                                                  readonly: true,
-                                                  enabled: _enableUpdateBreakTime,
-                                                  onCancel: unFocusAllField,
-                                                  onConfirm: () => updateInfo(
-                                                      fieldUpdate: 'break'),
-                                                ),
-                                                const SizedBox(
-                                                  height: 10,
-                                                ),
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                    left: 8.0,
-                                                  ),
-                                                  child: Text(
-                                                    'Atur Libur Nasional:',
-                                                    style: FontTheme.bodyMedium(
-                                                      context,
-                                                      fontSize: 18,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .primary,
-                                                    ),
-                                                  ),
-                                                ),
-                                                BreaktimeField(
-                                                  focusNode:
-                                                      _nationalHolidayFocus,
-                                                  controller:
-                                                      _nationalHolidayController,
-                                                  formKey:
-                                                      _nationalHolidayFormKey,
-                                                  errorMessage:
-                                                      'Hari libur tidak boleh kosong',
-                                                  prefixText:
-                                                      _nationalHolidayFocus
-                                                              .hasFocus
-                                                          ? _holiday
-                                                          : null,
-                                                  hintText:
-                                                      !_nationalHolidayFocus
-                                                              .hasFocus
-                                                          ? 'Hari Libur '
-                                                          : null,
-                                                  enabled: _enableUpdateHoliday,
-                                                  onConfirm: () => updateInfo(
-                                                      fieldUpdate: 'holiday'),
-                                                ),
-                                                const SizedBox(
-                                                  height: 10,
-                                                ),
-                                                const Divider(
-                                                  thickness: 5,
-                                                ),
-                                                const SizedBox(
-                                                  height: 10,
-                                                ),
-                                                Column(
-                                                  children: [
-                                                    if (_displayMessage
-                                                        .isNotEmpty)
-                                                      ListTile(
-                                                        title: _isLoadingGetInfo
-                                                            ? const Center(
-                                                                child:
-                                                                    CircularProgressIndicator())
-                                                            : Text(
-                                                                _displayMessage,
-                                                                textAlign:
-                                                                    TextAlign
-                                                                        .center,
-                                                              ),
-                                                      ),
-                                                    const SizedBox(
-                                                      height: 10,
-                                                    ),
-                                                    Center(
-                                                      child: ElevatedButton(
-                                                        onPressed: () async {
-                                                          setState(() =>
-                                                              _isLoadingGetInfo =
-                                                                  true);
-                                                          await _getInfo(
-                                                              isRefresh: true);
-                                                        },
-                                                        child: const Text(
-                                                          'Peroleh Data',
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            16),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          'Informasi Absen 🕜️',
+                                                          style: FontTheme
+                                                              .bodyMedium(
+                                                            context,
+                                                            fontSize: 28,
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .colorScheme
+                                                                .primary,
+                                                          ),
                                                         ),
-                                                      ),
+                                                        const SizedBox(
+                                                            height: 10),
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                            left: 8.0,
+                                                          ),
+                                                          child: Text(
+                                                            'Atur waktu mulai istirahat:',
+                                                            style: FontTheme
+                                                                .bodyMedium(
+                                                              context,
+                                                              fontSize: 18,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .primary,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        BreaktimeField(
+                                                          focusNode:
+                                                              _breaktimeFocus,
+                                                          controller:
+                                                              _breaktimeController,
+                                                          formKey:
+                                                              _breaktimeFormKey,
+                                                          labelText:
+                                                              'breaktime',
+                                                          hintText: !_breaktimeFocus
+                                                                  .hasFocus
+                                                              ? 'Waktu Istirahat'
+                                                              : null,
+                                                          errorMessage:
+                                                              'Waktu istirahat tidak boleh kosong',
+                                                          readonly: true,
+                                                          enabled:
+                                                              _enableUpdateBreakTime,
+                                                          onCancel:
+                                                              unFocusAllField,
+                                                          onConfirm: () =>
+                                                              updateInfo(
+                                                                  fieldUpdate:
+                                                                      'break'),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 10,
+                                                        ),
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .only(
+                                                            left: 8.0,
+                                                          ),
+                                                          child: Text(
+                                                            'Atur Libur Nasional:',
+                                                            style: FontTheme
+                                                                .bodyMedium(
+                                                              context,
+                                                              fontSize: 18,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .primary,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        BreaktimeField(
+                                                          focusNode:
+                                                              _nationalHolidayFocus,
+                                                          controller:
+                                                              _nationalHolidayController,
+                                                          formKey:
+                                                              _nationalHolidayFormKey,
+                                                          errorMessage:
+                                                              'Hari libur tidak boleh kosong',
+                                                          prefixText:
+                                                              _nationalHolidayFocus
+                                                                      .hasFocus
+                                                                  ? _holiday
+                                                                  : null,
+                                                          hintText:
+                                                              !_nationalHolidayFocus
+                                                                      .hasFocus
+                                                                  ? 'Hari Libur '
+                                                                  : null,
+                                                          enabled:
+                                                              _enableUpdateHoliday,
+                                                          onConfirm: () =>
+                                                              updateInfo(
+                                                                  fieldUpdate:
+                                                                      'holiday'),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 10,
+                                                        ),
+                                                        const Divider(
+                                                          thickness: 5,
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 10,
+                                                        ),
+                                                        Column(
+                                                          children: [
+                                                            if (_displayMessage
+                                                                .isNotEmpty)
+                                                              ListTile(
+                                                                title:
+                                                                    _isLoadingGetInfo
+                                                                        ? const Center(
+                                                                            child:
+                                                                                CircularProgressIndicator())
+                                                                        : Text(
+                                                                            _displayMessage,
+                                                                            textAlign:
+                                                                                TextAlign.center,
+                                                                          ),
+                                                              ),
+                                                            const SizedBox(
+                                                              height: 10,
+                                                            ),
+                                                            Center(
+                                                              child:
+                                                                  ElevatedButton(
+                                                                onPressed:
+                                                                    () async {
+                                                                  setState(() =>
+                                                                      _isLoadingGetInfo =
+                                                                          true);
+                                                                  await _getInfo(
+                                                                      isRefresh:
+                                                                          true);
+                                                                },
+                                                                child:
+                                                                    const Text(
+                                                                  'Peroleh Data',
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 10,
+                                                        ),
+                                                      ],
                                                     ),
-                                                  ],
+                                                  ),
                                                 ),
-                                                const SizedBox(
-                                                  height: 10,
-                                                ),
+                                                //Clear Button
+                                                if (_breaktimeController
+                                                        .text.isNotEmpty ||
+                                                    _nationalHolidayController
+                                                        .text.isNotEmpty)
+                                                  Positioned(
+                                                    right: 16,
+                                                    top: 16,
+                                                    child: IconButton(
+                                                      onPressed: () async {
+                                                        _breaktimeController
+                                                            .clear();
+                                                        _nationalHolidayController
+                                                            .clear();
+                                                        setState(() =>
+                                                            _displayMessage =
+                                                                '');
+                                                        unFocusAllField();
+                                                        if (_attendanceInfo!
+                                                                .breakTime!
+                                                                .isNotEmpty ||
+                                                            _attendanceInfo!
+                                                                .nationalHoliday!
+                                                                .isNotEmpty) {
+                                                          await updateInfo(
+                                                              isResetBreakTime:
+                                                                  _attendanceInfo!
+                                                                      .breakTime!
+                                                                      .isNotEmpty,
+                                                              isResetHoliday:
+                                                                  _attendanceInfo!
+                                                                      .nationalHoliday!
+                                                                      .isNotEmpty);
+                                                        }
+                                                      },
+                                                      icon: const Icon(
+                                                          Icons.clear),
+                                                    ),
+                                                  ),
                                               ],
-                                            ),
-                                          ),
-                                        ),
-                                        //Clear Button
-                                        if (_breaktimeController
-                                                .text.isNotEmpty ||
-                                            _nationalHolidayController
-                                                .text.isNotEmpty)
-                                          Positioned(
-                                            right: 16,
-                                            top: 16,
-                                            child: IconButton(
-                                              onPressed: () async {
-                                                _breaktimeController.clear();
-                                                _nationalHolidayController
-                                                    .clear();
-                                                setState(
-                                                    () => _displayMessage = '');
-                                                unFocusAllField();
-                                                if (_attendanceInfo!.breakTime!
-                                                        .isNotEmpty ||
-                                                    _attendanceInfo!
-                                                        .nationalHoliday!
-                                                        .isNotEmpty) {
-                                                  await updateInfo(
-                                                      isResetBreakTime:
-                                                          _attendanceInfo!
-                                                              .breakTime!
-                                                              .isNotEmpty,
-                                                      isResetHoliday:
-                                                          _attendanceInfo!
-                                                              .nationalHoliday!
-                                                              .isNotEmpty);
-                                                }
-                                              },
-                                              icon: const Icon(Icons.clear),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(
-                                      height: 20,
-                                    ),
-                                    Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .secondaryContainer,
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Buat Sheet untuk Bulan Baru: 📚️',
-                                              style: FontTheme.bodyMedium(
-                                                context,
-                                                fontSize: 28,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .primary,
-                                              ),
                                             ),
                                             const SizedBox(
                                               height: 20,
                                             ),
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: ElevatedButton(
-                                                onPressed: () =>
-                                                    ToastUtil.showToast(
-                                                        'Masih dalam pengembangan',
-                                                        ToastStatus.warning),
-                                                child: const Text(
-                                                    'Buat Sheet Baru'),
-                                              ),
-                                            ),
-                                            const SizedBox(
-                                              height: 10,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 20,
-                                    ),
-                                    Container(
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .secondaryContainer,
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Data Akun 🧾',
-                                              style: FontTheme.bodyMedium(
-                                                context,
-                                                fontSize: 28,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .primary,
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                left: 8.0,
-                                              ),
-                                              child: Text(
-                                                'Akun: ',
-                                                style: FontTheme.bodyMedium(
-                                                  context,
-                                                  fontSize: 36,
-                                                  fontWeight: FontWeight.bold,
+                                            if (_infoRole == 'admin' ||
+                                                _infoRole == 'superadmin')
+                                              Container(
+                                                width: double.infinity,
+                                                decoration: BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
                                                   color: Theme.of(context)
                                                       .colorScheme
-                                                      .primary,
+                                                      .secondaryContainer,
+                                                ),
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.all(16),
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        'Buat Sheet untuk Bulan Baru: 📚️',
+                                                        style: FontTheme
+                                                            .bodyMedium(
+                                                          context,
+                                                          fontSize: 28,
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .primary,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 20,
+                                                      ),
+                                                      SizedBox(
+                                                        width: double.infinity,
+                                                        child: ElevatedButton(
+                                                          onPressed: () =>
+                                                              ToastUtil.showToast(
+                                                                  'Masih dalam pengembangan',
+                                                                  ToastStatus
+                                                                      .warning),
+                                                          child: const Text(
+                                                              'Buat Sheet Baru'),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 10,
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
-                                            ),
                                             const SizedBox(
-                                              height: 10,
-                                            ),
-                                            Column(
-                                              children: [
-                                                CustomListTile(
-                                                  title: 'Nama',
-                                                  trailing: Text(
-                                                    _userName,
-                                                    style: FontTheme.bodyMedium(
-                                                        context,
-                                                        fontSize: 14),
-                                                  ),
-                                                ),
-                                                CustomListTile(
-                                                  title: 'Email',
-                                                  trailing: Text(
-                                                    _user != null
-                                                        ? _user!.email!
-                                                        : '',
-                                                    style: FontTheme.bodyMedium(
-                                                        context,
-                                                        fontSize: 14),
-                                                  ),
-                                                ),
-                                                CustomListTile(
-                                                  title: 'Bagian',
-                                                  trailing: Text(
-                                                    _user != null
-                                                        ? _user!.department!
-                                                            .toUpperCase()
-                                                        : '',
-                                                    style: FontTheme.bodyMedium(
-                                                        context,
-                                                        fontSize: 14),
-                                                  ),
-                                                ),
-                                                CustomListTile(
-                                                  title: 'Login Terakhir',
-                                                  trailing: Text(
-                                                    _user != null
-                                                        ? _user!.loginTimestamp!
-                                                                .isNotEmpty
-                                                            ? _user!
-                                                                .loginTimestamp!
-                                                            : _user!
-                                                                .firstTimeLogin!
-                                                        : '',
-                                                    style: FontTheme.bodyMedium(
-                                                        context,
-                                                        fontSize: 14),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(
-                                              height: 10,
+                                              height: 20,
                                             ),
                                           ],
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 20,
-                                    ),
-                                  ],
-                                )
+                                          Container(
+                                            width: double.infinity,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .secondaryContainer,
+                                            ),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(16),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Data Akun 🧾',
+                                                    style: FontTheme.bodyMedium(
+                                                      context,
+                                                      fontSize: 28,
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .primary,
+                                                    ),
+                                                  ),
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                      left: 8.0,
+                                                    ),
+                                                    child: Text(
+                                                      'Akun: ',
+                                                      style:
+                                                          FontTheme.bodyMedium(
+                                                        context,
+                                                        fontSize: 36,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .primary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(
+                                                    height: 10,
+                                                  ),
+                                                  Column(
+                                                    children: [
+                                                      CustomListTile(
+                                                        title: 'Nama',
+                                                        trailing: Text(
+                                                          _userName,
+                                                          style: FontTheme
+                                                              .bodyMedium(
+                                                                  context,
+                                                                  fontSize: 14),
+                                                        ),
+                                                      ),
+                                                      CustomListTile(
+                                                        title: 'Email',
+                                                        trailing: Text(
+                                                          _user != null
+                                                              ? _user!.email!
+                                                              : '',
+                                                          style: FontTheme
+                                                              .bodyMedium(
+                                                                  context,
+                                                                  fontSize: 14),
+                                                        ),
+                                                      ),
+                                                      CustomListTile(
+                                                        title: 'Bagian',
+                                                        trailing: Text(
+                                                          _user != null
+                                                              ? _user!
+                                                                  .department!
+                                                                  .toUpperCase()
+                                                              : '',
+                                                          style: FontTheme
+                                                              .bodyMedium(
+                                                                  context,
+                                                                  fontSize: 14),
+                                                        ),
+                                                      ),
+                                                      CustomListTile(
+                                                        title: 'Login Terakhir',
+                                                        trailing: Text(
+                                                          _user != null
+                                                              ? _user!.loginTimestamp!
+                                                                      .isNotEmpty
+                                                                  ? _user!
+                                                                      .loginTimestamp!
+                                                                  : _user!
+                                                                      .firstTimeLogin!
+                                                              : '',
+                                                          style: FontTheme
+                                                              .bodyMedium(
+                                                                  context,
+                                                                  fontSize: 14),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(
+                                                    height: 10,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(
+                                            height: 20,
+                                          ),
+                                        ],
+                                      )
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ),
@@ -1091,6 +1191,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
       });
     } else if (value == 'information') {
       Navigator.pushNamed(context, '/information');
+    } else if (value == 'admin access') {
+      Navigator.pushNamed(context, '/temporary_admin');
     }
   }
 
@@ -1098,7 +1200,9 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     final imageUrl = _user?.photoURL ?? '';
     return homeMenuItem.entries.where((item) {
       // Tampilkan hanya item yang sesuai dengan peran pengguna
-      if (item.key == 'Account' && _user?.role != 'admin') {
+      if (item.key == 'Admin Access' &&
+          _infoRole != 'admin' &&
+          _infoRole != 'superadmin') {
         return false; // Jangan tampilkan item 'Account' jika bukan admin
       }
       return true; // Tampilkan item lainnya
@@ -1133,6 +1237,40 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
         ),
       );
     }).toList();
+  }
+
+  Widget _buildOtherRolePage() {
+    return Container(
+      height: screenHeight(context) -
+          appBarHeight(context) -
+          statusBarHeight(context),
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.warning, size: 100, color: Colors.red),
+          SizedBox(height: 20),
+          Text(
+            'Akun anda belum bisa digunakan\nTunggu konfirmasi dalam 1x24 Jam',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'Mulish',
+              fontSize: 20,
+              color: Colors.red,
+            ),
+          ),
+          SizedBox(height: 30),
+          Text(
+            'Sambil direfresh yaa...',
+            style: TextStyle(
+              fontFamily: 'Mulish',
+              fontSize: 20,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void unFocusAllField() {

@@ -144,11 +144,63 @@ class FirestoreService {
     }
   }
 
+  // Fungsi untuk mendapatkan data akses admin sementara (setengah admin)
+  Future<ApiResult<Map<String, bool>>> getTemporaryAdmins() async {
+    try {
+      DocumentSnapshot doc =
+      await _db.collection('attendance').doc('admin_access').get();
+      print('Data admin sementara: ${doc.data()}');
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        Map<String, bool> adminData = {};
+        data.forEach((key, value) {
+          if (value is bool) {
+            adminData[key] = value;
+          }
+        });
+
+        // Mengurutkan adminData berdasarkan key
+        adminData = Map.fromEntries(
+          adminData.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+        );
+
+        return ApiResult(
+          status: 'success',
+          message: 'Berhasil memperoleh data attendance',
+          data: adminData,
+        );
+      }
+      return ApiResult(
+        status: 'success',
+        message: 'Data admin sementara belum tersedia',
+      );
+    } catch (e) {
+      return ApiResult(status: 'error', message: e.toString());
+    }
+  }
+
+  // Fungsi untuk memperbarui data admin sementara di Firestore
+  Future<ApiResult> updateTemporaryAdmin(String name, bool value) async {
+    try {
+      Map<String, dynamic> data = {name: value};
+
+      await _db.collection('attendance').doc('admin_access').update(data);
+
+      return ApiResult(
+        status: 'success',
+        message: 'Berhasil memperbarui data admin sementara',
+      );
+    } catch (e) {
+      return ApiResult(status: 'error', message: e.toString());
+    }
+  }
+
   Future<ApiResult<AppVersionModel>> getAppVersion() async {
     final snapshot = await _db.collection('information').doc('latest_version').get();
     if (snapshot.exists) {
       AppVersionModel data = AppVersionModel.fromMap(snapshot.data() as Map<String, dynamic>);
-      return ApiResult(status: 'success', message: 'Berhasil memperoleh data versi aplikasi', data: data);
+      return ApiResult(status: 'success', message: 'Berhasil memperoleh versi aplikasi terbaru', data: data);
       // return AppVersionModel.fromDocument(snapshot);
     }
     return ApiResult(status: 'error', message: 'Data versi aplikasi belum tersedia');

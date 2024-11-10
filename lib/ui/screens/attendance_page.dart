@@ -306,7 +306,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
     final serverBreakTime = attendanceInfo?.breakTime ?? '12:00';
 
     String breakInterval =
-    calculateBreakTime(_currentTime, serverBreakTime, _weekday);
+        calculateBreakTime(_currentTime, serverBreakTime, _weekday);
     setState(() {
       _nationalHoliday = attendanceInfo?.nationalHoliday ?? '';
       _breakTimeInterval = breakInterval;
@@ -647,7 +647,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                     ),
                                                   ),
                                                 const SizedBox(height: 10),
-                                                ElevatedButton(
+/*                                                ElevatedButton(
                                                   onPressed: () {
                                                     String info =
                                                         'Anda belum absen';
@@ -678,7 +678,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
                                                   child: const Text(
                                                       'Check Attendance State'),
                                                 ),
-                                                const SizedBox(height: 10),
+                                                const SizedBox(height: 10),*/
                                               ],
                                             ),
                                             if (dataProvider.isLoading)
@@ -1112,7 +1112,12 @@ class _AttendancePageState extends BaseState<AttendancePage>
           Navigator.of(context).pop(false);
           // safeContext((context) => LoadingDialog.hide(context));
 
-          await _attendanceProcess(attendanceType, pushAttendance);
+          // Khusus buat karyawan aja update disheetnya :
+          bool exists = employeeList
+              .any((name) => name.toLowerCase() == employeeName.toLowerCase());
+          if (exists) {
+            await _attendanceProcess(attendanceType, pushAttendance);
+          }
           await _updateDataHistory(
               employeeName, dateTime.postTime(), pushDataHistory, isPagi);
         },

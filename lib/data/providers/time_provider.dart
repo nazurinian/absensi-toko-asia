@@ -19,7 +19,7 @@ class TimeProvider extends ChangeNotifier with WidgetsBindingObserver {
   late CustomTime _currentTime;
   late DateTime _ntpTime;
   final Duration _gmt8Offset =
-      const Duration(hours: -7); // Different Default NTP GMT to GMT+8
+      const Duration(hours: -8); // Different Default NTP GMT to GMT+8
 
   // Default Break Time
   int _breakHour = 12;

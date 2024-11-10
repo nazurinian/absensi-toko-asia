@@ -68,7 +68,7 @@ class AuthService {
       user.loginLong = loginLocation.longitude.toString();
     }
 
-    if (user!.loginDevice!.isNotEmpty && context.mounted) {
+    if (user!.loginDevice!.isNotEmpty && context.mounted && response.data != null) {
       final confirmed = await _confirmLogin(context);
       if (!confirmed) {
         await _auth.signOut();
@@ -89,9 +89,9 @@ class AuthService {
       return ApiResult(status: 'error', message: message);
     }
 
-    if (response.data == null) {
-      return ApiResult(status: 'success', message: message);
-    }
+    // if (response.data == null) {
+    //   return ApiResult(status: 'success', message: message);
+    // }
 
     return ApiResult(status: 'success', message: message, data: user);
   }

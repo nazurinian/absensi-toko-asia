@@ -21,7 +21,6 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
 
   MonthlyHistory? monthlyHistory;
 
-
   Future<void> getMonthlyUserHistory({bool isRefresh = false}) async {
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
 
@@ -32,15 +31,17 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
         monthlyHistory = dataProvider.allUserHistoryData!;
 
         // Reinitialize controllers only if data length has changed
-        if (expansionTileControllers.length != monthlyHistory!.dayHistory!.length + 1) {
-          _initializeExpansionTileControllers(monthlyHistory!.dayHistory!.length);
+        if (expansionTileControllers.length !=
+            monthlyHistory!.dayHistory!.length + 1) {
+          _initializeExpansionTileControllers(
+              monthlyHistory!.dayHistory!.length);
         }
       });
       return;
     }
 
     final result =
-    await dataProvider.getAllMonthHistory(userName, isRefresh: isRefresh);
+        await dataProvider.getAllMonthHistory(userName, isRefresh: isRefresh);
 
     if (result.status != 'success') {
       monthlyHistory = null;
@@ -54,7 +55,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
       monthlyHistory = dataProvider.allUserHistoryData!;
 
       // Reinitialize controllers only if data length has changed
-      if (expansionTileControllers.length != monthlyHistory!.dayHistory!.length) {
+      if (expansionTileControllers.length !=
+          monthlyHistory!.dayHistory!.length) {
         _initializeExpansionTileControllers(monthlyHistory!.dayHistory!.length);
       }
     });
@@ -66,7 +68,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
   // Fungsi untuk membersihkan dan menginisialisasi ulang controller
   void _initializeExpansionTileControllers(int length) {
     expansionTileControllers.clear();
-    expansionTileControllers = List.generate(length, (_) => ExpansionTileController());
+    expansionTileControllers =
+        List.generate(length, (_) => ExpansionTileController());
   }
 
   @override
@@ -126,19 +129,24 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                     padding: const EdgeInsets.all(16),
                     height: MediaQuery.of(context).size.height,
                     width: MediaQuery.of(context).size.width,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        children: [
-                          const Text('Riwayat absensi bulanan'),
-                          Consumer<DataProvider>(builder: (context, dataProvider, child) {
-                            if (dataProvider.allUserHistoryData == null) {
-                              return const Center(child: CircularProgressIndicator());
-                            }
-                            return ListView.builder(
+                    child: Consumer<DataProvider>(
+                        builder: (context, dataProvider, child) {
+                      if (dataProvider.isLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (!dataProvider.isAllUserHistoryDataAvailable) {
+                        return const Center(child: Text('Data tidak tersedia'));
+                      }
+                      return SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          children: [
+                            const Text('Riwayat absensi bulanan'),
+                            const SizedBox(height: 10),
+                            ListView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              itemCount: monthlyHistory?.dayHistory?.length ?? 0,
+                              itemCount:
+                                  monthlyHistory?.dayHistory?.length ?? 0,
                               itemBuilder: (context, index) {
                                 // final dataMonthly = monthlyHistory!.dayHistory!;
                                 // final monthKey = dataMonthly.keys.elementAt(index);
@@ -149,25 +157,33 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                                 final dataMonthly = monthlyHistory!.dayHistory!;
 
                                 // Urutkan data bulan (tahun-bulan)
-                                List<MapEntry<String, DailyHistory>> sortedMonthEntries = dataMonthly.entries.toList()
-                                  ..sort((a, b) => b.key.compareTo(a.key)); // Urutkan berdasarkan bulan
+                                List<MapEntry<String, DailyHistory>>
+                                    sortedMonthEntries = dataMonthly.entries
+                                        .toList()
+                                      ..sort((a, b) => b.key.compareTo(
+                                          a.key)); // Urutkan berdasarkan bulan
 
                                 final monthEntry = sortedMonthEntries[index];
                                 final monthKey = monthEntry.key;
                                 final DailyHistory monthData = monthEntry.value;
 
                                 // Urutkan berdasarkan tanggal di dalam setiap bulan
-                                List<MapEntry<String, HistoryData>> sortedDayEntries = monthData.historyData!.entries.toList()
-                                  ..sort((a, b) => b.key.compareTo(a.key)); // Urutkan berdasarkan tanggal
-
+                                List<MapEntry<String, HistoryData>>
+                                    sortedDayEntries =
+                                    monthData.historyData!.entries.toList()
+                                      ..sort((a, b) => b.key.compareTo(a
+                                          .key)); // Urutkan berdasarkan tanggal
 
                                 return ExpansionTile(
                                   controller: expansionTileControllers[index],
                                   onExpansionChanged: (bool isOpen) {
                                     if (isOpen) {
-                                      for (var i = 0; i < expansionTileControllers.length; i++) {
+                                      for (var i = 0;
+                                          i < expansionTileControllers.length;
+                                          i++) {
                                         if (i != index && mounted) {
-                                          expansionTileControllers[i].collapse();
+                                          expansionTileControllers[i]
+                                              .collapse();
                                         }
                                       }
                                     }
@@ -190,7 +206,9 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                                           width: 30,
                                           height: 30,
                                           alignment: Alignment.center,
-                                          child: Text(dayKey, style: FontTheme.titleMedium(context)),
+                                          child: Text(dayKey,
+                                              style: FontTheme.titleMedium(
+                                                  context)),
                                         ),
                                       ),
                                       title: Text(
@@ -201,15 +219,15 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                                         ListTile(
                                           subtitle: Text(
                                             'Hadir Pagi: ${historyData.hadirPagi ?? "N/A"}\n'
-                                                'T/L Pagi: ${historyData.tLPagi ?? "N/A"}\n'
-                                                'Point Pagi: ${historyData.pointPagi ?? "N/A"}\n'
-                                                'Jam istirahat: ${historyData.pulangSiang ?? "N/A"}\n'
-                                                'Hadir Siang: ${historyData.hadirSiang ?? "N/A"}\n'
-                                                'T/L Siang: ${historyData.tLSiang ?? "N/A"}\n'
-                                                'Point Siang: ${historyData.pointSiang ?? "N/A"}\n'
-                                                'Keterangan: ${historyData.keterangan ?? "N/A"}\n'
-                                                'Latitude: ${historyData.lat?.toStringAsFixed(4) ?? "N/A"}\n'
-                                                'Longitude: ${historyData.long?.toStringAsFixed(4) ?? "N/A"}',
+                                            'T/L Pagi: ${historyData.tLPagi ?? "N/A"}\n'
+                                            'Point Pagi: ${historyData.pointPagi ?? "N/A"}\n'
+                                            'Jam istirahat: ${historyData.pulangSiang ?? "N/A"}\n'
+                                            'Hadir Siang: ${historyData.hadirSiang ?? "N/A"}\n'
+                                            'T/L Siang: ${historyData.tLSiang ?? "N/A"}\n'
+                                            'Point Siang: ${historyData.pointSiang ?? "N/A"}\n'
+                                            'Keterangan: ${historyData.keterangan ?? "N/A"}\n'
+                                            'Latitude: ${historyData.lat?.toStringAsFixed(4) ?? "N/A"}\n'
+                                            'Longitude: ${historyData.long?.toStringAsFixed(4) ?? "N/A"}',
                                           ),
                                         ),
                                       ],
@@ -217,12 +235,12 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                                   }).toList(),
                                 );
                               },
-                            );
-                          }),
-                          const SizedBox(height: 20),
-                        ],
-                      ),
-                    ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      );
+                    }),
                   ),
                 ),
               ),

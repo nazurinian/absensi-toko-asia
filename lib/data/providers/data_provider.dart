@@ -28,6 +28,7 @@ class DataProvider extends ChangeNotifier {
   // Info models
   AttendanceInfoModel? _attendanceInfoData;
   AppVersionModel? _appVersion;
+  Map<String, bool> _temporaryAdmins = {};
 
   bool _isLoading = false;
   String? _status;
@@ -47,6 +48,8 @@ class DataProvider extends ChangeNotifier {
 
   AppVersionModel? get appVersion => _appVersion;
 
+  Map<String, bool> get temporaryAdmins => _temporaryAdmins;
+
   bool get isLoading => _isLoading;
 
   String? get status => _status;
@@ -65,6 +68,8 @@ class DataProvider extends ChangeNotifier {
   bool get isAttendanceInfoAvailable => _attendanceInfoData != null;
 
   bool get isAppVersionAvailable => _appVersion != null;
+
+  bool get isTemporaryAdminsAvailable => _temporaryAdmins.isNotEmpty;
 
   // bool get statusAbsensi =>
   //     _selectedDateHistory?.tLPagi != null &&
@@ -173,7 +178,59 @@ class DataProvider extends ChangeNotifier {
         nationalHoliday:
             data.nationalHoliday ?? _attendanceInfoData?.nationalHoliday,
       );
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
+  // Fungsi untuk mendapatkan data attendance
+  Future<ApiResult> getTemporaryAdmins() async {
+    resetLoadDataStatus();
+
+    var previousData = _temporaryAdmins;
+
+    final response = await _fireStoreService.getTemporaryAdmins().timeout(
+      _timeoutDuration,
+      onTimeout: () {
+        _message = 'Get attendance info operation timed out';
+        return ApiResult(status: 'error', message: _message ?? '');
+      },
+    );
+
+    _status = response.status;
+    _message = response.message;
+
+    if (response.status == 'success') {
+      _temporaryAdmins = response.data!;
     } else {
+      _temporaryAdmins = previousData;
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
+  // Fungsi untuk memperbarui data attendance
+  Future<ApiResult> updateTemporaryAdmin(String name, bool value) async {
+    resetLoadDataStatus();
+
+    final response = await _fireStoreService.updateTemporaryAdmin(name, value).timeout(
+      _timeoutDuration,
+      onTimeout: () {
+        _message = 'Update temporary admin operation timed out';
+        return ApiResult(status: 'error', message: _message ?? '');
+      },
+    );
+
+    _status = response.status;
+    _message = response.message;
+
+    // Tanpa response data langsung update by apps langsung
+    if (response.status == 'success') {
+      _temporaryAdmins[name] = value;
     }
 
     _isLoading = false;
@@ -197,10 +254,7 @@ class DataProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-    return ApiResult(
-        status: 'success',
-        message: 'Berhasil memperoleh versi aplikasi',
-        data: _appVersion);
+    return ApiResult(status: result.status, message: result.message);
   }
 
   // Fungsi set hanya ane yg bisa pake buat testing
@@ -287,8 +341,7 @@ class DataProvider extends ChangeNotifier {
 
     if (response.status == 'success') {
       _selectedDateHistory = response.data;
-    } else {
-    }
+    } else {}
 
     _isLoading = false;
     notifyListeners();

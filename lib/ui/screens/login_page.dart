@@ -93,7 +93,7 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
 
       _handleLoginResult(message);
     } catch (e) {
-      _showError(e.toString());
+      _showError(e.toString(), isError: true);
     }
   }
 
@@ -146,8 +146,10 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
     }
   }
 
-  void _showError(String errorMessage) {
-    LoadingDialog.hide(context);
+  void _showError(String errorMessage, {isError = false}) {
+    if(!isError) {
+      LoadingDialog.hide(context);
+    }
     SnackbarUtil.showSnackbar(context: context, message: errorMessage);
   }
 
