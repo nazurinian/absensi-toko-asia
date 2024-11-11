@@ -145,6 +145,80 @@ Map<String, int> getBreakTime(int weekday, String? serverBreakTime) {
   return {'hour': breakHour, 'minute': breakMinute};
 }
 
+// Fungsi untuk menentukan target bulan (bulan ini atau bulan berikutnya)
+String getTargetMonth(DateTime today) {
+  final lastDayOfMonth = DateTime(today.year, today.month + 1, 0).day;
+  final nextMonth = today.month == 12 ? 1 : today.month + 1;
+  final nextYear = today.month == 12 ? today.year + 1 : today.year;
+
+  // Tentukan target bulan berdasarkan H-3 dan H+3
+  if (today.day >= lastDayOfMonth - 2) {
+    // Jika H-3, target bulan berikutnya
+    return '${nextYear}${nextMonth.toString().padLeft(2, '0')}';
+  } else if (today.day <= 3) {
+    // Jika H+3, target bulan ini
+    return '${today.year}${today.month.toString().padLeft(2, '0')}';
+  } else {
+    return ''; // Tidak dalam rentang
+  }
+}
+
+// Fungsi untuk mengecek apakah tanggal berada dalam rentang H-3 atau H+3
+bool isStartAndLastMonthWithinRange(DateTime today) {
+  final lastDayOfMonth = DateTime(today.year, today.month + 1, 0).day;
+
+  // Cek H-3 (3 hari terakhir bulan sebelumnya) dan H+3 (3 hari pertama bulan ini)
+  return (today.day >= lastDayOfMonth - 2) || (today.day <= 3);
+}
+
+// Fungsi untuk mengecek apakah targetMonth belum ada dalam sheetList
+bool isSheetNotExist(String targetMonth, List<String> sheetList) {
+  if (sheetList.isEmpty) {
+    return false;
+  }
+  return targetMonth.isNotEmpty && !sheetList.contains(targetMonth);
+  // return targetMonth.isNotEmpty && sheetList.isNotEmpty && !sheetList.contains(targetMonth);
+}
+
+/*
+// Cek apakah bulan target belum ada dalam sheet
+bool isSheetNotExist(String targetMonth, List<String> sheetList) {
+  return !sheetList.contains(targetMonth);
+}
+
+// Cek apakah tanggal saat ini berada di H-3 atau H+3 dan sheet belum ada
+bool canActivateButton(DateTime today, List<String> sheetList) {
+  final lastDayOfMonth = DateTime(today.year, today.month + 1, 0).day;
+  bool isInLast3Days = today.day >= lastDayOfMonth - 2;
+  bool isInFirst3Days = today.day <= 3;
+
+  // Tentukan bulan target berdasarkan kondisi H-3 atau H+3
+  final nextMonth = today.month == 12 ? 1 : today.month + 1;
+  final nextYear = today.month == 12 ? today.year + 1 : today.year;
+  String targetMonth;
+
+  if (isInLast3Days) {
+    // Jika H-3, gunakan bulan berikutnya
+    targetMonth = '${nextYear}${nextMonth.toString().padLeft(2, '0')}';
+  } else if (isInFirst3Days) {
+    // Jika H+3, gunakan bulan ini
+    targetMonth = '${today.year}${today.month.toString().padLeft(2, '0')}';
+  } else {
+    return false; // Tidak memenuhi syarat tanggal
+  }
+
+  // Cek apakah targetMonth belum ada dalam daftar sheet
+  return isSheetNotExist(targetMonth, sheetList);
+}
+
+bool isStartAndLastMonthWithinRange(DateTime today) {
+  final lastDayOfMonth = DateTime(today.year, today.month + 1, 0).day;
+  bool isInLast3Days = today.day >= lastDayOfMonth - 2;
+  bool isInFirst3Days = today.day <= 3;
+  return isInLast3Days || isInFirst3Days;
+}
+*/
+
 /*
 String formatStringToDateTime (CustomTime now, String date, {int? addTime}) {
   List<String> breakTimeParts = date.split(':');

@@ -58,6 +58,7 @@ class _TemporaryAdminPageState extends State<TemporaryAdminPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Temporary Admin'),
+        backgroundColor: Colors.brown,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

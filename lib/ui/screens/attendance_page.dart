@@ -1258,7 +1258,7 @@ class _AttendancePageState extends BaseState<AttendancePage>
 
         if (!onTimeAttendance) {
           keterangan = '($attendanceType) $keteranganTelat $detailTelat';
-          ToastUtil.showToast('Anda memilih: $keterangan', ToastStatus.success);
+          ToastUtil.showToast('Alasan telat: $keterangan', ToastStatus.success);
         }
 
         onConfirm(keterangan);

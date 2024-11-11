@@ -158,9 +158,9 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
     _passwordFocusNode.unfocus();
   }
 
-  Future<void> _getAppVersion() async {
+/*  Future<void> _getAppVersion() async {
     await VersionChecker.checkForUpdates();
-  }
+  }*/
 
 /*  Future<void> _updateAppVersion() async {
     AppVersionModel appVersion = AppVersionModel(version: '3.0.0', buildNumber: 1, mandatory: false, link: 'https://play.google.com/store/apps/details?id=com.absensitoko.absensitoko');
@@ -214,7 +214,7 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _getAppVersion();
+      // _getAppVersion();
     }
     super.didChangeAppLifecycleState(state);
   }
@@ -306,11 +306,8 @@ class _LoginPageState extends BaseState<LoginPage> with WidgetsBindingObserver {
                                 splashFactory: NoSplash
                                     .splashFactory, // Menghilangkan efek splash
                               ),
-                              onPressed: () => SnackbarUtil.showSnackbar(
-                                context: context,
-                                message: 'Hubungi admin ya...',
-                              ),
-                              child: const Text('Forget Password!'),
+                              onPressed: () => Navigator.pushNamed(context, '/reset_password'),
+                              child: const Text('Reset Password!'),
                             ),
                           ),
                           Padding(

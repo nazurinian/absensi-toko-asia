@@ -225,6 +225,22 @@ class UserProvider extends ChangeNotifier {
     return ApiResult(status: _status ?? '', message: _message ?? '');
   }
 
+// Reset Password Function
+  Future<ApiResult> resetPassword(String email) async {
+    _isLoading = true;
+    _status = null;
+    _message = null;
+
+    final response = await _authService.sendPasswordResetEmail(email);
+
+    _status = response.status;
+    _message = response.message;
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
 // Get All Users Function (Saat ini baru digunakan untuk pencocokan nama user yang sudah saja)
   Future<ApiResult> getAllUsers() async {
     _isLoading = true;
@@ -293,22 +309,6 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-// Reset Password Function
-/*  Future<ApiResult> resetPassword(String email) async {
-    _isLoading = true;
-    _status = null;
-    _message = null;
-
-    final response = await _authService.sendPasswordResetEmail(email);
-
-    _status = response.status;
-    _message = response.message;
-
-    _isLoading = false;
-    notifyListeners();
-    return ApiResult(status: _status ?? '', message: _message ?? '');
-  }*/
 
 // Register User Function
 /*  Future<ApiResult> registerUser(

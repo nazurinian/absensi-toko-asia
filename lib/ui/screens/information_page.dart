@@ -26,6 +26,7 @@ class InformationPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Information'),
+        backgroundColor: Colors.brown,
       ),
       body: Container(
         padding: const EdgeInsets.all(16),

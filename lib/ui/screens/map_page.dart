@@ -175,6 +175,7 @@ class _MapPageState extends State<MapPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Peta Absensi'),
+        backgroundColor: Colors.brown,
       ),
       body: currentLocation == null
           ? const Center(child: CircularProgressIndicator())

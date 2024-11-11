@@ -207,10 +207,9 @@ class AuthService {
 
     await user.reload();
   }
-}
 
 // Reset Password Function
-/*  Future<ApiResult<dynamic>> sendPasswordResetEmail(
+  Future<ApiResult<dynamic>> sendPasswordResetEmail(
     String email,
   ) async {
     try {
@@ -227,7 +226,8 @@ class AuthService {
       print('Login error: $e');
       return ApiResult(status: 'error', message: e.toString());
     }
-  }*/
+  }
+}
 
 // Register User Function
 /*  Future<ApiResult<dynamic>> registerUser(

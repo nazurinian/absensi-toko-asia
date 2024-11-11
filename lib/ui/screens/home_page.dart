@@ -1,8 +1,10 @@
 import 'package:absensitoko/core/constants/constants.dart';
 import 'package:absensitoko/core/constants/items_list.dart';
+import 'package:absensitoko/data/models/attendance_model.dart';
 import 'package:absensitoko/data/models/history_model.dart';
 import 'package:absensitoko/data/models/attendance_info_model.dart';
 import 'package:absensitoko/data/models/keterangan_model.dart';
+import 'package:absensitoko/data/models/time_model.dart';
 import 'package:absensitoko/data/models/user_model.dart';
 import 'package:absensitoko/data/providers/data_provider.dart';
 import 'package:absensitoko/data/providers/time_provider.dart';
@@ -26,6 +28,8 @@ import 'package:absensitoko/utils/helpers/network_helper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../utils/helpers/general_helper.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -60,6 +64,8 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
   bool _enableUpdateBreakTime = true;
 
   Map<String, bool> _temporaryAdmin = {};
+  List<String> _sheetNames = [];
+  bool _sheetButtonActive = false;
   String? _infoRole = '';
 
   // bool _lockAccess = false;
@@ -297,6 +303,131 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     await VersionChecker.checkForUpdates();
   }
 
+  Future<void> _getSheetNames({bool isRefresh = false}) async {
+    final today = _timeProvider.currentTime.getDefaultDateTime();
+/*
+    final today = DateTime(
+      _timeProvider.currentTime.getYear(),
+      _timeProvider.currentTime.getMonth(),
+      _timeProvider.currentTime.getDay() + 18,
+      _timeProvider.currentTime.getHour(),
+      _timeProvider.currentTime.getMinute(),
+      _timeProvider.currentTime.getSecond(),
+    );
+*/
+
+    String targetMonth = getTargetMonth(today);
+    bool isButtonActive = false;
+
+    bool checkTimeToCreateSheet = isStartAndLastMonthWithinRange(today);
+
+    if (!checkTimeToCreateSheet) {
+      print('Bukan waktunya untuk membuat sheet baru');
+      return;
+    }
+
+    if (_dataProvider.isSheetNamesAvailable && !isRefresh) {
+      final sheetNames = _dataProvider.sheetNames;
+      isButtonActive = isStartAndLastMonthWithinRange(today) && isSheetNotExist(targetMonth, sheetNames);
+      setState(() {
+        _sheetNames = sheetNames;
+        _sheetButtonActive = isButtonActive;
+      });
+      return;
+    }
+
+    try {
+      final result = await _dataProvider.getSheetNames();
+      if (result.status == 'success') {
+        final sheetNames = _dataProvider.sheetNames;
+        isButtonActive = isStartAndLastMonthWithinRange(today) && isSheetNotExist(targetMonth, sheetNames);
+        setState(() {
+          _sheetNames = sheetNames;
+          _sheetButtonActive = isButtonActive;
+        });
+      }
+    } catch (e) {
+      return;
+    }
+  }
+
+  Future<void> _createAttendanceSheet({required CustomTime dateTime}) async {
+    // // Cek jika hari ini adalah akhir bulan atau tanggal 1
+    // final today = dateTime.getDefaultDateTime();
+    // final tomorrow = today.add(const Duration(days: 1));
+    // bool isEndOfMonth = tomorrow.month != today.month;
+    // bool isNewMonth = today.day == 1;
+
+    // final today = DateTime(
+    //   dateTime.getYear(),
+    //   dateTime.getMonth(),
+    //   dateTime.getDay(),
+    //   dateTime.getHour(),
+    //   dateTime.getMinute(),
+    //   dateTime.getSecond(),
+    // );
+    // final today = dateTime.getDefaultDateTime();
+    // final lastDayOfMonth = DateTime(today.year, today.month + 1, 0)
+    //     .day; // Mendapatkan hari terakhir bulan ini
+    // // bool isInTargetRange = (today.day >= lastDayOfMonth - 2) || (today.day <= 3);
+    // bool isInLast3Days = today.day >= lastDayOfMonth - 2;
+    // bool isInFirst3Days = today.day <= 3;
+    //
+    // // Tentukan tahunBulan berdasarkan kondisi H-3 atau H+3
+    // final nextMonth = today.month == 12 ? 1 : today.month + 1;
+    // final nextYear = today.month == 12 ? today.year + 1 : today.year;
+    // String tahunBulan;
+    //
+    // if (isInLast3Days) {
+    //   // Jika dalam 3 hari terakhir bulan ini, gunakan bulan depan
+    //   tahunBulan = '${nextYear}${nextMonth.toString().padLeft(2, '0')}';
+    // } else if (isInFirst3Days) {
+    //   // Jika dalam 3 hari pertama bulan ini, gunakan bulan ini
+    //   tahunBulan = '${today.year}${today.month.toString().padLeft(2, '0')}';
+    // } else {
+    //   return; // Jika tidak memenuhi H-3 atau H+3, tidak lanjutkan fungsi
+    // }
+
+    // print('tahunBulan: $tahunBulan');
+
+    final today = dateTime.getDefaultDateTime();
+/*
+    final today = DateTime(
+      dateTime.getYear(),
+      dateTime.getMonth(),
+      dateTime.getDay()+ 18,
+      dateTime.getHour(),
+      dateTime.getMinute(),
+      dateTime.getSecond(),
+    );
+*/
+
+    // Tentukan target bulan berdasarkan tanggal saat ini (gunakan helper function)
+    String targetMonth = getTargetMonth(today);
+
+    if (!isStartAndLastMonthWithinRange(today) && !isSheetNotExist(targetMonth, _sheetNames)) {
+      return;
+    }
+
+    Attendance attendance =
+        Attendance(action: 'create_attendance', tahunBulan: targetMonth);
+
+    LoadingDialog.show(context, canPop: true);
+    try {
+      final result = await _dataProvider.createAttendanceSheet(attendance);
+      if (result.status == 'success') {
+        await _getSheetNames(isRefresh: true);
+        ToastUtil.showToast(result.message!, ToastStatus.success);
+      } else {
+        ToastUtil.showToast(result.message!, ToastStatus.error);
+      }
+      if (mounted) LoadingDialog.hide(context);
+    } catch (e) {
+      if (mounted) LoadingDialog.hide(context);
+      ToastUtil.showToast(e.toString(), ToastStatus.error);
+    }
+  }
+
 /*  Future<void> _updateAppVersion() async {
     AppVersionModel appVersion = AppVersionModel(version: '3.0.0', buildNumber: 1, mandatory: false, link: 'https://play.google.com/store/apps/details?id=com.absensitoko.absensitoko');
     VersionChecker.setAppVersion(appVersion);
@@ -353,6 +484,7 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
     _getAppVersion();
     _permissionCheck();
     _getInfo();
+    _getSheetNames();
     _fetchUserData().then((_) async {
       if (!_isLogout) {
         await _initAndGetAttendanceHistory();
@@ -1010,11 +1142,14 @@ class _HomePageState extends BaseState<HomePage> with WidgetsBindingObserver {
                                                       SizedBox(
                                                         width: double.infinity,
                                                         child: ElevatedButton(
-                                                          onPressed: () =>
-                                                              ToastUtil.showToast(
-                                                                  'Masih dalam pengembangan',
-                                                                  ToastStatus
-                                                                      .warning),
+                                                          onPressed: _sheetButtonActive ? () =>
+                                                              _createAttendanceSheet(
+                                                                  dateTime:
+                                                                      dateTime) : null,
+                                                          // ToastUtil.showToast(
+                                                          //     'Masih dalam pengembangan',
+                                                          //     ToastStatus
+                                                          //         .warning),
                                                           child: const Text(
                                                               'Buat Sheet Baru'),
                                                         ),

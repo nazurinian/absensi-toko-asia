@@ -18,6 +18,7 @@ class DataProvider extends ChangeNotifier {
 
   // Data sheet
   Data _dataAbsensi = Data();
+  List<String> _sheetNames = [];
 
   // Data models
   HistoryData? _selectedDateHistory;
@@ -50,6 +51,8 @@ class DataProvider extends ChangeNotifier {
 
   Map<String, bool> get temporaryAdmins => _temporaryAdmins;
 
+  List<String> get sheetNames => _sheetNames;
+
   bool get isLoading => _isLoading;
 
   String? get status => _status;
@@ -70,6 +73,8 @@ class DataProvider extends ChangeNotifier {
   bool get isAppVersionAvailable => _appVersion != null;
 
   bool get isTemporaryAdminsAvailable => _temporaryAdmins.isNotEmpty;
+
+  bool get isSheetNamesAvailable => _sheetNames.isNotEmpty;
 
   // bool get statusAbsensi =>
   //     _selectedDateHistory?.tLPagi != null &&
@@ -93,10 +98,7 @@ class DataProvider extends ChangeNotifier {
     var previousData = _dataAbsensi;
 
     final response = await _apiService
-        .updateAttendance(
-      waktuAbsensi: waktuAbsensi,
-      attendance: attendance,
-    )
+        .updateAttendance(attendance: attendance)
         .timeout(_timeoutDuration, onTimeout: () {
       _message = 'Update absensi operation timed out';
       return ApiResult(status: 'error', message: _message ?? '');
@@ -115,6 +117,35 @@ class DataProvider extends ChangeNotifier {
         _dataAbsensi = Data();
       }
     }
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
+  Future<ApiResult> createAttendanceSheet(Attendance attendance) async {
+    resetLoadDataStatus();
+
+    final response = await _apiService.updateAttendance(attendance: attendance);
+
+    _status = response.status;
+    _message = response.message;
+
+    _isLoading = false;
+    notifyListeners();
+    return ApiResult(status: _status ?? '', message: _message ?? '');
+  }
+
+  Future<ApiResult> getSheetNames() async {
+    resetLoadDataStatus();
+
+    final response = await _apiService.getSheetNames();
+
+    if (response.status == 'success') {
+      _sheetNames = response.data ?? [];
+    }
+    _status = response.status;
+    _message = response.message;
 
     _isLoading = false;
     notifyListeners();
@@ -217,7 +248,8 @@ class DataProvider extends ChangeNotifier {
   Future<ApiResult> updateTemporaryAdmin(String name, bool value) async {
     resetLoadDataStatus();
 
-    final response = await _fireStoreService.updateTemporaryAdmin(name, value).timeout(
+    final response =
+        await _fireStoreService.updateTemporaryAdmin(name, value).timeout(
       _timeoutDuration,
       onTimeout: () {
         _message = 'Update temporary admin operation timed out';

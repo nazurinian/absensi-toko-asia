@@ -5,6 +5,7 @@ import 'package:absensitoko/ui/screens/information_page.dart';
 import 'package:absensitoko/ui/screens/login_page.dart';
 import 'package:absensitoko/ui/screens/map_page.dart';
 import 'package:absensitoko/ui/screens/profile_page.dart';
+import 'package:absensitoko/ui/screens/reset_password_page.dart';
 import 'package:absensitoko/ui/screens/temporary_admin_page.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -17,6 +18,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const HomePage());
       case '/login':
         return MaterialPageRoute(builder: (_) => const LoginPage());
+      case '/reset_password':
+        return MaterialPageRoute(builder: (_) => const ResetPasswordPage());
       case '/profile':
         return MaterialPageRoute(builder: (_) => const ProfilePage());
       case '/information':

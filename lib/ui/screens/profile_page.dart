@@ -372,6 +372,7 @@ class _ProfilePageState extends BaseState<ProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
+        backgroundColor: Colors.brown,
         leading: BackButton(
           onPressed: () {
             Navigator.pop(context, _dataIsChanged);
@@ -398,6 +399,11 @@ class _ProfilePageState extends BaseState<ProfilePage> {
               } else if (_user == null) {
                 return const Center(child: Text('No data available'));
               } else {
+                String employeeRole = _user!.role!.toUpperCase();
+                if(employeeRole == 'EMPLOYEE') {
+                  employeeRole = 'PEGAWAI';
+                }
+
                 return GestureDetector(
                   onTap: _unFocus,
                   child: Container(
@@ -407,6 +413,7 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
+                          const SizedBox(height: 20),
                           Material(
                             color: Colors.transparent,
                             borderOnForeground: true,
@@ -440,7 +447,7 @@ class _ProfilePageState extends BaseState<ProfilePage> {
                           _buildTextFromListTile('Bagian', _user!.department!),
                           _buildTextFromListTile('Nomor Telepon',
                               formatPhoneNumber(_user!.phoneNumber!)),
-                          _buildTextFromListTile('Role', _user!.role!.toUpperCase(),
+                          _buildTextFromListTile('Role', employeeRole,
                               isEnabled: false),
                           const SizedBox(
                             height: 25,
